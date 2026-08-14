@@ -60,7 +60,6 @@ export function calculateWins(grid, bet, modifiers = {}) {
     const lineWin = bet * totalMultiplier
 
     winLines.push({ symbolId: symbol.id, count, multiplier: totalMultiplier, win: lineWin })
-    break
   }
 
   // Scatter check

@@ -32,12 +32,12 @@ describe('spin', () => {
 describe('calculateWins', () => {
   it('détecte 3 symboles identiques consécutifs', () => {
     const grid = [
-      [lemon, bell],
-      [lemon, bell],
-      [lemon, bell],
-      [bell, bell],
-      [bell, bell],
-      [bell, bell],
+      [lemon],
+      [lemon],
+      [lemon],
+      [scatter],
+      [scatter],
+      [scatter],
     ]
     const result = calculateWins(grid, 10)
     expect(result.winLines).toHaveLength(1)
@@ -47,7 +47,7 @@ describe('calculateWins', () => {
   })
 
   it('détecte 6 symboles identiques (jackpot)', () => {
-    const grid = Array(6).fill([lemon, bell])
+    const grid = Array(6).fill([lemon])
     const result = calculateWins(grid, 5)
     expect(result.winLines[0].count).toBe(6)
     expect(result.totalWin).toBe(5 * 20)
@@ -119,9 +119,9 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [bell],
-      [bell],
-      [bell],
+      [scatter],
+      [scatter],
+      [scatter],
     ]
     const result = calculateWins(grid, 10, { columnMultipliers: [2, 1, 1, 1, 1, 1] })
     // lemon sur 3 reels (0,1,2) → base 0.5 × bet × colMultiplier[0]=2
@@ -133,9 +133,9 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [bell],
-      [bell],
-      [bell],
+      [scatter],
+      [scatter],
+      [scatter],
     ]
     const result = calculateWins(grid, 10, { symbolMultipliers: { lemon: 3 } })
     expect(result.totalWin).toBe(10 * 0.5 * 3)
@@ -146,9 +146,9 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [bell],
-      [bell],
-      [bell],
+      [scatter],
+      [scatter],
+      [scatter],
     ]
     const result = calculateWins(grid, 10, { globalMultiplier: 2 })
     expect(result.totalWin).toBe(10 * 0.5 * 2)
