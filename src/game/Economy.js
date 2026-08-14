@@ -39,6 +39,10 @@ export class Economy {
     }
   }
 
+  addMoney(amount) {
+    this.#balance += amount
+  }
+
   getShopLevel() {
     if (this.#totalEarned >= 2000) return 3
     if (this.#totalEarned >= 500) return 2

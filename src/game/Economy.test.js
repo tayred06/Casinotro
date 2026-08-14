@@ -60,6 +60,12 @@ describe('Economy', () => {
     expect(eco.highscore).toBe(600)
   })
 
+  it('addMoney ajoute au solde directement', () => {
+    const eco = new Economy(100)
+    eco.addMoney(50)
+    expect(eco.balance).toBe(150)
+  })
+
   describe('getShopLevel', () => {
     it('niveau 1 si totalEarned < 500', () => {
       expect(eco.getShopLevel()).toBe(1)
