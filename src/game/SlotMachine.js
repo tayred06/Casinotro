@@ -38,13 +38,15 @@ export function calculateWins(grid, bet, modifiers = {}) {
   const winLines = []
 
   for (const symbol of WIN_SYMBOLS) {
-    let count = 0
+    const reelRows = []
     for (let reel = 0; reel < REEL_COUNT; reel++) {
-      const hasMatch = effectiveGrid[reel].some(s => s.id === symbol.id || s.id === 'wild')
-      if (!hasMatch) break
-      count++
+      const col = effectiveGrid[reel]
+      const rowIdx = col.findIndex(s => s.id === symbol.id || s.id === 'wild')
+      if (rowIdx === -1) break
+      reelRows.push(rowIdx)
     }
 
+    const count = reelRows.length
     if (count < 3) continue
 
     const baseMultiplier = count === 6 ? jackpotMultiplier : WIN_MULTIPLIERS[count]
@@ -59,7 +61,7 @@ export function calculateWins(grid, bet, modifiers = {}) {
     const totalMultiplier = baseMultiplier * colMult * symMult * globalMultiplier
     const lineWin = bet * totalMultiplier
 
-    winLines.push({ symbolId: symbol.id, count, multiplier: totalMultiplier, win: lineWin })
+    winLines.push({ symbolId: symbol.id, count, multiplier: totalMultiplier, win: lineWin, reelRows })
   }
 
   // Scatter check

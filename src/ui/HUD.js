@@ -141,9 +141,15 @@ export class HUD {
     this.#spinBtn._bg.alpha = enabled ? 1 : 0.4
   }
 
-  showWin(amount) {
-    if (amount <= 0) { this.#winText.visible = false; return }
-    this.#winText.text = `+$${amount.toFixed(2)}`
+  showWin(amount, label = null) {
+    if (label) {
+      this.#winText.text = label
+    } else if (amount > 0) {
+      this.#winText.text = `+$${amount.toFixed(2)}`
+    } else {
+      this.#winText.visible = false
+      return
+    }
     this.#winText.visible = true
   }
 

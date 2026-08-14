@@ -85,7 +85,9 @@ async function handleSpin() {
         target = ids[Math.floor(Math.random() * ids.length)]
       }
       bonusSystem.addBonus(dropped, target)
-      alert(`Bonus dropped: ${dropped.name}${target !== null ? ` [${target}]` : ''}`)
+      hud.showWin(0, `🎁 Bonus : ${dropped.name}`)
+      await delay(1800)
+      hud.hideWin()
     }
   }
 
