@@ -73,4 +73,28 @@ export class Economy {
 
   saveHighscore() { this.#saveHighscore() }
   loadHighscore() { this.#highscore = this.#loadHighscore() }
+
+  debugSetEarned(amount) { this.#totalEarned = amount }
+
+  restart(startBalance = 100) {
+    this.#balance     = startBalance
+    this.#currentBet  = BET_OPTIONS[0]
+    this.#totalEarned = 0
+  }
+
+  serialize() {
+    return {
+      balance:     this.#balance,
+      currentBet:  this.#currentBet,
+      totalEarned: this.#totalEarned,
+      highscore:   this.#highscore,
+    }
+  }
+
+  restore(data) {
+    this.#balance     = data.balance     ?? 100
+    this.#currentBet  = BET_OPTIONS.includes(data.currentBet) ? data.currentBet : BET_OPTIONS[0]
+    this.#totalEarned = data.totalEarned ?? 0
+    this.#highscore   = data.highscore   ?? this.#loadHighscore()
+  }
 }

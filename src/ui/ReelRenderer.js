@@ -1,250 +1,383 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js'
-import { SYMBOLS } from '../game/Symbols.js'
+// Maps existing symbol IDs → V2 card-suit visuals
+const VISUAL = {
+  lemon:   { text: '♠', cls: 'cell-suit black' },
+  grape:   { text: '♣', cls: 'cell-suit black' },
+  bell:    { text: '♥', cls: 'cell-suit red'   },
+  diamond: { text: '♦', cls: 'cell-suit red'   },
+  star:    { text: '7',  cls: 'cell-seven'       },
+  dog:     { text: '★',  cls: 'cell-suit black'  },
+  wild:    { text: 'W',  cls: 'cell-wild'        },
+  scatter: { text: '$',  cls: 'cell-scatter'     },
+}
 
-const REEL_WIDTH   = 110
-const REEL_GAP     = 14
-const SLOT_TOP     = 45   // 25px reserved above reels for column badge strip
-const SLOT_HEIGHT  = 575  // 45+575=620, same bottom edge as before
+// Base symbols shown during spin animation (no scatter/wild — they'd look odd mid-blur)
+const SPIN_VISUALS = ['lemon', 'grape', 'bell', 'diamond', 'star', 'dog'].map(id => VISUAL[id])
 
-// 6 reels in 800px wide area; 70px left margin for symbol-multiplier badges
-const TOTAL_W = 6 * REEL_WIDTH + 5 * REEL_GAP  // 730
-const START_X = 70
+// Human-readable label for each symbol (shown in badges)
+const SYM_LABEL = {
+  lemon: '♠', grape: '♣', bell: '♥', diamond: '♦', star: '7', dog: '★',
+}
 
-const SYMBOL_STYLE = new TextStyle({ fontSize: 42, align: 'center' })
+const WIN_COLOR = {
+  lemon:   '#e7e5e0',
+  grape:   '#e7e5e0',
+  bell:    '#b7534f',
+  diamond: '#b7534f',
+  star:    '#c9a24a',
+  dog:     '#e7e5e0',
+  wild:    '#9a9f9c',
+  scatter: '#c9a24a',
+}
 
 export class ReelRenderer {
-  #app
   #container
-  #reelContainers = []
-  #reelCellHeights = []
-  #modifierContainer   // badge backgrounds + text — survives displayGrid clears
-  #highlightLayer
-  #winLineLayer
+  #colBadgesRow
+  #symBadges
+  #winOverlay
+  #winLabel
+  #winAmount
+  #winDetail
+  #gameOverOverlay
+  #gameOverText
+  #restartBtn
+  #selectionHint
+  #selectionCancel
+  #currentGrid = null
 
-  constructor(app) {
-    this.#app = app
-    this.#container = new Container()
-    this.#modifierContainer = new Container()
-    this.#highlightLayer    = new Graphics()
-    this.#winLineLayer      = new Graphics()
-    // Added in correct order; displayGrid/showModifiers re-push to keep them on top
-    this.#container.addChild(this.#modifierContainer)
-    this.#container.addChild(this.#highlightLayer)
-    this.#container.addChild(this.#winLineLayer)
+  get currentGrid() { return this.#currentGrid }
+
+  constructor(onRestart) {
+    this.#container       = document.getElementById('reels-container')
+    this.#colBadgesRow    = document.getElementById('col-badges-row')
+    this.#symBadges       = document.getElementById('sym-badges')
+    this.#winOverlay      = document.getElementById('win-overlay')
+    this.#winLabel        = document.getElementById('win-label')
+    this.#winAmount       = document.getElementById('win-amount')
+    this.#winDetail       = document.getElementById('win-detail')
+    this.#gameOverOverlay = document.getElementById('game-over-overlay')
+    this.#gameOverText    = document.getElementById('game-over-text')
+    this.#restartBtn      = document.getElementById('restart-btn')
+    this.#selectionHint   = document.getElementById('selection-hint')
+    this.#selectionCancel = document.getElementById('selection-cancel')
+    this.#restartBtn.addEventListener('click', onRestart)
   }
 
-  get container() { return this.#container }
+  displayGrid(grid, modifiers = {}) {
+    this.#currentGrid = grid
+    this.#buildCells(grid, modifiers)
+    this.#scaleFonts()
+  }
 
-  displayGrid(grid) {
-    this.#clearReels()
-    this.#reelCellHeights = []
+  #buildCells(grid, modifiers = {}) {
+    this.#container.textContent = ''
+    const { wildColumns = [] } = modifiers
 
     grid.forEach((col, reelIdx) => {
-      const cellH = Math.floor(SLOT_HEIGHT / col.length)
-      this.#reelCellHeights.push(cellH)
+      const reel = document.createElement('div')
+      reel.className = 'reel'
 
-      const reelX = START_X + reelIdx * (REEL_WIDTH + REEL_GAP)
-      const rc = new Container()
-      rc.x = reelX
-      rc.y = SLOT_TOP
-
-      const bg = new Graphics()
-      bg.roundRect(0, 0, REEL_WIDTH, SLOT_HEIGHT, 10)
-      bg.fill({ color: 0x12122e, alpha: 0.92 })
-      rc.addChild(bg)
-
-      col.forEach((symbol, rowIdx) => {
-        const cellY = rowIdx * cellH
-
-        const cellBg = new Graphics()
-        cellBg.roundRect(3, cellY + 3, REEL_WIDTH - 6, cellH - 6, 8)
-        cellBg.fill({ color: 0x1e1e50, alpha: 0.95 })
-        rc.addChild(cellBg)
-
-        if (rowIdx > 0) {
-          const div = new Graphics()
-          div.moveTo(6, cellY).lineTo(REEL_WIDTH - 6, cellY)
-          div.stroke({ color: 0x2a2a60, width: 1, alpha: 0.4 })
-          rc.addChild(div)
-        }
-
-        const emoji = new Text({ text: symbol.emoji, style: SYMBOL_STYLE })
-        emoji.anchor.set(0.5)
-        emoji.x = REEL_WIDTH / 2
-        emoji.y = cellY + cellH / 2
-        rc.addChild(emoji)
+      col.forEach(symbol => {
+        const cell = document.createElement('div')
+        cell.className = 'cell'
+        if (wildColumns[reelIdx]) cell.classList.add('wild-col')
+        cell.appendChild(this.#makeSymbol(symbol))
+        reel.appendChild(cell)
       })
 
-      this.#reelContainers.push(rc)
-      this.#container.addChild(rc)
+      this.#container.appendChild(reel)
     })
-
-    // Keep overlay layers above the newly added reel containers
-    this.#container.removeChild(this.#modifierContainer)
-    this.#container.removeChild(this.#highlightLayer)
-    this.#container.removeChild(this.#winLineLayer)
-    this.#container.addChild(this.#modifierContainer)
-    this.#container.addChild(this.#highlightLayer)
-    this.#container.addChild(this.#winLineLayer)
   }
 
-  showModifiers(modifiers) {
-    // Destroy previous badges
-    this.#modifierContainer.removeChildren().forEach(c => c.destroy())
+  #makeSymbol(symbol) {
+    const v = VISUAL[symbol.id] || { text: symbol.emoji, cls: 'cell-suit black' }
 
-    const { columnMultipliers, wildColumns, symbolMultipliers, globalMultiplier } = modifiers
-    const g = new Graphics()
-    this.#modifierContainer.addChild(g)
-
-    // --- Column badges (above each reel) ---
-    for (let reel = 0; reel < 6; reel++) {
-      const isWild = wildColumns[reel]
-      const mult   = columnMultipliers[reel]
-      if (!isWild && mult <= 1) continue
-
-      const bx    = START_X + reel * (REEL_WIDTH + REEL_GAP)
-      const color = isWild ? 0xFFFFFF : 0xFFDD00
-      const label = isWild ? '⚡WILD' : `×${mult}`
-
-      g.roundRect(bx + 2, 7, REEL_WIDTH - 4, 30, 6)
-      g.fill({ color, alpha: 0.18 })
-      g.roundRect(bx + 2, 7, REEL_WIDTH - 4, 30, 6)
-      g.stroke({ color, width: 1.5 })
-
-      const t = new Text({ text: label, style: new TextStyle({
-        fontSize: 14, fill: color, fontFamily: 'monospace', fontWeight: 'bold', align: 'center',
-      })})
-      t.anchor.set(0.5)
-      t.x = bx + REEL_WIDTH / 2
-      t.y = 22
-      this.#modifierContainer.addChild(t)
+    if (symbol.id === 'scatter') {
+      const wrap = document.createElement('span')
+      wrap.className = 'cell-scatter'
+      wrap.textContent = '$'
+      return wrap
     }
 
-    // --- Symbol-multiplier badges (left of reels) ---
-    let by = SLOT_TOP + 5
-    for (const [symbolId, mult] of Object.entries(symbolMultipliers)) {
-      if (mult <= 1) continue
-      const sym = SYMBOLS.find(s => s.id === symbolId)
-      if (!sym) continue
-      const label = `${sym.emoji}×${Number.isInteger(mult) ? mult : mult.toFixed(1)}`
-      const color = sym.color
+    const el = document.createElement('span')
+    el.className = v.cls
+    el.textContent = v.text
+    return el
+  }
 
-      g.roundRect(3, by, 63, 26, 5)
-      g.fill({ color, alpha: 0.18 })
-      g.roundRect(3, by, 63, 26, 5)
-      g.stroke({ color, width: 1.5 })
-
-      const t = new Text({ text: label, style: new TextStyle({
-        fontSize: 13, fill: color, fontFamily: 'monospace', fontWeight: 'bold',
-      })})
-      t.x = 6
-      t.y = by + 5
-      this.#modifierContainer.addChild(t)
-      by += 32
-    }
-
-    if (globalMultiplier > 1) {
-      const color = 0xFF8C00
-      g.roundRect(3, by, 63, 26, 5)
-      g.fill({ color, alpha: 0.22 })
-      g.roundRect(3, by, 63, 26, 5)
-      g.stroke({ color, width: 1.5 })
-
-      const t = new Text({ text: `×${globalMultiplier} ALL`, style: new TextStyle({
-        fontSize: 13, fill: color, fontFamily: 'monospace', fontWeight: 'bold',
-      })})
-      t.x = 6
-      t.y = by + 5
-      this.#modifierContainer.addChild(t)
-    }
-
-    // Keep modifier container above reels but below highlight/win layers
-    this.#container.removeChild(this.#modifierContainer)
-    this.#container.removeChild(this.#highlightLayer)
-    this.#container.removeChild(this.#winLineLayer)
-    this.#container.addChild(this.#modifierContainer)
-    this.#container.addChild(this.#highlightLayer)
-    this.#container.addChild(this.#winLineLayer)
+  #scaleFonts() {
+    requestAnimationFrame(() => {
+      this.#container.querySelectorAll('.cell').forEach(cell => {
+        const h = cell.offsetHeight
+        if (!h) return
+        const fs = Math.min(Math.round(h * 0.5), 64)
+        const inner = cell.querySelector('[class^="cell-"]')
+        if (!inner) return
+        inner.style.fontSize = fs + 'px'
+        if (inner.classList.contains('cell-scatter')) {
+          const size = Math.round(h * 0.4)
+          inner.style.width  = size + 'px'
+          inner.style.height = size + 'px'
+          inner.style.fontSize = Math.round(size * 0.42) + 'px'
+        }
+      })
+    })
   }
 
   async animateSpin(finalGrid) {
-    this.#container.alpha = 0.2
-    let elapsed = 0
-    const interval = 80
+    this.#currentGrid = finalGrid
+    this.#buildCells(finalGrid)
+    this.#scaleFonts()
 
-    await new Promise(resolve => {
-      const ticker = setInterval(() => {
-        const fakeGrid = finalGrid.map(col =>
-          col.map(() => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)])
-        )
-        this.displayGrid(fakeGrid)
-        this.#container.alpha = 0.9
-        elapsed += interval
-        if (elapsed >= 800) {
-          clearInterval(ticker)
-          this.#container.alpha = 1
-          resolve()
+    const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
+    const COLS = reelEls.length
+    const BASE  = 280
+    const STEP  = 200
+    const locked = new Set()
+
+    reelEls.forEach(reel => {
+      reel.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.add('spinning')
+        const inner = cell.querySelector('[class^="cell-"]')
+        if (inner) {
+          const v = this.#randomVisual()
+          inner.className   = v.cls
+          inner.textContent = v.text
         }
-      }, interval)
+      })
     })
 
-    this.displayGrid(finalGrid)
+    const ticker = setInterval(() => {
+      reelEls.forEach((reel, i) => {
+        if (locked.has(i)) return
+        reel.querySelectorAll('.cell [class^="cell-"]').forEach(el => {
+          const v = this.#randomVisual()
+          el.className   = v.cls
+          el.textContent = v.text
+        })
+      })
+    }, 65)
+
+    for (let c = 0; c < COLS; c++) {
+      setTimeout(() => {
+        locked.add(c)
+        reelEls[c].querySelectorAll('.cell').forEach((cell, rowIdx) => {
+          cell.classList.remove('spinning')
+          const inner = cell.querySelector('[class^="cell-"]')
+          const sym   = finalGrid[c]?.[rowIdx]
+          if (inner && sym) inner.textContent = VISUAL[sym.id]?.text ?? sym.emoji
+        })
+      }, BASE + (c + 1) * STEP)
+    }
+
+    await new Promise(resolve => setTimeout(resolve, BASE + COLS * STEP + 80))
+    clearInterval(ticker)
+  }
+
+  #randomVisual() {
+    return SPIN_VISUALS[Math.floor(Math.random() * SPIN_VISUALS.length)]
   }
 
   highlightWins(winLines) {
-    this.#highlightLayer.clear()
-    this.#winLineLayer.clear()
+    const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
 
-    const colors = [0xFFDD00, 0xFF6B6B, 0x00E5FF, 0xAA88FF]
-
-    winLines.forEach((line, lineIdx) => {
-      const color = colors[lineIdx % colors.length]
-      const points = []
-
-      for (let reel = 0; reel < line.count; reel++) {
-        const cellH = this.#reelCellHeights[reel]
-        if (!cellH) continue
-
-        const rowIdx = line.reelRows ? line.reelRows[reel] : 0
-        const x = START_X + reel * (REEL_WIDTH + REEL_GAP)
-        const y = SLOT_TOP + rowIdx * cellH
-
-        this.#highlightLayer.roundRect(x + 2, y + 2, REEL_WIDTH - 4, cellH - 4, 8)
-        this.#highlightLayer.fill({ color, alpha: 0.25 })
-        this.#highlightLayer.roundRect(x + 2, y + 2, REEL_WIDTH - 4, cellH - 4, 8)
-        this.#highlightLayer.stroke({ color, width: 3, alpha: 1 })
-
-        points.push({ x: x + REEL_WIDTH / 2, y: y + cellH / 2 })
-      }
-
-      if (points.length >= 2) {
-        this.#winLineLayer.moveTo(points[0].x, points[0].y)
-        for (let i = 1; i < points.length; i++) {
-          this.#winLineLayer.lineTo(points[i].x, points[i].y)
-        }
-        this.#winLineLayer.stroke({ color, width: 3, alpha: 0.8 })
-
-        for (const pt of points) {
-          this.#winLineLayer.circle(pt.x, pt.y, 7)
-          this.#winLineLayer.fill({ color, alpha: 1 })
-        }
+    winLines.forEach(line => {
+      const color = WIN_COLOR[line.symbolId] ?? '#c9a24a'
+      for (let r = 0; r < line.count; r++) {
+        const cell = reelEls[r]?.querySelectorAll('.cell')[line.reelRows[r]]
+        if (!cell) continue
+        cell.classList.add('win')
+        cell.style.setProperty('--win-color', color)
+        cell.style.borderColor = color
+        cell.style.boxShadow   = `inset 0 0 16px ${color}22, 0 0 12px ${color}33`
       }
     })
   }
 
   clearHighlights() {
-    this.#highlightLayer.clear()
-    this.#winLineLayer.clear()
+    this.#container.querySelectorAll('.cell.win').forEach(cell => {
+      cell.classList.remove('win')
+      cell.style.removeProperty('--win-color')
+      cell.style.removeProperty('border-color')
+      cell.style.removeProperty('box-shadow')
+    })
   }
 
-  #clearReels() {
-    for (const rc of this.#reelContainers) {
-      this.#container.removeChild(rc)
-      rc.destroy({ children: true })
+  showWin(amount, winLines, label = null) {
+    this.#winLabel.textContent  = label ?? (winLines?.some(l => l.count >= 5) ? 'GROS GAIN' : 'GAIN')
+    this.#winAmount.textContent = `+$${amount.toFixed(2)}`
+
+    if (winLines?.length) {
+      const best = winLines.reduce((a, b) => b.count > a.count ? b : a)
+      const v = VISUAL[best.symbolId]
+      this.#winDetail.textContent = v ? `${best.count} × ${v.text}` : ''
+    } else {
+      this.#winDetail.textContent = ''
     }
-    this.#reelContainers = []
-    this.#reelCellHeights = []
-    this.#highlightLayer.clear()
-    this.#winLineLayer.clear()
+
+    this.#winOverlay.classList.remove('hidden')
+  }
+
+  hideWin() { this.#winOverlay.classList.add('hidden') }
+
+  showGameOver(text) {
+    this.#gameOverText.textContent = text
+    this.#gameOverOverlay.classList.remove('hidden')
+  }
+
+  hideGameOver() { this.#gameOverOverlay.classList.add('hidden') }
+
+  // Update all modifier badges (column multipliers, wild columns, symbol multipliers)
+  showModifiers(modifiers = {}) {
+    const { columnMultipliers = [], wildColumns = [], symbolMultipliers = {} } = modifiers
+    const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
+
+    // Wild column cell tinting
+    reelEls.forEach((reel, i) => {
+      reel.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.toggle('wild-col', !!wildColumns[i])
+      })
+    })
+
+    // Column badges row (top)
+    this.#colBadgesRow.textContent = ''
+    const COLS = Math.max(reelEls.length, columnMultipliers.length, wildColumns.length, 1)
+    let anyColBadge = false
+
+    for (let i = 0; i < COLS; i++) {
+      const badge = document.createElement('div')
+      badge.className = 'col-badge-top'
+
+      if (wildColumns[i]) {
+        badge.textContent = 'WILD'
+        badge.classList.add('wild')
+        anyColBadge = true
+      } else if (columnMultipliers[i] && columnMultipliers[i] > 1) {
+        badge.textContent = `×${columnMultipliers[i]}`
+        anyColBadge = true
+      } else {
+        badge.classList.add('empty')
+      }
+
+      this.#colBadgesRow.appendChild(badge)
+    }
+
+    this.#colBadgesRow.classList.toggle('visible', anyColBadge)
+
+    // Symbol multiplier badges (left side)
+    this.#symBadges.textContent = ''
+    Object.entries(symbolMultipliers).forEach(([symId, mult]) => {
+      if (!mult || mult <= 1) return
+      const label = SYM_LABEL[symId] ?? symId
+      const badge = document.createElement('div')
+      badge.className = 'sym-badge'
+      badge.textContent = `${label} ×${typeof mult === 'number' ? mult.toFixed(mult % 1 ? 1 : 0) : mult}`
+      this.#symBadges.appendChild(badge)
+    })
+  }
+
+  // Interactive column selection — returns Promise<number> (0-indexed column)
+  selectColumn() {
+    return new Promise((resolve, reject) => {
+      const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
+      const spinBtn = document.getElementById('spin-btn')
+
+      this.#selectionHint.textContent = 'CLIQUER SUR UN ROULEAU'
+      this.#selectionHint.classList.remove('hidden')
+      this.#selectionCancel.classList.remove('hidden')
+      if (spinBtn) spinBtn.disabled = true
+
+      const cleanup = (cancelled = false) => {
+        this.#selectionHint.classList.add('hidden')
+        this.#selectionCancel.classList.add('hidden')
+        reelEls.forEach((reel, i) => {
+          reel.classList.remove('selectable', 'selected')
+          reel.removeEventListener('click', handlers[i])
+        })
+        document.removeEventListener('keydown', onEsc)
+        this.#selectionCancel.removeEventListener('click', onCancel)
+        if (spinBtn) spinBtn.disabled = false
+        if (cancelled) reject(new Error('cancelled'))
+      }
+
+      const handlers = []
+
+      reelEls.forEach((reel, i) => {
+        reel.classList.add('selectable')
+        const handler = () => {
+          reel.classList.add('selected')
+          // Brief visual feedback before resolving
+          setTimeout(() => reel.classList.remove('selected'), 400)
+          cleanup()
+          resolve(i)
+        }
+        handlers.push(handler)
+        reel.addEventListener('click', handler, { once: true })
+      })
+
+      const onEsc = (e) => { if (e.key === 'Escape') cleanup(true) }
+      document.addEventListener('keydown', onEsc, { once: true })
+
+      const onCancel = () => cleanup(true)
+      this.#selectionCancel.addEventListener('click', onCancel, { once: true })
+    })
+  }
+
+  // Interactive symbol selection — returns Promise<string> (symbol id)
+  selectSymbol() {
+    return new Promise((resolve, reject) => {
+      const cells = Array.from(this.#container.querySelectorAll('.cell'))
+      const spinBtn = document.getElementById('spin-btn')
+
+      this.#selectionHint.textContent = 'CLIQUER SUR UN SYMBOLE'
+      this.#selectionHint.classList.remove('hidden')
+      this.#selectionCancel.classList.remove('hidden')
+      if (spinBtn) spinBtn.disabled = true
+
+      // Build flat grid positions → symbol ids
+      const flatSymbols = this.#currentGrid
+        ? this.#currentGrid.flat().map(s => s.id)
+        : []
+
+      const handlers = []
+      let resolved = false
+
+      const cleanup = (cancelled = false) => {
+        this.#selectionHint.classList.add('hidden')
+        this.#selectionCancel.classList.add('hidden')
+        cells.forEach((cell, i) => {
+          cell.classList.remove('sym-selectable')
+          cell.removeEventListener('click', handlers[i])
+        })
+        document.removeEventListener('keydown', onEsc)
+        this.#selectionCancel.removeEventListener('click', onCancel)
+        if (spinBtn) spinBtn.disabled = false
+        if (cancelled && !resolved) reject(new Error('cancelled'))
+      }
+
+      cells.forEach((cell, i) => {
+        const symId = flatSymbols[i]
+        // Skip special symbols — can't be selected as targets
+        if (!symId || symId === 'wild' || symId === 'scatter') {
+          handlers.push(null)
+          return
+        }
+
+        cell.classList.add('sym-selectable')
+        const handler = () => {
+          if (resolved) return
+          resolved = true
+          cleanup()
+          resolve(symId)
+        }
+        handlers.push(handler)
+        cell.addEventListener('click', handler, { once: true })
+      })
+
+      const onEsc = (e) => { if (e.key === 'Escape') cleanup(true) }
+      document.addEventListener('keydown', onEsc, { once: true })
+
+      const onCancel = () => cleanup(true)
+      this.#selectionCancel.addEventListener('click', onCancel, { once: true })
+    })
   }
 }

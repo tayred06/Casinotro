@@ -1,159 +1,89 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js'
 import { BET_OPTIONS } from '../game/Economy.js'
 
-const AREA_W = 800   // reel area width (shop occupies x=800-1200)
-const H = 750
-
-const STYLE_LABEL = new TextStyle({ fontSize: 14, fill: 0x888888, fontFamily: 'monospace' })
-const STYLE_VALUE = new TextStyle({ fontSize: 22, fill: 0xFFFFFF, fontFamily: 'monospace', fontWeight: 'bold' })
-const STYLE_WIN   = new TextStyle({ fontSize: 36, fill: 0xFFDD00, fontFamily: 'monospace', fontWeight: 'bold' })
-const STYLE_BTN   = new TextStyle({ fontSize: 18, fill: 0xFFFFFF, fontFamily: 'monospace', fontWeight: 'bold' })
-const STYLE_OVER  = new TextStyle({ fontSize: 48, fill: 0xFF4444, fontFamily: 'monospace', fontWeight: 'bold' })
-
-function makeButton(label, x, y, w, h, color, onClick) {
-  const btn = new Container()
-  btn.x = x; btn.y = y
-  btn.eventMode = 'static'
-  btn.cursor = 'pointer'
-
-  const bg = new Graphics()
-  bg.roundRect(0, 0, w, h, 8)
-  bg.fill({ color })
-  btn.addChild(bg)
-
-  const txt = new Text({ text: label, style: STYLE_BTN })
-  txt.anchor.set(0.5)
-  txt.x = w / 2; txt.y = h / 2
-  btn.addChild(txt)
-
-  btn.on('pointerdown', onClick)
-  btn.on('pointerover', () => { bg.tint = 0xCCCCCC })
-  btn.on('pointerout',  () => { bg.tint = btn._restingTint })
-
-  btn._bg = bg
-  btn._restingTint = 0xFFFFFF
-  return btn
-}
+const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
 
 export class HUD {
   #economy
-  #container
-  #balanceText
-  #highscoreText
-  #winText
+  #onSpin
+  #onBetChange
+
+  #gameName
+  #levelDisplay
+  #goalDisplay
+  #progressFill
+  #progressPct
+  #balanceDisplay
+  #highscoreDisplay
   #spinBtn
-  #betButtons = []
-  #gameOverOverlay
+  #betChips = []
 
-  constructor(app, economy, onSpin, onBetChange) {
-    this.#economy = economy
-    this.#container = new Container()
+  constructor(economy, onSpin, onBetChange) {
+    this.#economy     = economy
+    this.#onSpin      = onSpin
+    this.#onBetChange = onBetChange
 
-    // Bottom bar — spans reel area only (0 to AREA_W)
-    const bar = new Graphics()
-    bar.rect(0, H - 120, AREA_W, 120)
-    bar.fill({ color: 0x111128, alpha: 0.95 })
-    this.#container.addChild(bar)
+    this.#gameName       = document.getElementById('game-name')
+    this.#levelDisplay   = document.getElementById('level-display')
+    this.#goalDisplay    = document.getElementById('goal-display')
+    this.#progressFill   = document.getElementById('progress-fill')
+    this.#progressPct    = document.getElementById('progress-pct')
+    this.#balanceDisplay = document.getElementById('balance-display')
+    this.#highscoreDisplay = document.getElementById('highscore-display')
+    this.#spinBtn        = document.getElementById('spin-btn')
 
-    // Balance
-    const balLabel = new Text({ text: 'SOLDE', style: STYLE_LABEL })
-    balLabel.x = 30; balLabel.y = H - 110
-    this.#container.addChild(balLabel)
+    this.#spinBtn.addEventListener('click', () => this.#onSpin())
 
-    this.#balanceText = new Text({ text: '$100', style: STYLE_VALUE })
-    this.#balanceText.x = 30; this.#balanceText.y = H - 90
-    this.#container.addChild(this.#balanceText)
-
-    // Highscore
-    const hsLabel = new Text({ text: 'MEILLEUR', style: STYLE_LABEL })
-    hsLabel.x = 160; hsLabel.y = H - 110
-    this.#container.addChild(hsLabel)
-
-    this.#highscoreText = new Text({ text: '$0', style: STYLE_VALUE })
-    this.#highscoreText.x = 160; this.#highscoreText.y = H - 90
-    this.#container.addChild(this.#highscoreText)
-
-    // Bet selector
-    const betLabel = new Text({ text: 'MISE', style: STYLE_LABEL })
-    betLabel.x = 320; betLabel.y = H - 110
-    this.#container.addChild(betLabel)
-
-    BET_OPTIONS.forEach((amount, i) => {
-      const isSelected = amount === economy.currentBet
-      const btn = makeButton(`$${amount}`, 320 + i * 65, H - 90, 60, 36,
-        isSelected ? 0x4444aa : 0x2a2a5e,
-        () => onBetChange(amount)
-      )
-      this.#betButtons.push({ btn, amount })
-      this.#container.addChild(btn)
-    })
-
-    // Spin button — fits within AREA_W
-    this.#spinBtn = makeButton('▶ SPIN', 650, H - 95, 130, 46, 0x22aa44, onSpin)
-    this.#container.addChild(this.#spinBtn)
-
-    // Win text — centered in reel area
-    this.#winText = new Text({ text: '', style: STYLE_WIN })
-    this.#winText.anchor.set(0.5)
-    this.#winText.x = AREA_W / 2; this.#winText.y = H - 145
-    this.#winText.visible = false
-    this.#container.addChild(this.#winText)
-
-    // Game over overlay (covers full canvas)
-    this.#gameOverOverlay = new Container()
-    this.#gameOverOverlay.visible = false
-    const overBg = new Graphics()
-    overBg.rect(0, 0, 1200, H)
-    overBg.fill({ color: 0x000000, alpha: 0.75 })
-    this.#gameOverOverlay.addChild(overBg)
-    const overText = new Text({ text: 'GAME OVER', style: STYLE_OVER })
-    overText.anchor.set(0.5); overText.x = AREA_W / 2; overText.y = H / 2 - 30
-    const restartText = new Text({ text: 'Rechargez la page pour rejouer', style: STYLE_LABEL })
-    restartText.anchor.set(0.5); restartText.x = AREA_W / 2; restartText.y = H / 2 + 30
-    this.#gameOverOverlay.addChild(overText, restartText)
-    this.#container.addChild(this.#gameOverOverlay)
+    this.#buildBetChips()
   }
 
-  get container() { return this.#container }
+  #buildBetChips() {
+    const container = document.getElementById('bet-chips')
+    container.textContent = ''
+    this.#betChips = []
 
-  update() {
-    this.#balanceText.text = `$${this.#economy.balance.toFixed(2)}`
-    this.#highscoreText.text = `$${this.#economy.highscore.toFixed(2)}`
+    BET_OPTIONS.forEach(amount => {
+      const btn = document.createElement('button')
+      btn.className = 'chip'
+      btn.textContent = `$${amount}`
+      btn.addEventListener('click', () => {
+        this.#onBetChange(amount)
+        this.#updateChipState()
+      })
+      container.appendChild(btn)
+      this.#betChips.push({ btn, amount })
+    })
+  }
 
-    for (const { btn, amount } of this.#betButtons) {
-      const isSelected = amount === this.#economy.currentBet
-      if (isSelected) {
-        btn._bg.tint = 0x6666ff
-        btn._restingTint = 0x6666ff
-      } else {
-        btn._bg.tint = 0xFFFFFF
-        btn._restingTint = 0xFFFFFF
-      }
+  #updateChipState() {
+    const current = this.#economy.currentBet
+    this.#betChips.forEach(({ btn, amount }) => {
+      btn.classList.toggle('active', amount === current)
+    })
+  }
+
+  update(runState = null) {
+    this.#balanceDisplay.textContent  = `$${this.#economy.balance.toFixed(2)}`
+    this.#highscoreDisplay.textContent = `$${this.#economy.highscore.toFixed(2)}`
+    this.#updateChipState()
+
+    if (runState) {
+      const { level, goal } = runState
+      this.#gameName.textContent     = GAME_NAMES[(level - 1) % GAME_NAMES.length]
+      this.#levelDisplay.textContent = String(level)
+      this.#goalDisplay.textContent  = `$${goal}`
+
+      const balance = this.#economy.balance
+      const pct     = Math.min(100, Math.round((balance / goal) * 100))
+      this.#progressFill.style.width      = pct + '%'
+      this.#progressPct.textContent       = pct + '%'
     }
   }
 
   setSpinEnabled(enabled) {
-    this.#spinBtn.eventMode = enabled ? 'static' : 'none'
-    this.#spinBtn._bg.alpha = enabled ? 1 : 0.4
+    this.#spinBtn.disabled = !enabled
   }
 
-  showWin(amount, label = null) {
-    if (label) {
-      this.#winText.text = label
-    } else if (amount > 0) {
-      this.#winText.text = `+$${amount.toFixed(2)}`
-    } else {
-      this.#winText.visible = false
-      return
-    }
-    this.#winText.visible = true
-  }
-
-  hideWin() {
-    this.#winText.visible = false
-  }
-
-  showGameOver() {
-    this.#gameOverOverlay.visible = true
+  setSpinLabel(label) {
+    this.#spinBtn.textContent = label
   }
 }

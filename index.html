@@ -4,13 +4,702 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Casinotro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-    canvas { display: block; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0c0d0c;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      color: #e7e5e0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Layout ─────────────────────────────────── */
+    #game {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      gap: 1px;
+      background: #17191a;
+    }
+
+    /* ── Main panel (left) ──────────────────────── */
+    .main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0f1110;
+      min-width: 0;
+    }
+
+    /* Top bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      padding: clamp(14px, 1.6vh, 24px) clamp(20px, 2vw, 40px);
+      border-bottom: 1px solid #1d201f;
+      flex-shrink: 0;
+    }
+    .game-name { font-size: 15px; font-weight: 700; letter-spacing: .4px; }
+    .top-stats { display: flex; gap: 24px; }
+    .stat-item { display: flex; flex-direction: column; gap: 3px; }
+    .stat-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 1.6px;
+      color: #6d726f;
+    }
+    .stat-val { font-size: 14px; font-weight: 500; }
+    .stat-val.gold { color: #c9a24a; }
+    .top-spacer { flex: 1; }
+    .progress-wrap { display: flex; align-items: center; gap: 10px; }
+    .progress-track {
+      width: 132px; height: 3px;
+      border-radius: 999px;
+      background: #1d201f;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: #c9a24a;
+      transition: width .4s ease;
+    }
+    .progress-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: #6d726f;
+    }
+
+    /* Reel area */
+    .reel-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(16px, 2vw, 40px);
+      min-height: 0;
+      min-width: 0;
+      position: relative;
+    }
+    .reels {
+      display: flex;
+      gap: clamp(6px, 0.7vw, 14px);
+      height: 100%;
+      width: 100%;
+      align-items: stretch;
+    }
+    .reel {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(6px, 0.7vw, 14px);
+      flex: 1;
+      min-width: 80px;
+    }
+    .cell {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #15181a;
+      border: 1px solid #21252a;
+      position: relative;
+      overflow: hidden;
+      transition: background .15s, border-color .2s, box-shadow .2s;
+      min-height: 52px;
+    }
+
+    /* Card suit symbols — 44px fallback so symbols are never tiny
+       before JS scaling kicks in (e.g. during spin rebuild). */
+    .cell-suit {
+      font-family: Georgia, serif;
+      font-size: 44px;
+      line-height: 1;
+      user-select: none;
+      transition: transform .15s;
+    }
+    .cell-suit.black { color: #e7e5e0; }
+    .cell-suit.red   { color: #b7534f; }
+
+    /* 7 symbol */
+    .cell-seven {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 44px;
+      color: #c9a24a;
+      line-height: 1;
+      user-select: none;
+    }
+
+    /* Scatter: $ in dashed circle */
+    .cell-scatter {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 2px dashed #c9a24a;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      color: #c9a24a;
+      user-select: none;
+    }
+
+    /* Wild */
+    .cell-wild {
+      font-family: Georgia, serif;
+      font-size: 44px;
+      color: #9a9f9c;
+      line-height: 1;
+      font-style: italic;
+      user-select: none;
+    }
+
+    /* Column modifier badge (top-right of cell) */
+    .col-badge {
+      position: absolute;
+      top: 4px; right: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: #c9a24a;
+      background: rgba(201,162,74,.12);
+      border: 1px solid rgba(201,162,74,.35);
+      border-radius: 4px;
+      padding: 1px 4px;
+      pointer-events: none;
+      z-index: 2;
+      line-height: 1.4;
+    }
+
+    /* Win state */
+    .cell.win {
+      background: #1a1c17;
+      border-color: #c9a24a;
+      box-shadow: inset 0 0 16px rgba(201,162,74,.12), 0 0 12px rgba(201,162,74,.18);
+    }
+
+    /* Wild column */
+    .cell.wild-col {
+      border-color: rgba(255,255,255,.22);
+      background: #141618;
+    }
+
+    /* Spinning animation */
+    @keyframes spinBlur {
+      0%   { opacity: .25; transform: translateY(-8px); }
+      100% { opacity: .25; transform: translateY(8px); }
+    }
+    .cell.spinning > * {
+      animation: spinBlur .11s linear infinite alternate;
+    }
+
+    /* Win overlay */
+    @keyframes popIn {
+      0%   { transform: scale(.5); opacity: 0; }
+      60%  { transform: scale(1.06); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .win-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .win-overlay.hidden { display: none; }
+    .win-banner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 22px 44px;
+      border-radius: 10px;
+      background: #0f1110;
+      border: 1px solid #c9a24a;
+      box-shadow: 0 0 40px rgba(201,162,74,.18);
+      animation: popIn .3s ease both;
+    }
+    .win-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      color: #6d726f;
+    }
+    .win-amount { font-size: 40px; font-weight: 700; color: #c9a24a; letter-spacing: -.5px; }
+    .win-detail { font-size: 13px; color: #9a9f9c; }
+
+    /* Game over overlay */
+    .game-over-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(12,13,12,.9);
+      backdrop-filter: blur(4px);
+      z-index: 20;
+    }
+    .game-over-overlay.hidden { display: none; }
+    .game-over-title { font-size: 34px; font-weight: 700; }
+    .game-over-text  { font-size: 14px; color: #6d726f; }
+    .restart-btn {
+      padding: 12px 30px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      color: #0f1110;
+      background: #c9a24a;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .restart-btn:hover { background: #dcb662; }
+
+    /* Bottom bar */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      padding: clamp(14px, 1.6vh, 24px) clamp(20px, 2vw, 40px);
+      border-top: 1px solid #1d201f;
+      flex-shrink: 0;
+    }
+    .balance-group { display: flex; flex-direction: column; gap: 4px; }
+    .bal-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 1.6px;
+      color: #6d726f;
+    }
+    #balance-display { font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -.5px; }
+    #highscore-display { font-size: 16px; font-weight: 500; color: #9a9f9c; line-height: 1.6; }
+    .bar-sep { width: 1px; height: 38px; background: #1d201f; }
+    .bet-group { display: flex; flex-direction: column; gap: 7px; }
+    .bet-chips { display: flex; gap: 6px; }
+    .chip {
+      min-width: 52px;
+      padding: 8px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: #9a9f9c;
+      background: transparent;
+      border: 1px solid #21252a;
+      transition: color .12s, border-color .12s, background .12s;
+    }
+    .chip:hover { color: #e7e5e0; border-color: #363b3a; }
+    .chip.active {
+      color: #0f1110;
+      background: #e7e5e0;
+      border-color: #e7e5e0;
+    }
+    .bar-spacer { flex: 1; }
+    #spin-btn {
+      padding: 15px 46px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      color: #0f1110;
+      background: #c9a24a;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #spin-btn:hover:not(:disabled) { background: #dcb662; }
+    #spin-btn:disabled { opacity: .42; cursor: not-allowed; background: #c9a24a; }
+
+    /* ── Shop panel (right) ─────────────────────── */
+    .shop-panel {
+      width: clamp(300px, 24%, 420px);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: #0f1110;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #1d201f transparent;
+    }
+    .shop-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 20px 22px;
+      border-bottom: 1px solid #1d201f;
+      flex-shrink: 0;
+    }
+    .shop-title { font-size: 15px; font-weight: 700; }
+    .shop-spacer { flex: 1; }
+    .shop-level-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.4px;
+      color: #6d726f;
+    }
+    .new-game-btn {
+      margin-left: 10px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid #2a302d;
+      background: transparent;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: .8px;
+      color: #6d726f;
+      cursor: pointer;
+      transition: color .12s, border-color .12s;
+    }
+    .new-game-btn:hover { color: #b7534f; border-color: #b7534f; }
+
+    /* Shop items */
+    .shop-items { display: flex; flex-direction: column; }
+    .shop-item {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px 22px;
+      border-bottom: 1px solid #1a1d1c;
+    }
+    .item-name-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .item-name { font-size: 14px; font-weight: 700; }
+    .rarity-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.2px;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    .rarity-commun  { color: #7f8b83; border: 1px solid #2a302d; }
+    .rarity-rare    { color: #8fa8b7; border: 1px solid #2a3339; }
+    .rarity-épique  { color: #a07ab7; border: 1px solid #332a3a; }
+    .rarity-maudit  { color: #b7534f; border: 1px solid #3a2726; }
+    .item-desc { font-size: 12.5px; line-height: 1.45; color: #9a9f9c; }
+    .item-footer { display: flex; align-items: center; gap: 12px; }
+    .item-price { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #c9a24a; }
+    .item-spacer { flex: 1; }
+    .buy-btn {
+      padding: 7px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 500;
+      background: transparent;
+      border: 1px solid #363b3a;
+      color: #e7e5e0;
+      transition: background .15s;
+    }
+    .buy-btn:hover:not(.cant-buy) { background: #1a1e1d; }
+    .buy-btn.cant-buy { color: #5c6160; border-color: #21252a; cursor: not-allowed; }
+
+    /* Reroll */
+    .reroll-wrap { padding: 16px 22px; }
+    .reroll-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #9a9f9c;
+      background: transparent;
+      border: 1px dashed #2a302d;
+      transition: color .15s, border-color .15s;
+    }
+    .reroll-btn:hover:not(:disabled) { color: #e7e5e0; border-color: #363b3a; }
+    .reroll-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Active bonuses */
+    .bonuses-section { padding: 4px 22px 16px; }
+    .bonuses-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 1.6px;
+      color: #6d726f;
+    }
+    .bonuses-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .bonus-tag {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #cfd3d0;
+      background: #15181a;
+      border: 1px solid #21252a;
+      cursor: pointer;
+    }
+    .bonus-tag:hover { border-color: #b7534f; color: #b7534f; }
+    .no-bonus { font-size: 12px; color: #4f5453; font-style: italic; }
+
+    /* ── Reel layout (sym-badges left + col-badges top) ── */
+    .reels-layout {
+      display: flex;
+      gap: clamp(8px, 1vw, 16px);
+      height: 100%;
+      width: 100%;
+      align-items: stretch;
+    }
+    .sym-badges {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 7px;
+      flex-shrink: 0;
+      width: 72px;
+    }
+    .sym-badges:empty { display: none; }
+    .sym-badge {
+      padding: 5px 8px;
+      border-radius: 5px;
+      background: rgba(201,162,74,.07);
+      border: 1px solid rgba(201,162,74,.25);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #c9a24a;
+      white-space: nowrap;
+      text-align: center;
+      letter-spacing: .3px;
+    }
+    .reels-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 0;
+    }
+    .reels-col .col-badges-row,
+    .reels-col .reels {
+      width: 100%;
+      max-width: 1100px;
+    }
+    .col-badges-row {
+      display: none;
+      gap: clamp(6px, 0.7vw, 14px);
+      flex-shrink: 0;
+      margin-bottom: 7px;
+    }
+    .col-badges-row.visible { display: flex; }
+    .col-badge-top {
+      flex: 1;
+      min-width: 80px;
+      text-align: center;
+      padding: 3px 4px;
+      border-radius: 4px;
+      background: rgba(201,162,74,.07);
+      border: 1px solid rgba(201,162,74,.2);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: #c9a24a;
+      letter-spacing: .4px;
+    }
+    .col-badge-top.wild {
+      background: rgba(255,255,255,.04);
+      border-color: rgba(255,255,255,.15);
+      color: #9a9f9c;
+    }
+    .col-badge-top.empty { visibility: hidden; }
+
+    /* ── Column/symbol selection mode ─────────────── */
+    .reel.selectable { cursor: pointer; }
+    .reel.selectable .cell {
+      transition: border-color .1s, box-shadow .1s;
+    }
+    .reel.selectable:hover .cell {
+      border-color: rgba(201,162,74,.65);
+      box-shadow: inset 0 0 10px rgba(201,162,74,.1);
+    }
+    .reel.selected .cell {
+      border-color: #c9a24a;
+      box-shadow: inset 0 0 14px rgba(201,162,74,.2), 0 0 8px rgba(201,162,74,.2);
+    }
+    .cell.sym-selectable { cursor: pointer; }
+    .cell.sym-selectable:hover {
+      border-color: rgba(201,162,74,.65);
+      box-shadow: inset 0 0 10px rgba(201,162,74,.1);
+    }
+    .selection-hint {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 20px;
+      background: #0f1110;
+      border: 1px solid rgba(201,162,74,.5);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 2px;
+      color: #c9a24a;
+      z-index: 15;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .selection-hint.hidden { display: none; }
+    .selection-cancel {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 18px;
+      background: transparent;
+      border: 1px solid #363b3a;
+      border-radius: 5px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: #9a9f9c;
+      cursor: pointer;
+      z-index: 15;
+      transition: color .12s, border-color .12s;
+    }
+    .selection-cancel:hover { color: #e7e5e0; border-color: #5c6160; }
+    .selection-cancel.hidden { display: none; }
+
+    /* Log */
+    .shop-grow { flex: 1; }
+    .log-section {
+      padding: 16px 22px 20px;
+      border-top: 1px solid #1d201f;
+      flex-shrink: 0;
+    }
+    .log-header {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 1.6px;
+      color: #6d726f;
+      margin-bottom: 10px;
+    }
+    .log-entry { display: flex; gap: 10px; padding: 2px 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+    .log-spin { color: #4f5453; flex-shrink: 0; }
+    .log-text { color: #cfd3d0; }
+    .log-text.muted { color: #7f8b83; }
   </style>
 </head>
 <body>
+  <div id="game">
+
+    <!-- ── Main panel ──────────────────────────── -->
+    <div class="main-panel">
+
+      <!-- Top bar -->
+      <div class="top-bar">
+        <span class="game-name" id="game-name">Trèfle</span>
+        <div class="top-stats">
+          <div class="stat-item">
+            <span class="stat-lbl">NIVEAU</span>
+            <span class="stat-val" id="level-display">1</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-lbl">OBJECTIF</span>
+            <span class="stat-val gold" id="goal-display">$150</span>
+          </div>
+        </div>
+        <div class="top-spacer"></div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+          </div>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+      </div>
+
+      <!-- Reels -->
+      <div class="reel-area">
+
+        <!-- sym-badges (left) + col-badges (top) + reels -->
+        <div class="reels-layout">
+          <div class="sym-badges" id="sym-badges"></div>
+          <div class="reels-col">
+            <div class="col-badges-row" id="col-badges-row"></div>
+            <div class="reels" id="reels-container"></div>
+          </div>
+        </div>
+
+        <!-- Selection hint (appears during column/symbol picking) -->
+        <div class="selection-hint hidden" id="selection-hint"></div>
+        <button class="selection-cancel hidden" id="selection-cancel">Annuler — Échap</button>
+
+        <div class="win-overlay hidden" id="win-overlay">
+          <div class="win-banner">
+            <span class="win-label" id="win-label">GAIN</span>
+            <span class="win-amount" id="win-amount">+$0.00</span>
+            <span class="win-detail" id="win-detail"></span>
+          </div>
+        </div>
+
+        <div class="game-over-overlay hidden" id="game-over-overlay">
+          <span class="game-over-title">Run terminée</span>
+          <span class="game-over-text" id="game-over-text"></span>
+          <button class="restart-btn" id="restart-btn">Rejouer</button>
+        </div>
+      </div>
+
+      <!-- Bottom bar -->
+      <div class="bottom-bar">
+        <div class="balance-group">
+          <span class="bal-lbl">SOLDE</span>
+          <span id="balance-display">$100.00</span>
+        </div>
+        <div class="balance-group">
+          <span class="bal-lbl">MEILLEUR</span>
+          <span id="highscore-display">$0.00</span>
+        </div>
+        <div class="bar-sep"></div>
+        <div class="bet-group">
+          <span class="bal-lbl">MISE</span>
+          <div class="bet-chips" id="bet-chips"></div>
+        </div>
+        <div class="bar-spacer"></div>
+        <button id="spin-btn">SPIN</button>
+      </div>
+    </div>
+
+    <!-- ── Shop panel ──────────────────────────── -->
+    <div class="shop-panel">
+      <div class="shop-header">
+        <span class="shop-title">Boutique</span>
+        <div class="shop-spacer"></div>
+        <span class="shop-level-lbl" id="shop-level-lbl">NIVEAU 1</span>
+        <button class="new-game-btn" onclick="window.__newGame()">Nouvelle partie</button>
+      </div>
+
+      <div class="shop-items" id="shop-items"></div>
+
+      <div class="reroll-wrap">
+        <button class="reroll-btn" id="reroll-btn">Renouveler les offres — $5</button>
+      </div>
+
+      <div class="bonuses-section">
+        <span class="bonuses-lbl">BONUS ACTIFS</span>
+        <div class="bonuses-list" id="bonuses-list">
+          <span class="no-bonus">Aucun bonus actif.</span>
+        </div>
+      </div>
+
+      <div class="shop-grow"></div>
+
+      <div class="log-section">
+        <div class="log-header">JOURNAL</div>
+        <div id="log-entries"></div>
+      </div>
+    </div>
+
+  </div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

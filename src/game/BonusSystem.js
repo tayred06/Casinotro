@@ -197,4 +197,30 @@ export class BonusSystem {
     this.removeBonus(bonus.instanceId)
     return true
   }
+
+  reset() {
+    this.#active          = []
+    this.#chainCounts     = {}
+    this.#chainBonuses    = {}
+    this.#stickyPositions = {}
+  }
+
+  serialize() {
+    return {
+      active:          this.#active,
+      chainCounts:     this.#chainCounts,
+      chainBonuses:    this.#chainBonuses,
+      stickyPositions: this.#stickyPositions,
+    }
+  }
+
+  restore(data) {
+    this.#active          = data.active          ?? []
+    this.#chainCounts     = data.chainCounts     ?? {}
+    this.#chainBonuses    = data.chainBonuses    ?? {}
+    this.#stickyPositions = data.stickyPositions ?? {}
+    // Advance the static counter past any restored instanceIds to prevent collisions
+    const maxId = this.#active.reduce((m, b) => Math.max(m, parseInt(b.instanceId) || 0), 0)
+    if (maxId > BonusSystem.#counter) BonusSystem.#counter = maxId
+  }
 }
