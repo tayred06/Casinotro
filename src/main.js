@@ -23,10 +23,12 @@ const renderer = new ReelRenderer(app)
 const hud = new HUD(
   app, economy,
   handleSpin,
-  (amount) => { economy.setBet(amount); hud.update() },
-  () => shop.toggle()
+  (amount) => { economy.setBet(amount); hud.update() }
 )
-const shop = new ShopUI(app, bonusSystem, economy, () => hud.update())
+const shop = new ShopUI(app, bonusSystem, economy, () => {
+  hud.update()
+  renderer.showModifiers(bonusSystem.getModifiers())
+})
 
 app.stage.addChild(renderer.container)
 app.stage.addChild(hud.container)
@@ -35,6 +37,7 @@ app.stage.addChild(shop.container)
 // Initial display
 const { grid: initGrid, rowCounts: initRows } = spin()
 renderer.displayGrid(initGrid, initRows)
+renderer.showModifiers(bonusSystem.getModifiers())
 hud.update()
 
 let isSpinning = false
@@ -58,6 +61,7 @@ async function handleSpin() {
   const winResult = calculateWins(grid, economy.currentBet, modifiers)
 
   bonusSystem.processPostSpin(winResult, grid)
+  renderer.showModifiers(bonusSystem.getModifiers())
 
   if (winResult.totalWin > 0) {
     economy.addWin(winResult.totalWin)
@@ -92,6 +96,7 @@ async function handleSpin() {
   }
 
   hud.update()
+  shop.refresh()
 
   isSpinning = false
 
@@ -115,6 +120,7 @@ async function handleFreeSpins(count) {
 
     const winResult = calculateWins(grid, economy.currentBet, modifiers)
     bonusSystem.processPostSpin(winResult, grid)
+    renderer.showModifiers(bonusSystem.getModifiers())
 
     if (winResult.totalWin > 0) {
       economy.addWin(winResult.totalWin)

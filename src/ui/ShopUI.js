@@ -34,7 +34,6 @@ export class ShopUI {
   #container
   #panel
   #content
-  #isOpen = false
   #currentOffers = []
 
   constructor(app, bonusSystem, economy, onUpdate) {
@@ -43,14 +42,20 @@ export class ShopUI {
     this.#onUpdate = onUpdate
 
     this.#container = new Container()
-    this.#container.x = 1200 // hors écran par défaut
+    this.#container.x = 800  // always visible at right of reel area
 
     this.#panel = new Graphics()
     this.#panel.rect(0, 0, W, H)
     this.#panel.fill({ color: 0x0d0d28, alpha: 0.97 })
     this.#container.addChild(this.#panel)
 
-    // Titre
+    // Left separator line
+    const sep = new Graphics()
+    sep.moveTo(0, 0).lineTo(0, H)
+    sep.stroke({ color: 0x2a2a6a, width: 2 })
+    this.#container.addChild(sep)
+
+    // Title
     const title = new Text({ text: '🛒 BOUTIQUE', style: S_TITLE })
     title.x = 20; title.y = 15
     this.#container.addChild(title)
@@ -58,15 +63,11 @@ export class ShopUI {
     this.#content = new Container()
     this.#content.y = 50
     this.#container.addChild(this.#content)
+
+    this.refresh()
   }
 
   get container() { return this.#container }
-
-  toggle() {
-    this.#isOpen = !this.#isOpen
-    this.#container.x = this.#isOpen ? 1200 - W : 1200
-    if (this.#isOpen) this.refresh()
-  }
 
   refresh() {
     this.#content.removeChildren()
@@ -75,7 +76,6 @@ export class ShopUI {
 
     let y = 0
 
-    // Offres
     const offerHeader = new Text({ text: `── OFFRES (Niveau ${level}) ──`, style: S_HEADER })
     offerHeader.x = 20; offerHeader.y = y
     this.#content.addChild(offerHeader)
@@ -85,7 +85,6 @@ export class ShopUI {
       y = this.#renderOffer(offer, y)
     }
 
-    // Reroll
     const rerollCost = this.#bonusSystem.getModifiers().freeRerolls > 0 ? 'GRATUIT' : '$5'
     const rerollBtn = smallBtn(`🔄 Reroll (${rerollCost})`, 20, y, 180, 0x333388, () => {
       if (this.#bonusSystem.getModifiers().freeRerolls > 0) {
@@ -97,7 +96,6 @@ export class ShopUI {
     this.#content.addChild(rerollBtn)
     y += 50
 
-    // Bonus actifs
     const activeHeader = new Text({ text: '── BONUS ACTIFS ──', style: S_HEADER })
     activeHeader.x = 20; activeHeader.y = y
     this.#content.addChild(activeHeader)

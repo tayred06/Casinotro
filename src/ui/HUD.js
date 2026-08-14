@@ -1,7 +1,7 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js'
 import { BET_OPTIONS } from '../game/Economy.js'
 
-const W = 1200
+const AREA_W = 800   // reel area width (shop occupies x=800-1200)
 const H = 750
 
 const STYLE_LABEL = new TextStyle({ fontSize: 14, fill: 0x888888, fontFamily: 'monospace' })
@@ -45,13 +45,13 @@ export class HUD {
   #betButtons = []
   #gameOverOverlay
 
-  constructor(app, economy, onSpin, onBetChange, onShopToggle) {
+  constructor(app, economy, onSpin, onBetChange) {
     this.#economy = economy
     this.#container = new Container()
 
-    // Bottom bar background
+    // Bottom bar — spans reel area only (0 to AREA_W)
     const bar = new Graphics()
-    bar.rect(0, H - 120, W, 120)
+    bar.rect(0, H - 120, AREA_W, 120)
     bar.fill({ color: 0x111128, alpha: 0.95 })
     this.#container.addChild(bar)
 
@@ -80,7 +80,7 @@ export class HUD {
 
     BET_OPTIONS.forEach((amount, i) => {
       const isSelected = amount === economy.currentBet
-      const btn = makeButton(`$${amount}`, 320 + i * 70, H - 90, 60, 36,
+      const btn = makeButton(`$${amount}`, 320 + i * 65, H - 90, 60, 36,
         isSelected ? 0x4444aa : 0x2a2a5e,
         () => onBetChange(amount)
       )
@@ -88,32 +88,28 @@ export class HUD {
       this.#container.addChild(btn)
     })
 
-    // Shop button
-    const shopBtn = makeButton('🛒 BOUTIQUE', W - 320, H - 95, 140, 46, 0x225522, onShopToggle)
-    this.#container.addChild(shopBtn)
-
-    // Spin button
-    this.#spinBtn = makeButton('▶ SPIN', W - 160, H - 95, 130, 46, 0x22aa44, onSpin)
+    // Spin button — fits within AREA_W
+    this.#spinBtn = makeButton('▶ SPIN', 650, H - 95, 130, 46, 0x22aa44, onSpin)
     this.#container.addChild(this.#spinBtn)
 
-    // Win text (hidden by default)
+    // Win text — centered in reel area
     this.#winText = new Text({ text: '', style: STYLE_WIN })
     this.#winText.anchor.set(0.5)
-    this.#winText.x = W / 2; this.#winText.y = H - 145
+    this.#winText.x = AREA_W / 2; this.#winText.y = H - 145
     this.#winText.visible = false
     this.#container.addChild(this.#winText)
 
-    // Game over overlay (hidden)
+    // Game over overlay (covers full canvas)
     this.#gameOverOverlay = new Container()
     this.#gameOverOverlay.visible = false
     const overBg = new Graphics()
-    overBg.rect(0, 0, W, H)
+    overBg.rect(0, 0, 1200, H)
     overBg.fill({ color: 0x000000, alpha: 0.75 })
     this.#gameOverOverlay.addChild(overBg)
     const overText = new Text({ text: 'GAME OVER', style: STYLE_OVER })
-    overText.anchor.set(0.5); overText.x = W / 2; overText.y = H / 2 - 30
+    overText.anchor.set(0.5); overText.x = AREA_W / 2; overText.y = H / 2 - 30
     const restartText = new Text({ text: 'Rechargez la page pour rejouer', style: STYLE_LABEL })
-    restartText.anchor.set(0.5); restartText.x = W / 2; restartText.y = H / 2 + 30
+    restartText.anchor.set(0.5); restartText.x = AREA_W / 2; restartText.y = H / 2 + 30
     this.#gameOverOverlay.addChild(overText, restartText)
     this.#container.addChild(this.#gameOverOverlay)
   }
