@@ -94,12 +94,16 @@ async function handleSpin() {
   hud.update()
 
   isSpinning = false
-  hud.setSpinEnabled(true)
 
   if (economy.isGameOver()) {
     hud.showGameOver()
     return
   }
+
+  // Brief cooldown before re-enabling — prevents queued pointer events
+  // from immediately triggering another spin after rapid clicking
+  await delay(150)
+  hud.setSpinEnabled(true)
 }
 
 async function handleFreeSpins(count) {
