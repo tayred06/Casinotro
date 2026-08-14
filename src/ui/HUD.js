@@ -28,9 +28,10 @@ function makeButton(label, x, y, w, h, color, onClick) {
 
   btn.on('pointerdown', onClick)
   btn.on('pointerover', () => { bg.tint = 0xCCCCCC })
-  btn.on('pointerout',  () => { bg.tint = 0xFFFFFF })
+  btn.on('pointerout',  () => { bg.tint = btn._restingTint })
 
   btn._bg = bg
+  btn._restingTint = 0xFFFFFF
   return btn
 }
 
@@ -124,7 +125,14 @@ export class HUD {
     this.#highscoreText.text = `$${this.#economy.highscore.toFixed(2)}`
 
     for (const { btn, amount } of this.#betButtons) {
-      btn._bg.tint = amount === this.#economy.currentBet ? 0x6666ff : 0xFFFFFF
+      const isSelected = amount === this.#economy.currentBet
+      if (isSelected) {
+        btn._bg.tint = 0x6666ff
+        btn._restingTint = 0x6666ff
+      } else {
+        btn._bg.tint = 0xFFFFFF
+        btn._restingTint = 0xFFFFFF
+      }
     }
   }
 
