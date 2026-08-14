@@ -2,25 +2,21 @@ import { Container, Graphics, Text, TextStyle } from 'pixi.js'
 import { SYMBOLS } from '../game/Symbols.js'
 
 const REEL_WIDTH   = 110
-const SYMBOL_HEIGHT = 82
 const REEL_GAP     = 14
-const SLOT_TOP     = 25
-const SLOT_HEIGHT  = 595   // 750 - 130 (HUD) - 25 (top pad)
+const SLOT_TOP     = 20
+const SLOT_HEIGHT  = 600   // 750 - 130 (HUD) - 20 (top pad)
 
-// Center 6 reels in the left 900px (right 300px reserved for shop slide-in)
+// Center 6 reels in the left 900px (right 300px reserved for shop)
 const TOTAL_W = 6 * REEL_WIDTH + 5 * REEL_GAP  // 730
 const START_X = Math.round((900 - TOTAL_W) / 2) // ~85
 
-const SYMBOL_STYLE = new TextStyle({
-  fontSize: 46,
-  align: 'center',
-})
+const SYMBOL_STYLE = new TextStyle({ fontSize: 42, align: 'center' })
 
 export class ReelRenderer {
   #app
   #container
   #reelContainers = []
-  #reelYStarts = []
+  #reelCellHeights = []   // cell height per reel (varies with row count)
   #highlightLayer
   #winLineLayer
 
@@ -37,46 +33,46 @@ export class ReelRenderer {
 
   displayGrid(grid) {
     this.#clearReels()
-    this.#reelYStarts = []
+    this.#reelCellHeights = []
 
     grid.forEach((col, reelIdx) => {
-      const reelH = col.length * SYMBOL_HEIGHT
-      const reelX = START_X + reelIdx * (REEL_WIDTH + REEL_GAP)
-      // Vertically center each reel column in the slot area
-      const reelY = SLOT_TOP + Math.round((SLOT_HEIGHT - reelH) / 2)
+      // All reels share the same height — cells scale to fill it
+      const cellH = Math.floor(SLOT_HEIGHT / col.length)
+      this.#reelCellHeights.push(cellH)
 
+      const reelX = START_X + reelIdx * (REEL_WIDTH + REEL_GAP)
       const rc = new Container()
       rc.x = reelX
-      rc.y = reelY
-      this.#reelYStarts.push(reelY)
+      rc.y = SLOT_TOP
 
-      // Reel background
+      // Reel background (full slot height)
       const bg = new Graphics()
-      bg.roundRect(0, 0, REEL_WIDTH, reelH, 10)
-      bg.fill({ color: 0x16163a, alpha: 0.9 })
+      bg.roundRect(0, 0, REEL_WIDTH, SLOT_HEIGHT, 10)
+      bg.fill({ color: 0x12122e, alpha: 0.92 })
       rc.addChild(bg)
 
-      // Subtle column separator line on left edge (except first)
-      if (reelIdx > 0) {
-        const sep = new Graphics()
-        sep.moveTo(-REEL_GAP / 2, 0).lineTo(-REEL_GAP / 2, reelH)
-        sep.stroke({ color: 0x2a2a60, width: 1, alpha: 0.5 })
-        rc.addChild(sep)
-      }
-
       col.forEach((symbol, rowIdx) => {
-        const cell = new Container()
-        cell.y = rowIdx * SYMBOL_HEIGHT
+        const cellY = rowIdx * cellH
 
+        // Cell background — offset by cellY
         const cellBg = new Graphics()
-        cellBg.roundRect(3, 3, REEL_WIDTH - 6, SYMBOL_HEIGHT - 6, 8)
-        cellBg.fill({ color: 0x20205a, alpha: 0.95 })
+        cellBg.roundRect(3, cellY + 3, REEL_WIDTH - 6, cellH - 6, 8)
+        cellBg.fill({ color: 0x1e1e50, alpha: 0.95 })
         rc.addChild(cellBg)
 
+        // Subtle divider between cells
+        if (rowIdx > 0) {
+          const div = new Graphics()
+          div.moveTo(6, cellY).lineTo(REEL_WIDTH - 6, cellY)
+          div.stroke({ color: 0x2a2a60, width: 1, alpha: 0.4 })
+          rc.addChild(div)
+        }
+
+        // Emoji — anchored to center of cell
         const emoji = new Text({ text: symbol.emoji, style: SYMBOL_STYLE })
         emoji.anchor.set(0.5)
         emoji.x = REEL_WIDTH / 2
-        emoji.y = cell.y + SYMBOL_HEIGHT / 2
+        emoji.y = cellY + cellH / 2
         rc.addChild(emoji)
       })
 
@@ -84,7 +80,7 @@ export class ReelRenderer {
       this.#container.addChild(rc)
     })
 
-    // Keep highlight/win layers on top
+    // Keep overlay layers on top
     this.#container.removeChild(this.#highlightLayer)
     this.#container.removeChild(this.#winLineLayer)
     this.#container.addChild(this.#highlightLayer)
@@ -92,7 +88,7 @@ export class ReelRenderer {
   }
 
   async animateSpin(finalGrid) {
-    this.#container.alpha = 0.25
+    this.#container.alpha = 0.2
     let elapsed = 0
     const interval = 80
 
@@ -126,41 +122,33 @@ export class ReelRenderer {
       const points = []
 
       for (let reel = 0; reel < line.count; reel++) {
-        const rc = this.#reelContainers[reel]
-        const reelY = this.#reelYStarts[reel]
-        if (!rc) continue
+        const cellH = this.#reelCellHeights[reel]
+        if (!cellH) continue
 
         const rowIdx = line.reelRows ? line.reelRows[reel] : 0
         const x = START_X + reel * (REEL_WIDTH + REEL_GAP)
-        const y = reelY + rowIdx * SYMBOL_HEIGHT
+        const y = SLOT_TOP + rowIdx * cellH
 
-        // Golden glow fill on winning cell
-        this.#highlightLayer.roundRect(x + 3, y + 3, REEL_WIDTH - 6, SYMBOL_HEIGHT - 6, 8)
-        this.#highlightLayer.fill({ color, alpha: 0.22 })
-
-        // Bright border on winning cell
-        this.#highlightLayer.roundRect(x + 2, y + 2, REEL_WIDTH - 4, SYMBOL_HEIGHT - 4, 9)
+        // Highlight the winning cell
+        this.#highlightLayer.roundRect(x + 2, y + 2, REEL_WIDTH - 4, cellH - 4, 8)
+        this.#highlightLayer.fill({ color, alpha: 0.25 })
+        this.#highlightLayer.roundRect(x + 2, y + 2, REEL_WIDTH - 4, cellH - 4, 8)
         this.#highlightLayer.stroke({ color, width: 3, alpha: 1 })
 
-        // Center point for connecting line
-        points.push({
-          x: x + REEL_WIDTH / 2,
-          y: reelY + rowIdx * SYMBOL_HEIGHT + SYMBOL_HEIGHT / 2,
-        })
+        points.push({ x: x + REEL_WIDTH / 2, y: y + cellH / 2 })
       }
 
-      // Draw connecting line through winning cells
+      // Connecting line through cell centers
       if (points.length >= 2) {
         this.#winLineLayer.moveTo(points[0].x, points[0].y)
         for (let i = 1; i < points.length; i++) {
           this.#winLineLayer.lineTo(points[i].x, points[i].y)
         }
-        this.#winLineLayer.stroke({ color, width: 3, alpha: 0.75 })
+        this.#winLineLayer.stroke({ color, width: 3, alpha: 0.8 })
 
-        // Dot at each cell center
         for (const pt of points) {
           this.#winLineLayer.circle(pt.x, pt.y, 7)
-          this.#winLineLayer.fill({ color, alpha: 0.95 })
+          this.#winLineLayer.fill({ color, alpha: 1 })
         }
       }
     })
@@ -177,6 +165,7 @@ export class ReelRenderer {
       rc.destroy({ children: true })
     }
     this.#reelContainers = []
+    this.#reelCellHeights = []
     this.#highlightLayer.clear()
     this.#winLineLayer.clear()
   }

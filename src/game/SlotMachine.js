@@ -23,7 +23,7 @@ export function calculateWins(grid, bet, modifiers = {}) {
     columnMultipliers = Array(REEL_COUNT).fill(1),
     wildColumns = Array(REEL_COUNT).fill(false),
     symbolMultipliers = {},
-    jackpotMultiplier = 20,
+    jackpotMultiplier = 50,
     safetyNet = false,
     globalMultiplier = 1,
   } = modifiers
@@ -41,9 +41,15 @@ export function calculateWins(grid, bet, modifiers = {}) {
     const reelRows = []
     for (let reel = 0; reel < REEL_COUNT; reel++) {
       const col = effectiveGrid[reel]
-      const rowIdx = col.findIndex(s => s.id === symbol.id || s.id === 'wild')
-      if (rowIdx === -1) break
-      reelRows.push(rowIdx)
+      // Require a proportional number of matching symbols per column
+      // (prevents every reel matching every symbol due to many rows)
+      const threshold = Math.max(1, Math.ceil(col.length * 0.4))
+      const matchIndices = col.reduce((acc, s, i) => {
+        if (s.id === symbol.id || s.id === 'wild') acc.push(i)
+        return acc
+      }, [])
+      if (matchIndices.length < threshold) break
+      reelRows.push(matchIndices[0]) // first matching row used for visual line
     }
 
     const count = reelRows.length

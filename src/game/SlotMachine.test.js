@@ -44,7 +44,7 @@ describe('calculateWins', () => {
     expect(result.winLines).toHaveLength(1)
     expect(result.winLines[0].symbolId).toBe('lemon')
     expect(result.winLines[0].count).toBe(3)
-    expect(result.totalWin).toBe(10 * 0.5)
+    expect(result.totalWin).toBe(10 * 0.8)
     expect(result.scatterTriggered).toBe(false)
   })
 
@@ -52,7 +52,7 @@ describe('calculateWins', () => {
     const grid = Array(6).fill([lemon])
     const result = calculateWins(grid, 5)
     expect(result.winLines[0].count).toBe(6)
-    expect(result.totalWin).toBe(5 * 20)
+    expect(result.totalWin).toBe(5 * 50)
   })
 
   it('le Wild complète une combinaison', () => {
@@ -126,8 +126,8 @@ describe('calculateWins', () => {
       [diamond],
     ]
     const result = calculateWins(grid, 10, { columnMultipliers: [2, 1, 1, 1, 1, 1] })
-    // lemon sur 3 reels (0,1,2) → base 0.5 × bet × colMultiplier[0]=2
-    expect(result.totalWin).toBe(10 * 0.5 * 2)
+    // lemon sur 3 reels (0,1,2) → base 0.8 × bet × colMultiplier[0]=2
+    expect(result.totalWin).toBe(10 * 0.8 * 2)
   })
 
   it('applique symbolMultipliers', () => {
@@ -140,7 +140,7 @@ describe('calculateWins', () => {
       [diamond],
     ]
     const result = calculateWins(grid, 10, { symbolMultipliers: { lemon: 3 } })
-    expect(result.totalWin).toBe(10 * 0.5 * 3)
+    expect(result.totalWin).toBeCloseTo(10 * 0.8 * 3, 5)
   })
 
   it('applique globalMultiplier', () => {
@@ -153,6 +153,6 @@ describe('calculateWins', () => {
       [diamond],
     ]
     const result = calculateWins(grid, 10, { globalMultiplier: 2 })
-    expect(result.totalWin).toBe(10 * 0.5 * 2)
+    expect(result.totalWin).toBe(10 * 0.8 * 2)
   })
 })

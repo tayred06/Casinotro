@@ -15,7 +15,8 @@ export const WIN_SYMBOLS = SYMBOLS.filter(s => s.id !== 'wild' && s.id !== 'scat
 export const WILD = SYMBOLS.find(s => s.id === 'wild')
 export const SCATTER = SYMBOLS.find(s => s.id === 'scatter')
 
-export const WIN_MULTIPLIERS = { 3: 0.5, 4: 2, 5: 5, 6: 20 }
+// Multipliers rebalanced: 3-symbol wins are modest, jackpots are rewarding
+export const WIN_MULTIPLIERS = { 3: 0.8, 4: 3, 5: 10, 6: 50 }
 
 export function getSymbolById(id) {
   return SYMBOLS.find(s => s.id === id)
