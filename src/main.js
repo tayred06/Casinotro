@@ -54,7 +54,6 @@ async function handleSpin() {
 
   const { grid, rowCounts } = spin(stickyPositions)
   await renderer.animateSpin(grid, rowCounts)
-  renderer.displayGrid(grid, rowCounts)
 
   const winResult = calculateWins(grid, economy.currentBet, modifiers)
 
@@ -92,13 +91,13 @@ async function handleSpin() {
 
   hud.update()
 
+  isSpinning = false
+  hud.setSpinEnabled(true)
+
   if (economy.isGameOver()) {
     hud.showGameOver()
     return
   }
-
-  isSpinning = false
-  hud.setSpinEnabled(true)
 }
 
 async function handleFreeSpins(count) {
@@ -107,7 +106,6 @@ async function handleFreeSpins(count) {
     const modifiers = bonusSystem.getModifiers()
     const { grid, rowCounts } = spin(modifiers.stickyPositions ?? {})
     await renderer.animateSpin(grid, rowCounts)
-    renderer.displayGrid(grid, rowCounts)
 
     const winResult = calculateWins(grid, economy.currentBet, modifiers)
     bonusSystem.processPostSpin(winResult, grid)

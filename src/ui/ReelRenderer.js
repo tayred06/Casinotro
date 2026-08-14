@@ -63,8 +63,8 @@ export class ReelRenderer {
   }
 
   async animateSpin(finalGrid, rowCounts) {
-    // Phase 1 : masquer les reels (fondu)
-    for (const rc of this.#reelContainers) rc.alpha = 0.3
+    // Phase 1 : masquer les reels (fondu) via le conteneur global
+    this.#container.alpha = 0.3
 
     // Phase 2 : afficher symboles intermédiaires aléatoires pendant 800ms
     let elapsed = 0
@@ -81,6 +81,7 @@ export class ReelRenderer {
         elapsed += interval
         if (elapsed >= 800) {
           clearInterval(ticker)
+          this.#container.alpha = 1
           resolve()
         }
       }, interval)
@@ -88,7 +89,6 @@ export class ReelRenderer {
 
     // Phase 3 : afficher le résultat final
     this.displayGrid(finalGrid, rowCounts)
-    for (const rc of this.#reelContainers) rc.alpha = 1
   }
 
   highlightWins(winLines) {

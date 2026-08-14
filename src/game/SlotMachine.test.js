@@ -6,6 +6,7 @@ const lemon = getSymbolById('lemon')
 const bell  = getSymbolById('bell')
 const wild  = getSymbolById('wild')
 const scatter = getSymbolById('scatter')
+const diamond = getSymbolById('diamond')
 
 describe('spin', () => {
   it('retourne 6 reels', () => {
@@ -35,15 +36,16 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [scatter],
-      [scatter],
-      [scatter],
+      [diamond],
+      [diamond],
+      [diamond],
     ]
     const result = calculateWins(grid, 10)
     expect(result.winLines).toHaveLength(1)
     expect(result.winLines[0].symbolId).toBe('lemon')
     expect(result.winLines[0].count).toBe(3)
     expect(result.totalWin).toBe(10 * 0.5)
+    expect(result.scatterTriggered).toBe(false)
   })
 
   it('détecte 6 symboles identiques (jackpot)', () => {
@@ -119,9 +121,9 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [scatter],
-      [scatter],
-      [scatter],
+      [diamond],
+      [diamond],
+      [diamond],
     ]
     const result = calculateWins(grid, 10, { columnMultipliers: [2, 1, 1, 1, 1, 1] })
     // lemon sur 3 reels (0,1,2) → base 0.5 × bet × colMultiplier[0]=2
@@ -133,9 +135,9 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [scatter],
-      [scatter],
-      [scatter],
+      [diamond],
+      [diamond],
+      [diamond],
     ]
     const result = calculateWins(grid, 10, { symbolMultipliers: { lemon: 3 } })
     expect(result.totalWin).toBe(10 * 0.5 * 3)
@@ -146,9 +148,9 @@ describe('calculateWins', () => {
       [lemon],
       [lemon],
       [lemon],
-      [scatter],
-      [scatter],
-      [scatter],
+      [diamond],
+      [diamond],
+      [diamond],
     ]
     const result = calculateWins(grid, 10, { globalMultiplier: 2 })
     expect(result.totalWin).toBe(10 * 0.5 * 2)

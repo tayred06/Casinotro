@@ -51,9 +51,8 @@ export const BONUS_POOL = [
   },
 ]
 
-let _instanceCounter = 0
-
 export class BonusSystem {
+  static #counter = 0
   #active = []
   #chainCounts = {}     // { [symbolId]: number } — spins consécutifs gagnants
   #chainBonuses = {}    // { [symbolId]: number } — bonus permanents acquis
@@ -65,7 +64,7 @@ export class BonusSystem {
   addBonus(bonusDef, target = null) {
     const instance = {
       ...bonusDef,
-      instanceId: String(++_instanceCounter),
+      instanceId: String(++BonusSystem.#counter),
       target,
       remainingUses: bonusDef.effect === 'global_multiplier' ? 5 : null,
     }
