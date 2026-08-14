@@ -12,12 +12,6 @@ const SYMBOL_STYLE = new TextStyle({
   align: 'center',
 })
 
-const LABEL_STYLE = new TextStyle({
-  fontSize: 13,
-  fill: 0xAAAAAA,
-  align: 'center',
-})
-
 export class ReelRenderer {
   #app
   #container
@@ -83,6 +77,7 @@ export class ReelRenderer {
             return { emoji: symbols[Math.floor(Math.random() * symbols.length)], id: 'spin' }
           })
         )
+        this.displayGrid(fakeGrid, rowCounts)
         elapsed += interval
         if (elapsed >= 800) {
           clearInterval(ticker)
