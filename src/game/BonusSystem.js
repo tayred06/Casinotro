@@ -38,6 +38,18 @@ export const BONUS_POOL = [
     description: 'Les symboles gagnants restent en place 1 spin',
     level: 2, price: 45, effect: 'sticky', needsTarget: null,
   },
+  // Niveau 1 (suite)
+  {
+    id: 'luck_boost', name: 'Porte-Bonheur',
+    description: '+15 chance permanente (symboles rares plus fréquents)',
+    level: 1, price: 30, effect: 'luck_boost', needsTarget: null,
+  },
+  // Niveau 2 (suite)
+  {
+    id: 'lucky_streak', name: 'Coup de Chance',
+    description: '+30 chance pendant 10 spins',
+    level: 2, price: 45, effect: 'lucky_streak', needsTarget: null,
+  },
   // Niveau 3
   {
     id: 'jackpot_boost', name: 'Jackpot Amplifié',
@@ -66,7 +78,9 @@ export class BonusSystem {
       ...bonusDef,
       instanceId: String(++BonusSystem.#counter),
       target,
-      remainingUses: bonusDef.effect === 'global_multiplier' ? 5 : null,
+      remainingUses: bonusDef.effect === 'global_multiplier' ? 5
+                   : bonusDef.effect === 'lucky_streak'      ? 10
+                   : null,
     }
     this.#active.push(instance)
     return instance
@@ -96,6 +110,7 @@ export class BonusSystem {
       stickyEnabled: false,
       chainEnabled: false,
       stickyPositions: this.#stickyPositions,
+      luck: 0,
     }
 
     for (const bonus of this.#active) {
@@ -129,6 +144,12 @@ export class BonusSystem {
           break
         case 'global_multiplier':
           if (bonus.remainingUses > 0) modifiers.globalMultiplier = 3
+          break
+        case 'luck_boost':
+          modifiers.luck += 15
+          break
+        case 'lucky_streak':
+          if (bonus.remainingUses > 0) modifiers.luck += 30
           break
       }
     }
@@ -174,12 +195,12 @@ export class BonusSystem {
     }
     this.#stickyPositions = newSticky
 
-    // Décrémenter global_multiplier
-    const globalBonus = this.#active.find(b => b.effect === 'global_multiplier')
-    if (globalBonus && globalBonus.remainingUses > 0) {
-      globalBonus.remainingUses -= 1
-      if (globalBonus.remainingUses === 0) {
-        this.removeBonus(globalBonus.instanceId)
+    // Décrémenter les bonus à durée limitée
+    for (const effect of ['global_multiplier', 'lucky_streak']) {
+      const bonus = this.#active.find(b => b.effect === effect)
+      if (bonus && bonus.remainingUses > 0) {
+        bonus.remainingUses -= 1
+        if (bonus.remainingUses === 0) this.removeBonus(bonus.instanceId)
       }
     }
 

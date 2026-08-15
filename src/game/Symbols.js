@@ -22,7 +22,22 @@ export function getSymbolById(id) {
   return SYMBOLS.find(s => s.id === id)
 }
 
-export function generateReelColumn(rowCount) {
-  const pool = SYMBOLS.map(s => ({ value: s, weight: s.weight }))
+// Bias per symbol: positive = boosted by luck, negative = reduced by luck
+const LUCK_BIAS = {
+  lemon:   -0.30,
+  grape:   -0.20,
+  bell:    -0.10,
+  diamond:  0.20,
+  star:     0.40,
+  dog:      0.60,
+  wild:     0.50,
+  scatter:  0.50,
+}
+
+export function generateReelColumn(rowCount, luckFactor = 0) {
+  const pool = SYMBOLS.map(s => ({
+    value:  s,
+    weight: Math.max(0.5, s.weight * (1 + luckFactor * (LUCK_BIAS[s.id] ?? 0))),
+  }))
   return Array.from({ length: rowCount }, () => weightedRandom(pool))
 }

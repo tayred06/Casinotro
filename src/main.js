@@ -66,6 +66,10 @@ const shop = new ShopUI(bonusSystem, economy, () => {
   saveGame(renderer.currentGrid ?? [])
 }, selectTarget)
 
+function getLuckFactor() {
+  return bonusSystem.getModifiers().luck / 100 + economy.rtpNudge
+}
+
 // ── Boot: restore save or start fresh ────────────────
 let isSpinning = false
 let bootGrid
@@ -75,7 +79,7 @@ if (save) {
   Object.assign(RUN, save.run)
   economy.restore(save.economy)
   bonusSystem.restore(save.bonusSystem)
-  bootGrid = save.grid ? gridFromIds(save.grid) : spin().grid
+  bootGrid = save.grid ? gridFromIds(save.grid) : spin({}, getLuckFactor()).grid
 
   renderer.displayGrid(bootGrid, bonusSystem.getModifiers())
   renderer.showModifiers(bonusSystem.getModifiers())
@@ -83,7 +87,7 @@ if (save) {
   if (save.rerollCost) shop.setRerollCost(save.rerollCost)
   shop.addLog('Partie restaurée.', true)
 } else {
-  bootGrid = spin().grid
+  bootGrid = spin({}, getLuckFactor()).grid
   renderer.displayGrid(bootGrid, bonusSystem.getModifiers())
   shop.refresh(1)
   shop.addLog('Nouvelle run — bonne chance.', true)
@@ -105,7 +109,7 @@ async function handleSpin() {
 
   const modifiers       = bonusSystem.getModifiers()
   const stickyPositions = modifiers.stickyPositions ?? {}
-  const { grid }        = spin(stickyPositions)
+  const { grid }        = spin(stickyPositions, getLuckFactor())
 
   await renderer.animateSpin(grid)
 
@@ -116,7 +120,7 @@ async function handleSpin() {
     economy.addWin(winResult.totalWin)
     renderer.highlightWins(winResult.winLines)
     renderer.showWin(winResult.totalWin, winResult.winLines)
-    hud.update(RUN)
+    hud.update(RUN, modifiers.luck)
     shop.addLog(buildWinLog(winResult))
 
     await delay(1400)
@@ -142,7 +146,7 @@ async function handleSpin() {
     }
   }
 
-  hud.update(RUN)
+  hud.update(RUN, bonusSystem.getModifiers().luck)
   // Only update display — do NOT regenerate shop offers
   shop.updateDisplay()
 
@@ -162,7 +166,7 @@ async function handleFreeSpins(count) {
   for (let i = 0; i < count; i++) {
     await delay(380)
     const modifiers = bonusSystem.getModifiers()
-    const { grid }  = spin(modifiers.stickyPositions ?? {})
+    const { grid }  = spin(modifiers.stickyPositions ?? {}, getLuckFactor())
     await renderer.animateSpin(grid)
 
     const winResult = calculateWins(grid, economy.currentBet, modifiers)
@@ -173,7 +177,7 @@ async function handleFreeSpins(count) {
       economy.addWin(winResult.totalWin)
       renderer.highlightWins(winResult.winLines)
       renderer.showWin(winResult.totalWin, winResult.winLines)
-      hud.update(RUN)
+      hud.update(RUN, modifiers.luck)
       await delay(900)
       renderer.hideWin()
       renderer.clearHighlights()
@@ -204,11 +208,11 @@ function restartRun() {
   renderer.hideGameOver()
   renderer.clearHighlights()
 
-  const { grid } = spin()
+  const { grid } = spin({}, getLuckFactor())
   renderer.displayGrid(grid, bonusSystem.getModifiers())
   renderer.showModifiers(bonusSystem.getModifiers())
   shop.refresh(1)
-  hud.update(RUN)
+  hud.update(RUN, 0)
   hud.setSpinEnabled(true)
   hud.setSpinLabel('SPIN')
   isSpinning = false

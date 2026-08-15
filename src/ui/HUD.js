@@ -10,6 +10,7 @@ export class HUD {
   #gameName
   #levelDisplay
   #goalDisplay
+  #luckDisplay
   #progressFill
   #progressPct
   #balanceDisplay
@@ -25,6 +26,7 @@ export class HUD {
     this.#gameName       = document.getElementById('game-name')
     this.#levelDisplay   = document.getElementById('level-display')
     this.#goalDisplay    = document.getElementById('goal-display')
+    this.#luckDisplay    = document.getElementById('luck-display')
     this.#progressFill   = document.getElementById('progress-fill')
     this.#progressPct    = document.getElementById('progress-pct')
     this.#balanceDisplay = document.getElementById('balance-display')
@@ -61,9 +63,11 @@ export class HUD {
     })
   }
 
-  update(runState = null) {
+  update(runState = null, luck = 0) {
     this.#balanceDisplay.textContent  = `$${this.#economy.balance.toFixed(2)}`
     this.#highscoreDisplay.textContent = `$${this.#economy.highscore.toFixed(2)}`
+    this.#luckDisplay.textContent = luck > 0 ? `+${luck}` : String(luck)
+    this.#luckDisplay.style.color = luck > 0 ? '#c9a24a' : ''
     this.#updateChipState()
 
     if (runState) {

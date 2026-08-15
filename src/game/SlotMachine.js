@@ -5,10 +5,10 @@ const REEL_COUNT = 6
 const MIN_ROWS = 2
 const MAX_ROWS = 7
 
-export function spin(stickyPositions = {}) {
+export function spin(stickyPositions = {}, luckFactor = 0) {
   const rowCounts = Array.from({ length: REEL_COUNT }, () => randomInt(MIN_ROWS, MAX_ROWS))
   const grid = rowCounts.map((rowCount, reel) => {
-    const col = generateReelColumn(rowCount)
+    const col = generateReelColumn(rowCount, luckFactor)
     for (let row = 0; row < rowCount; row++) {
       const key = `${reel}-${row}`
       if (stickyPositions[key]) col[row] = stickyPositions[key]
