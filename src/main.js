@@ -9,7 +9,7 @@ import { CHARACTERS, getCharacter, STARTING_CHARACTER_ID } from './game/Characte
 import { CharacterState } from './game/CharacterState.js'
 import { CharacterSelect } from './ui/CharacterSelect.js'
 import { ProfileModal } from './ui/ProfileModal.js'
-import { MachineSelect } from './ui/MachineSelect.js'
+import { StartScreen } from './ui/StartScreen.js'
 import { spinLC, findClusters, calculateLCWins, tumble, fillGrid } from './game/LitCityMachine.js'
 import { LC_SYMBOLS } from './game/LitCitySymbols.js'
 import { LitCityRenderer } from './ui/LitCityRenderer.js'
@@ -200,20 +200,19 @@ function applyBetEscalation() {
 
 // ── Character + Machine system ────────────────────────
 let activeCharacter = new CharacterState(getCharacter(STARTING_CHARACTER_ID))
-const machineSelect   = new MachineSelect(onMachineSelected)
-const characterSelect = new CharacterSelect(CHARACTERS, startRunWithCharacter)
-const profileModal    = new ProfileModal()
+const startScreen  = new StartScreen(CHARACTERS, onStartSelected)
+const profileModal = new ProfileModal()
 
 document.getElementById('pm-close').addEventListener('click', () => profileModal.close())
 document.querySelector('.char-hud-identity').addEventListener('click', () => {
   profileModal.open(activeCharacter, economy, RUN, bonusSystem)
 })
 
-function onMachineSelected(machineId) {
+function onStartSelected(machineId, character) {
   activeMachine = machineId
-  machineSelect.hide()
   showMachineArea()
-  characterSelect.show()
+  startScreen.hide()
+  startRunWithCharacter(character)
 }
 
 // ── Boot: restore save or show machine select ─────────
@@ -253,10 +252,9 @@ if (save) {
     hud.showEscalatingBet(gulaBet, getGulaIncrement())
   }
   if (activeCharacter.effectKey === 'avaritia') setupAvaritia()
-  machineSelect.hide()
-  characterSelect.hide()
+  startScreen.hide()
 }
-// If no save: machine select overlay stays visible
+// If no save: start screen overlay stays visible
 
 // ── Start run with selected character ─────────────────
 function startRunWithCharacter(character) {
@@ -264,7 +262,6 @@ function startRunWithCharacter(character) {
   teardownAvaritia()
   activeCharacter = new CharacterState(character)
   applyCharacterTheme()
-  characterSelect.hide()
   clearSave()
 
   Object.assign(RUN, { level: 1, goal: 150 })
@@ -537,7 +534,7 @@ function restartRun() {
   lcRenderer.hideGameOver()
   lcRenderer.clearHighlights()
   hud.setSpinEnabled(false)
-  machineSelect.show()
+  startScreen.show()
 }
 
 window.__newGame = restartRun
