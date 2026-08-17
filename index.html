@@ -10,6 +10,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root { --char-color: #0f1110; }
+
     body {
       background: #0c0d0c;
       font-family: 'Space Grotesk', system-ui, sans-serif;
@@ -87,6 +89,8 @@
       min-height: 0;
       min-width: 0;
       position: relative;
+      background: var(--char-color);
+      transition: background 0.5s ease;
     }
     .reels {
       display: flex;
@@ -570,27 +574,308 @@
     .selection-cancel:hover { color: #e7e5e0; border-color: #5c6160; }
     .selection-cancel.hidden { display: none; }
 
-    /* Log */
+    /* Character HUD */
     .shop-grow { flex: 1; }
-    .log-section {
-      padding: 16px 22px 20px;
+    .char-hud {
+      padding: 16px 22px 22px;
       border-top: 1px solid #1d201f;
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
-    .log-header {
+    .char-hud-identity {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .char-hud-emoji {
+      font-size: 34px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .char-hud-info { display: flex; flex-direction: column; gap: 3px; }
+    .char-hud-name { font-size: 15px; font-weight: 700; }
+    .char-hud-sin {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #6d726f;
+      text-transform: uppercase;
+    }
+    .char-hud-inv-lbl {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9.5px;
       letter-spacing: 1.6px;
       color: #6d726f;
-      margin-bottom: 10px;
+      display: block;
+      margin-bottom: 8px;
     }
-    .log-entry { display: flex; gap: 10px; padding: 2px 0; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
-    .log-spin { color: #4f5453; flex-shrink: 0; }
-    .log-text { color: #cfd3d0; }
-    .log-text.muted { color: #7f8b83; }
+    .char-hud-slots {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .char-hud-slot {
+      aspect-ratio: 1;
+      border-radius: 5px;
+      border: 1px dashed #21252a;
+      background: #0c0e0d;
+    }
+
+    /* ── Profile Modal ────────────────────────────── */
+    #profile-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(12,13,12,.72);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #profile-modal-overlay.hidden { display: none; }
+
+    .pm-panel {
+      width: 100%;
+      max-width: 520px;
+      max-height: 92vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #1d201f transparent;
+      background: #0f1110;
+      border: 1px solid #272b2a;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pm-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      padding: 26px 28px 22px;
+      border-bottom: 1px solid #1d201f;
+    }
+    .pm-emoji-big {
+      font-size: 48px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .pm-identity { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+    .pm-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .pm-sin {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2.4px;
+      color: #6d726f;
+    }
+    .pm-desc {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #9a9f9c;
+      margin-top: 4px;
+    }
+    .pm-close {
+      background: transparent;
+      border: 1px solid #272b2a;
+      border-radius: 5px;
+      color: #6d726f;
+      font-size: 16px;
+      line-height: 1;
+      padding: 5px 9px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color .12s, border-color .12s;
+    }
+    .pm-close:hover { color: #e7e5e0; border-color: #363b3a; }
+
+    .pm-section {
+      padding: 20px 28px;
+      border-bottom: 1px solid #1d201f;
+    }
+    .pm-section:last-child { border-bottom: none; }
+    .pm-section-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 1.8px;
+      color: #6d726f;
+      display: block;
+      margin-bottom: 14px;
+    }
+
+    .pm-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px 10px;
+    }
+    .pm-stat { display: flex; flex-direction: column; gap: 4px; }
+    .pm-stat-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.4px;
+      color: #4f5453;
+    }
+    .pm-stat-val {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -.2px;
+    }
+    .pm-stat-val.gold { color: #c9a24a; }
+
+    .pm-bonus-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1a1d1c;
+    }
+    .pm-bonus-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .pm-bonus-row:first-child { padding-top: 0; }
+    .pm-bonus-left { display: flex; flex-direction: column; gap: 3px; }
+    .pm-bonus-name { font-size: 13px; font-weight: 600; }
+    .pm-bonus-desc { font-size: 11.5px; color: #9a9f9c; line-height: 1.4; }
+    .pm-bonus-uses {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #c9a24a;
+      white-space: nowrap;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+    .pm-empty { font-size: 12px; color: #4f5453; font-style: italic; }
+
+    .pm-effect-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #1a1d1c;
+    }
+    .pm-effect-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .pm-effect-row:first-child { padding-top: 0; }
+    .pm-effect-lbl { font-size: 12.5px; color: #9a9f9c; }
+    .pm-effect-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: #e7e5e0;
+      text-align: right;
+    }
+
+    /* Make the char-hud identity clickable */
+    .char-hud-identity {
+      cursor: pointer;
+      border-radius: 7px;
+      transition: background .12s;
+      margin: -6px;
+      padding: 6px;
+    }
+    .char-hud-identity:hover { background: #15181a; }
+
+    /* ── Character Select Overlay ──────────────────── */
+    #character-select-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: #0c0d0c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      overflow-y: auto;
+    }
+    #character-select-overlay.hidden { display: none; }
+
+    .cs-panel {
+      width: 100%;
+      max-width: 940px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .cs-header { display: flex; flex-direction: column; gap: 7px; }
+    .cs-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+    .cs-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2.2px;
+      color: #6d726f;
+      text-transform: uppercase;
+    }
+    .cs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .cs-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 7px;
+      padding: 20px 18px 18px;
+      border-radius: 10px;
+      background: #0f1110;
+      border: 1px solid #21252a;
+      cursor: pointer;
+      text-align: left;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      color: #e7e5e0;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .cs-card:hover {
+      border-color: rgba(201,162,74,.55);
+      box-shadow: 0 0 22px rgba(201,162,74,.08);
+      background: #111413;
+    }
+    .cs-emoji {
+      font-size: 30px;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    .cs-name {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .cs-sin {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #6d726f;
+      text-transform: uppercase;
+    }
+    .cs-desc {
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: #9a9f9c;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Character Select Overlay (visible by default; hidden once a game is active) -->
+  <div id="character-select-overlay">
+    <div class="cs-panel">
+      <div class="cs-header">
+        <span class="cs-title">Choisissez votre péché</span>
+        <span class="cs-subtitle">Chaque âme a sa malédiction</span>
+      </div>
+      <div class="cs-grid"></div>
+    </div>
+  </div>
+
   <div id="game">
 
     <!-- ── Main panel ──────────────────────────── -->
@@ -697,13 +982,86 @@
 
       <div class="shop-grow"></div>
 
-      <div class="log-section">
-        <div class="log-header">JOURNAL</div>
-        <div id="log-entries"></div>
+      <div class="char-hud">
+        <div class="char-hud-identity">
+          <span class="char-hud-emoji" id="char-hud-emoji">—</span>
+          <div class="char-hud-info">
+            <span class="char-hud-name" id="char-hud-name">—</span>
+            <span class="char-hud-sin"  id="char-hud-sin">—</span>
+          </div>
+        </div>
+        <div class="char-hud-inventory">
+          <span class="char-hud-inv-lbl">INVENTAIRE</span>
+          <div class="char-hud-slots">
+            <div class="char-hud-slot"></div>
+            <div class="char-hud-slot"></div>
+            <div class="char-hud-slot"></div>
+            <div class="char-hud-slot"></div>
+          </div>
+        </div>
       </div>
     </div>
 
   </div>
+  <!-- Profile Modal -->
+  <div id="profile-modal-overlay" class="hidden">
+    <div class="pm-panel">
+      <div class="pm-header">
+        <span class="pm-emoji-big" id="pm-emoji">—</span>
+        <div class="pm-identity">
+          <span class="pm-name" id="pm-name">—</span>
+          <span class="pm-sin"  id="pm-sin">—</span>
+          <span class="pm-desc" id="pm-desc"></span>
+        </div>
+        <button class="pm-close" id="pm-close">✕</button>
+      </div>
+
+      <div class="pm-section">
+        <span class="pm-section-lbl">STATS DE LA RUN</span>
+        <div class="pm-stats-grid">
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">NIVEAU</span>
+            <span class="pm-stat-val" id="pm-level">—</span>
+          </div>
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">OBJECTIF</span>
+            <span class="pm-stat-val gold" id="pm-goal">—</span>
+          </div>
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">PROGRESSION</span>
+            <span class="pm-stat-val gold" id="pm-progress">—</span>
+          </div>
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">SOLDE</span>
+            <span class="pm-stat-val" id="pm-balance">—</span>
+          </div>
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">MEILLEUR</span>
+            <span class="pm-stat-val" id="pm-best">—</span>
+          </div>
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">MISE</span>
+            <span class="pm-stat-val" id="pm-bet">—</span>
+          </div>
+          <div class="pm-stat">
+            <span class="pm-stat-lbl">CHANCE</span>
+            <span class="pm-stat-val" id="pm-luck">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pm-section">
+        <span class="pm-section-lbl">BONUS ACTIFS</span>
+        <div id="pm-bonuses"></div>
+      </div>
+
+      <div class="pm-section" id="pm-effect-section">
+        <span class="pm-section-lbl">EFFET DU PERSONNAGE</span>
+        <div id="pm-effect-rows"></div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

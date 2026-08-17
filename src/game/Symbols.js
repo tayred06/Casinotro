@@ -5,10 +5,10 @@ export const SYMBOLS = [
   { id: 'grape',   name: 'Raisin',  emoji: '🍇', weight: 25, color: 0x9B30FF },
   { id: 'bell',    name: 'Cloche',  emoji: '🔔', weight: 18, color: 0xFF8C00 },
   { id: 'diamond', name: 'Diamant', emoji: '💎', weight: 12, color: 0x00E5FF },
-  { id: 'star',    name: 'Étoile',  emoji: '⭐', weight: 8,  color: 0xFFD700 },
-  { id: 'dog',     name: 'Chien',   emoji: '🐕', weight: 4,  color: 0xFF6B6B },
-  { id: 'wild',    name: 'Wild',    emoji: '🃏', weight: 3,  color: 0xFFFFFF },
-  { id: 'scatter', name: 'Scatter', emoji: '💫', weight: 2,  color: 0xFF69B4 },
+  { id: 'star',    name: 'Étoile',  emoji: '⭐', weight: 8,  color: 0xFFD700, rare: true },
+  { id: 'dog',     name: 'Chien',   emoji: '🐕', weight: 4,  color: 0xFF6B6B, rare: true },
+  { id: 'wild',    name: 'Wild',    emoji: '🃏', weight: 3,  color: 0xFFFFFF, rare: true },
+  { id: 'scatter', name: 'Scatter', emoji: '💫', weight: 2,  color: 0xFF69B4, rare: true },
 ]
 
 export const WIN_SYMBOLS = SYMBOLS.filter(s => s.id !== 'wild' && s.id !== 'scatter')
@@ -34,10 +34,14 @@ const LUCK_BIAS = {
   scatter:  0.50,
 }
 
-export function generateReelColumn(rowCount, luckFactor = 0) {
+export function generateReelColumn(rowCount, luckFactor = 0, rareMultiplier = 1) {
   const pool = SYMBOLS.map(s => ({
     value:  s,
-    weight: Math.max(0.5, s.weight * (1 + luckFactor * (LUCK_BIAS[s.id] ?? 0))),
+    weight: Math.max(0.5,
+      s.weight
+      * (1 + luckFactor * (LUCK_BIAS[s.id] ?? 0))
+      * (s.rare ? rareMultiplier : 1)
+    ),
   }))
   return Array.from({ length: rowCount }, () => weightedRandom(pool))
 }

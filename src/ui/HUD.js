@@ -90,4 +90,35 @@ export class HUD {
   setSpinLabel(label) {
     this.#spinBtn.textContent = label
   }
+
+  showEscalatingBet(amount, nextIncrement = null) {
+    const container = document.getElementById('bet-chips')
+    container.textContent = ''
+
+    const fmt = n => `$${n % 1 === 0 ? n : n.toFixed(2)}`
+
+    const display = document.createElement('span')
+    display.id = 'gula-bet-display'
+    display.className = 'chip active'
+    display.style.pointerEvents = 'none'
+    display.style.minWidth = '72px'
+    display.textContent = fmt(amount)
+    container.appendChild(display)
+
+    if (nextIncrement !== null) {
+      const next = document.createElement('span')
+      next.className = 'chip'
+      next.style.pointerEvents = 'none'
+      next.style.color = '#b7534f'
+      next.style.borderColor = 'rgba(183,83,79,.35)'
+      next.style.fontSize = '11px'
+      next.textContent = `+${fmt(nextIncrement)}`
+      container.appendChild(next)
+    }
+  }
+
+  restoreBetChips() {
+    this.#buildBetChips()
+    this.#updateChipState()
+  }
 }

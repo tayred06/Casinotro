@@ -25,6 +25,8 @@ export class ShopUI {
   #economy
   #onUpdate
   #selectTarget
+  #onBonusSold = null
+  #offerModifier = null
   #currentOffers = []
   #rerollCost = 5
 
@@ -54,9 +56,13 @@ export class ShopUI {
 
   // Redraw bonuses + reroll btn without touching offers (call after spin)
   updateDisplay() {
+    this.#renderItems()
     this.#renderBonuses()
     this.#updateRerollBtn()
   }
+
+  setOnBonusSold(fn)    { this.#onBonusSold    = fn }
+  setOfferModifier(fn)  { this.#offerModifier  = fn }
 
   // For save/restore
   getOffers()            { return this.#currentOffers }
@@ -73,6 +79,7 @@ export class ShopUI {
 
   addLog(text, muted = false) {
     const container = document.getElementById('log-entries')
+    if (!container) return
     const spinNum   = document.querySelectorAll('.log-entry').length + 1
 
     const entry = document.createElement('div')
@@ -101,7 +108,22 @@ export class ShopUI {
     const container = document.getElementById('shop-items')
     container.textContent = ''
 
-    this.#currentOffers.forEach(offer => {
+    const visibleOffers = this.#offerModifier
+      ? this.#currentOffers.map(o => this.#offerModifier(o)).filter(Boolean)
+      : this.#currentOffers
+
+    if (visibleOffers.length === 0 && this.#offerModifier) {
+      const locked = document.createElement('div')
+      locked.className = 'shop-item'
+      locked.style.color = '#4f5453'
+      locked.style.fontStyle = 'italic'
+      locked.style.fontSize = '12.5px'
+      locked.textContent = 'Boutique verrouillée — enrichissez-vous.'
+      container.appendChild(locked)
+      return
+    }
+
+    visibleOffers.forEach(offer => {
       const canBuy = this.#economy.canAfford(offer.price) && !this.#bonusSystem.isFull
 
       const item = document.createElement('div')
@@ -158,6 +180,11 @@ export class ShopUI {
     })
   }
 
+  setLevelLabel(text) {
+    const el = document.getElementById('shop-level-lbl')
+    if (el) el.textContent = text
+  }
+
   #renderBonuses() {
     const container = document.getElementById('bonuses-list')
     container.textContent = ''
@@ -180,8 +207,12 @@ export class ShopUI {
       tag.title       = `Vendre pour $${Math.floor(bonus.price * 0.5)}`
       tag.addEventListener('click', () => {
         const refund = this.#bonusSystem.removeBonus(bonus.instanceId)
-        this.#economy.addMoney(refund)
-        this.addLog(`Vendu : ${bonus.name} +$${refund}`, true)
+        if (this.#onBonusSold) {
+          this.#onBonusSold(bonus, refund)
+        } else {
+          this.#economy.addMoney(refund)
+          this.addLog(`Vendu : ${bonus.name} +$${refund}`, true)
+        }
         this.#renderBonuses()
         this.#renderItems()
         this.#updateRerollBtn()

@@ -43,6 +43,8 @@ export class ReelRenderer {
   #selectionHint
   #selectionCancel
   #currentGrid = null
+  #spinTicker   = null
+  #spinTimeouts = []
 
   get currentGrid() { return this.#currentGrid }
 
@@ -123,7 +125,21 @@ export class ReelRenderer {
     })
   }
 
+  #cancelAnimation() {
+    if (this.#spinTicker !== null) {
+      clearInterval(this.#spinTicker)
+      this.#spinTicker = null
+    }
+    for (const id of this.#spinTimeouts) clearTimeout(id)
+    this.#spinTimeouts = []
+    this.#container.querySelectorAll('.cell.spinning').forEach(cell =>
+      cell.classList.remove('spinning')
+    )
+  }
+
   async animateSpin(finalGrid) {
+    this.#cancelAnimation()
+
     this.#currentGrid = finalGrid
     this.#buildCells(finalGrid)
     this.#scaleFonts()
@@ -146,7 +162,7 @@ export class ReelRenderer {
       })
     })
 
-    const ticker = setInterval(() => {
+    this.#spinTicker = setInterval(() => {
       reelEls.forEach((reel, i) => {
         if (locked.has(i)) return
         reel.querySelectorAll('.cell [class^="cell-"]').forEach(el => {
@@ -158,19 +174,28 @@ export class ReelRenderer {
     }, 65)
 
     for (let c = 0; c < COLS; c++) {
-      setTimeout(() => {
+      const id = setTimeout(() => {
         locked.add(c)
-        reelEls[c].querySelectorAll('.cell').forEach((cell, rowIdx) => {
+        reelEls[c]?.querySelectorAll('.cell').forEach((cell, rowIdx) => {
           cell.classList.remove('spinning')
           const inner = cell.querySelector('[class^="cell-"]')
           const sym   = finalGrid[c]?.[rowIdx]
-          if (inner && sym) inner.textContent = VISUAL[sym.id]?.text ?? sym.emoji
+          if (inner && sym) {
+            const v = VISUAL[sym.id]
+            if (v) {
+              inner.className   = v.cls
+              inner.textContent = v.text
+            } else {
+              inner.textContent = sym.emoji
+            }
+          }
         })
       }, BASE + (c + 1) * STEP)
+      this.#spinTimeouts.push(id)
     }
 
     await new Promise(resolve => setTimeout(resolve, BASE + COLS * STEP + 80))
-    clearInterval(ticker)
+    this.#cancelAnimation()
   }
 
   #randomVisual() {

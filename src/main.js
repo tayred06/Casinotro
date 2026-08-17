@@ -5,6 +5,10 @@ import { SYMBOLS } from './game/Symbols.js'
 import { ReelRenderer } from './ui/ReelRenderer.js'
 import { HUD } from './ui/HUD.js'
 import { ShopUI } from './ui/ShopUI.js'
+import { CHARACTERS, getCharacter, STARTING_CHARACTER_ID } from './game/Characters.js'
+import { CharacterState } from './game/CharacterState.js'
+import { CharacterSelect } from './ui/CharacterSelect.js'
+import { ProfileModal } from './ui/ProfileModal.js'
 
 // ── Save system ───────────────────────────────────────
 const SAVE_KEY = 'casinotro_v1'
@@ -22,6 +26,8 @@ function saveGame(grid) {
       shopOffers:  shop.getOffers(),
       rerollCost:  shop.getRerollCost(),
       grid:        grid.map(col => col.map(s => s.id)),
+      characterId: activeCharacter.id,
+      gulaBet:     activeCharacter.effectKey === 'gula' ? gulaBet : undefined,
     }))
   } catch {}
 }
@@ -70,35 +76,183 @@ function getLuckFactor() {
   return bonusSystem.getModifiers().luck / 100 + economy.rtpNudge
 }
 
-// ── Boot: restore save or start fresh ────────────────
+function applyCharacterTheme() {
+  document.documentElement.style.setProperty('--char-color', activeCharacter.color ?? '#0f1110')
+  document.getElementById('char-hud-emoji').textContent = activeCharacter.emoji
+  document.getElementById('char-hud-name').textContent  = activeCharacter.name
+  document.getElementById('char-hud-sin').textContent   = activeCharacter.sin
+}
+
+function getReelOptions() {
+  if (activeCharacter.effectKey === 'luxuria') {
+    return { rareMultiplier: activeCharacter.params.rareSymbolWeightMultiplier ?? 1 }
+  }
+  return {}
+}
+
+function applySpinUpkeep() {
+  if (activeCharacter.effectKey !== 'luxuria') return
+  const { upkeepPercent, upkeepLabel } = activeCharacter.params
+  const upkeep = Math.round(economy.balance * upkeepPercent * 100) / 100
+  if (upkeep > 0 && economy.spend(upkeep)) {
+    shop.addLog(`${upkeepLabel} — -$${upkeep.toFixed(2)}`, true)
+    hud.update(RUN)
+  }
+}
+
+// ── Avaritia ──────────────────────────────────────────
+function getAvaritiaGate() {
+  const gates    = activeCharacter.params.shopGates
+  const progress = economy.balance / (activeCharacter.goal ?? 10000)
+  let gate = gates[0]
+  for (const g of gates) { if (progress >= g.progress) gate = g }
+  return gate
+}
+
+function avaritiaOfferModifier(offer) {
+  const gate = getAvaritiaGate()
+  if (gate.maxTier === 0 || offer.level > gate.maxTier) return null
+  return { ...offer, price: Math.round(offer.price * gate.priceMultiplier) }
+}
+
+function updateAvaritiaLabel() {
+  const gate     = getAvaritiaGate()
+  const goal     = activeCharacter.goal ?? 10000
+  const tierIdx  = gate.maxTier          // 0-3
+  const gateLabels = ['VERROUILLÉE', 'PALIER 1/3', 'PALIER 2/3', 'OUVERTE']
+  const nextGate = activeCharacter.params.shopGates[tierIdx + 1]
+  const suffix   = nextGate
+    ? ` — $${Math.round(nextGate.progress * goal)} requis`
+    : ''
+  shop.setLevelLabel(gateLabels[tierIdx] + suffix)
+}
+
+function setupAvaritia() {
+  shop.setOfferModifier(avaritiaOfferModifier)
+  updateAvaritiaLabel()
+}
+
+function teardownAvaritia() {
+  shop.setOfferModifier(null)
+}
+
+// ── Gula ──────────────────────────────────────────────
+let gulaBet = 1
+
+function setupGula() {
+  const { betEscalationFloor } = activeCharacter.params
+  gulaBet = betEscalationFloor
+  economy.forceSetBet(gulaBet)
+  hud.showEscalatingBet(gulaBet, getGulaIncrement())
+
+  shop.setOnBonusSold((bonus) => {
+    gulaBet = activeCharacter.params.betEscalationFloor
+    economy.forceSetBet(gulaBet)
+    hud.showEscalatingBet(gulaBet, getGulaIncrement())
+    shop.addLog(`Dévoré : ${bonus.name} — mise remise à $${gulaBet}`, true)
+  })
+}
+
+function teardownGula() {
+  shop.setOnBonusSold(null)
+  hud.restoreBetChips()
+}
+
+function getGulaIncrement() {
+  const { betEscalationPercent, betEscalationFloor } = activeCharacter.params
+  return economy.balance < 100
+    ? betEscalationFloor
+    : Math.round(economy.balance * betEscalationPercent * 100) / 100
+}
+
+function applyBetEscalation() {
+  if (activeCharacter.effectKey !== 'gula') return
+  const increment = getGulaIncrement()
+  gulaBet = Math.round((gulaBet + increment) * 100) / 100
+  economy.forceSetBet(gulaBet)
+  hud.showEscalatingBet(gulaBet, getGulaIncrement())
+}
+
+// ── Character system ──────────────────────────────────
+let activeCharacter = new CharacterState(getCharacter(STARTING_CHARACTER_ID))
+const characterSelect = new CharacterSelect(CHARACTERS, startRunWithCharacter)
+const profileModal = new ProfileModal()
+
+document.getElementById('pm-close').addEventListener('click', () => profileModal.close())
+document.querySelector('.char-hud-identity').addEventListener('click', () => {
+  profileModal.open(activeCharacter, economy, RUN, bonusSystem)
+})
+
+// ── Boot: restore save or show character select ───────
 let isSpinning = false
-let bootGrid
 
 const save = loadSave()
 if (save) {
+  const savedChar = getCharacter(save.characterId) ?? getCharacter(STARTING_CHARACTER_ID)
+  activeCharacter = new CharacterState(savedChar)
+
   Object.assign(RUN, save.run)
   economy.restore(save.economy)
   bonusSystem.restore(save.bonusSystem)
-  bootGrid = save.grid ? gridFromIds(save.grid) : spin({}, getLuckFactor()).grid
+  const bootGrid = save.grid ? gridFromIds(save.grid) : spin({}, getLuckFactor()).grid
 
   renderer.displayGrid(bootGrid, bonusSystem.getModifiers())
   renderer.showModifiers(bonusSystem.getModifiers())
   shop.setOffers(save.shopOffers ?? [], RUN.level)
   if (save.rerollCost) shop.setRerollCost(save.rerollCost)
   shop.addLog('Partie restaurée.', true)
-} else {
-  bootGrid = spin({}, getLuckFactor()).grid
-  renderer.displayGrid(bootGrid, bonusSystem.getModifiers())
-  shop.refresh(1)
-  shop.addLog('Nouvelle run — bonne chance.', true)
+  hud.update(RUN)
+  applyCharacterTheme()
+  if (activeCharacter.effectKey === 'gula') {
+    gulaBet = save.gulaBet ?? activeCharacter.params.betEscalationFloor
+    setupGula()
+    hud.showEscalatingBet(gulaBet, getGulaIncrement())
+  }
+  if (activeCharacter.effectKey === 'avaritia') setupAvaritia()
+  characterSelect.hide()
 }
+// If no save: overlay stays visible — game starts via startRunWithCharacter()
 
-hud.update(RUN)
+// ── Start run with selected character ─────────────────
+function startRunWithCharacter(character) {
+  teardownGula()
+  teardownAvaritia()
+  activeCharacter = new CharacterState(character)
+  applyCharacterTheme()
+  characterSelect.hide()
+  clearSave()
+
+  Object.assign(RUN, { level: 1, goal: 150 })
+  economy.restart(activeCharacter.getStartBalance() ?? 100)
+  bonusSystem.reset()
+  renderer.hideGameOver()
+  renderer.clearHighlights()
+
+  const { grid } = spin({}, getLuckFactor(), getReelOptions())
+  renderer.displayGrid(grid, bonusSystem.getModifiers())
+  renderer.showModifiers(bonusSystem.getModifiers())
+  shop.refresh(1)
+  if (activeCharacter.effectKey === 'gula')     setupGula()
+  if (activeCharacter.effectKey === 'avaritia') setupAvaritia()
+  hud.update(RUN, 0)
+  hud.setSpinEnabled(true)
+  hud.setSpinLabel('SPIN')
+  isSpinning = false
+  shop.addLog(`${character.emoji} ${character.name} — bonne chance.`, true)
+  saveGame(grid)
+}
 
 // ── Spin ─────────────────────────────────────────────
 async function handleSpin() {
   if (isSpinning || economy.isGameOver()) return
-  if (!economy.placeBet()) return
+  if (!economy.placeBet()) {
+    if (activeCharacter.effectKey === 'gula') {
+      clearSave()
+      const overText = `Niveau ${RUN.level} · mise $${gulaBet.toFixed(2)} · solde $${economy.balance.toFixed(2)}`
+      renderer.showGameOver(overText)
+    }
+    return
+  }
 
   isSpinning = true
   hud.setSpinEnabled(false)
@@ -107,14 +261,22 @@ async function handleSpin() {
   renderer.clearHighlights()
   hud.update(RUN)
 
+  applySpinUpkeep()
+
   const modifiers       = bonusSystem.getModifiers()
   const stickyPositions = modifiers.stickyPositions ?? {}
-  const { grid }        = spin(stickyPositions, getLuckFactor())
+  const { grid }        = spin(stickyPositions, getLuckFactor(), getReelOptions())
 
   await renderer.animateSpin(grid)
 
   const winResult = calculateWins(grid, economy.currentBet, modifiers)
   bonusSystem.processPostSpin(winResult, grid)
+
+  if (activeCharacter.effectKey === 'avaritia' && winResult.totalWin > 0) {
+    const m = activeCharacter.params.winMultiplier
+    winResult.totalWin = winResult.totalWin * m
+    winResult.winLines = winResult.winLines.map(l => ({ ...l, win: l.win * m }))
+  }
 
   if (winResult.totalWin > 0) {
     economy.addWin(winResult.totalWin)
@@ -134,7 +296,6 @@ async function handleSpin() {
     await handleFreeSpins(8)
   }
 
-  // Bonus drop from large win
   if (winResult.dropBonus && !bonusSystem.isFull) {
     const level  = economy.getShopLevel()
     const offers = bonusSystem.getShopOffers(level)
@@ -147,9 +308,10 @@ async function handleSpin() {
   }
 
   hud.update(RUN, bonusSystem.getModifiers().luck)
-  // Only update display — do NOT regenerate shop offers
   shop.updateDisplay()
 
+  applyBetEscalation()
+  if (activeCharacter.effectKey === 'avaritia') updateAvaritiaLabel()
   checkRunProgress(grid)
   saveGame(grid)
 
@@ -166,7 +328,7 @@ async function handleFreeSpins(count) {
   for (let i = 0; i < count; i++) {
     await delay(380)
     const modifiers = bonusSystem.getModifiers()
-    const { grid }  = spin(modifiers.stickyPositions ?? {}, getLuckFactor())
+    const { grid }  = spin(modifiers.stickyPositions ?? {}, getLuckFactor(), getReelOptions())
     await renderer.animateSpin(grid)
 
     const winResult = calculateWins(grid, economy.currentBet, modifiers)
@@ -189,7 +351,7 @@ function checkRunProgress(grid) {
   if (economy.balance >= RUN.goal) {
     RUN.level++
     RUN.goal = Math.round(RUN.goal * 2.6)
-    shop.refresh(economy.getShopLevel())   // level-up: regenerate offers
+    shop.refresh(economy.getShopLevel())
     shop.addLog(`Niveau ${RUN.level} — boutique renouvelée !`)
     hud.update(RUN)
     if (grid) saveGame(grid)
@@ -202,25 +364,12 @@ function checkRunProgress(grid) {
 
 function restartRun() {
   clearSave()
-  Object.assign(RUN, { level: 1, goal: 150 })
-  economy.restart(100)
-  bonusSystem.reset()
   renderer.hideGameOver()
   renderer.clearHighlights()
-
-  const { grid } = spin({}, getLuckFactor())
-  renderer.displayGrid(grid, bonusSystem.getModifiers())
-  renderer.showModifiers(bonusSystem.getModifiers())
-  shop.refresh(1)
-  hud.update(RUN, 0)
-  hud.setSpinEnabled(true)
-  hud.setSpinLabel('SPIN')
-  isSpinning = false
-  shop.addLog('Nouvelle run — bonne chance.', true)
-  saveGame(grid)
+  hud.setSpinEnabled(false)
+  characterSelect.show()
 }
 
-// Exposed for the "Nouvelle partie" button
 window.__newGame = restartRun
 
 function buildWinLog(result) {

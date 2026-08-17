@@ -38,6 +38,10 @@ export class Economy {
     if (BET_OPTIONS.includes(amount)) this.#currentBet = amount
   }
 
+  forceSetBet(amount) {
+    if (amount > 0) this.#currentBet = amount
+  }
+
   placeBet() {
     if (this.#balance < this.#currentBet) return false
     this.#balance -= this.#currentBet
