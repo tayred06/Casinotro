@@ -18,14 +18,18 @@ const MACHINES = [
 export class StartScreen {
   #overlay
   #onStart
-  #selectedMachine = 'trefle'
-  #machineCards    = new Map()
+  #selectedMachine   = 'trefle'
+  #selectedCharacter = null
+  #machineCards      = new Map()
+  #charCards         = new Map()
+  #startBtn
 
   constructor(characters, onStart) {
     this.#onStart = onStart
     this.#overlay = document.getElementById('start-overlay')
     this.#renderMachines()
     this.#renderCharacters(characters.filter(c => !c.hidden))
+    this.#renderStartBtn()
   }
 
   #renderMachines() {
@@ -70,11 +74,40 @@ export class StartScreen {
       card.appendChild(makeSpan('ss-cc-sin',   char.sin))
       card.appendChild(makeSpan('ss-cc-desc',  char.description))
 
-      card.addEventListener('click', () => this.#onStart(this.#selectedMachine, char))
+      card.addEventListener('click', () => this.#selectCharacter(char, card))
+      this.#charCards.set(char.id ?? char.name, card)
       grid.appendChild(card)
     }
   }
 
-  show() { this.#overlay.classList.remove('hidden') }
+  #selectCharacter(char, card) {
+    this.#selectedCharacter = char
+    for (const c of this.#charCards.values()) c.classList.remove('ss-ccard-active')
+    card.classList.add('ss-ccard-active')
+    this.#startBtn.disabled = false
+    this.#startBtn.classList.remove('ss-start-disabled')
+  }
+
+  #renderStartBtn() {
+    const wrap = this.#overlay.querySelector('.ss-footer')
+    this.#startBtn = document.createElement('button')
+    this.#startBtn.className  = 'ss-start-btn ss-start-disabled'
+    this.#startBtn.textContent = 'Commencer'
+    this.#startBtn.disabled    = true
+    this.#startBtn.addEventListener('click', () => {
+      if (this.#selectedCharacter) {
+        this.#onStart(this.#selectedMachine, this.#selectedCharacter)
+      }
+    })
+    wrap.appendChild(this.#startBtn)
+  }
+
+  show() {
+    this.#selectedCharacter = null
+    this.#startBtn.disabled = true
+    this.#startBtn.classList.add('ss-start-disabled')
+    for (const c of this.#charCards.values()) c.classList.remove('ss-ccard-active')
+    this.#overlay.classList.remove('hidden')
+  }
   hide() { this.#overlay.classList.add('hidden') }
 }

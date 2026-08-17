@@ -901,6 +901,29 @@
       text-transform: uppercase;
     }
     .ss-cc-desc  { font-size: 11.5px; line-height: 1.5; color: #9a9f9c; margin-top: 2px; }
+    .ss-ccard-active {
+      border-color: rgba(201,162,74,.7);
+      box-shadow: 0 0 22px rgba(201,162,74,.12);
+      background: #131612;
+    }
+
+    /* Start button */
+    .ss-footer { display: flex; justify-content: flex-end; }
+    .ss-start-btn {
+      padding: 14px 48px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: #0f1110;
+      background: #c9a24a;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+    }
+    .ss-start-btn:hover:not(:disabled) { background: #dcb662; }
+    .ss-start-btn.ss-start-disabled    { opacity: .32; cursor: not-allowed; }
 
     /* ── Lit City grid ───────────────────────────── */
     #lc-area {
@@ -994,9 +1017,11 @@
       </div>
 
       <div>
-        <div class="ss-section-lbl">Personnage — cliquer pour commencer</div>
+        <div class="ss-section-lbl">Personnage</div>
         <div class="ss-char-grid"></div>
       </div>
+
+      <div class="ss-footer"></div>
     </div>
   </div>
 
