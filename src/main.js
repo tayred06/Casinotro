@@ -9,27 +9,50 @@ import { CHARACTERS, getCharacter, STARTING_CHARACTER_ID } from './game/Characte
 import { CharacterState } from './game/CharacterState.js'
 import { CharacterSelect } from './ui/CharacterSelect.js'
 import { ProfileModal } from './ui/ProfileModal.js'
+import { MachineSelect } from './ui/MachineSelect.js'
+import { spinLC, findClusters, calculateLCWins, tumble, fillGrid } from './game/LitCityMachine.js'
+import { LC_SYMBOLS } from './game/LitCitySymbols.js'
+import { LitCityRenderer } from './ui/LitCityRenderer.js'
+
+// ── Machine routing ───────────────────────────────────
+let activeMachine = 'trefle' // 'trefle' | 'litcity'
+
+function isLitCity() { return activeMachine === 'litcity' }
+
+function showMachineArea() {
+  document.getElementById('trefle-area').classList.toggle('hidden', isLitCity())
+  document.getElementById('lc-area').classList.toggle('hidden', !isLitCity())
+  document.getElementById('game-name').textContent = isLitCity() ? 'Lit City' : 'Trèfle'
+}
 
 // ── Save system ───────────────────────────────────────
 const SAVE_KEY = 'casinotro_v1'
 
-const SYMBOL_MAP = Object.fromEntries(
-  (typeof SYMBOLS !== 'undefined' ? SYMBOLS : []).map(s => [s.id, s])
-)
+const SYMBOL_MAP    = Object.fromEntries(SYMBOLS.map(s => [s.id, s]))
+const LC_SYMBOL_MAP = Object.fromEntries(LC_SYMBOLS.map(s => [s.id, s]))
 
 function saveGame(grid) {
   try {
+    const gridData = isLitCity()
+      ? grid.map(row => row.map(s => s?.id ?? null))
+      : grid.map(col => col.map(s => s.id))
+
     localStorage.setItem(SAVE_KEY, JSON.stringify({
+      machineId:   activeMachine,
       run:         { ...RUN },
       economy:     economy.serialize(),
       bonusSystem: bonusSystem.serialize(),
       shopOffers:  shop.getOffers(),
       rerollCost:  shop.getRerollCost(),
-      grid:        grid.map(col => col.map(s => s.id)),
+      grid:        gridData,
       characterId: activeCharacter.id,
       gulaBet:     activeCharacter.effectKey === 'gula' ? gulaBet : undefined,
     }))
   } catch {}
+}
+
+function lcGridFromIds(ids2d) {
+  return ids2d.map(row => row.map(id => (id ? (LC_SYMBOL_MAP[id] ?? LC_SYMBOLS[0]) : null)))
 }
 
 function loadSave() {
@@ -53,6 +76,7 @@ const RUN = { level: 1, goal: 150 }
 const economy     = new Economy(100)
 const bonusSystem = new BonusSystem()
 const renderer    = new ReelRenderer(restartRun)
+const lcRenderer  = new LitCityRenderer(restartRun)
 
 const hud = new HUD(
   economy,
@@ -68,8 +92,9 @@ async function selectTarget(offer) {
 
 const shop = new ShopUI(bonusSystem, economy, () => {
   hud.update(RUN)
-  renderer.showModifiers(bonusSystem.getModifiers())
-  saveGame(renderer.currentGrid ?? [])
+  if (!isLitCity()) renderer.showModifiers(bonusSystem.getModifiers())
+  const grid = isLitCity() ? lcRenderer.currentGrid : renderer.currentGrid
+  saveGame(grid ?? [])
 }, selectTarget)
 
 function getLuckFactor() {
@@ -173,45 +198,65 @@ function applyBetEscalation() {
   hud.showEscalatingBet(gulaBet, getGulaIncrement())
 }
 
-// ── Character system ──────────────────────────────────
+// ── Character + Machine system ────────────────────────
 let activeCharacter = new CharacterState(getCharacter(STARTING_CHARACTER_ID))
+const machineSelect   = new MachineSelect(onMachineSelected)
 const characterSelect = new CharacterSelect(CHARACTERS, startRunWithCharacter)
-const profileModal = new ProfileModal()
+const profileModal    = new ProfileModal()
 
 document.getElementById('pm-close').addEventListener('click', () => profileModal.close())
 document.querySelector('.char-hud-identity').addEventListener('click', () => {
   profileModal.open(activeCharacter, economy, RUN, bonusSystem)
 })
 
-// ── Boot: restore save or show character select ───────
+function onMachineSelected(machineId) {
+  activeMachine = machineId
+  machineSelect.hide()
+  showMachineArea()
+  characterSelect.show()
+}
+
+// ── Boot: restore save or show machine select ─────────
 let isSpinning = false
+let lcCascadeIndex = 0
 
 const save = loadSave()
 if (save) {
+  activeMachine = save.machineId ?? 'trefle'
+  showMachineArea()
+
   const savedChar = getCharacter(save.characterId) ?? getCharacter(STARTING_CHARACTER_ID)
   activeCharacter = new CharacterState(savedChar)
 
   Object.assign(RUN, save.run)
   economy.restore(save.economy)
   bonusSystem.restore(save.bonusSystem)
-  const bootGrid = save.grid ? gridFromIds(save.grid) : spin({}, getLuckFactor()).grid
-
-  renderer.displayGrid(bootGrid, bonusSystem.getModifiers())
-  renderer.showModifiers(bonusSystem.getModifiers())
   shop.setOffers(save.shopOffers ?? [], RUN.level)
   if (save.rerollCost) shop.setRerollCost(save.rerollCost)
   shop.addLog('Partie restaurée.', true)
   hud.update(RUN)
   applyCharacterTheme()
+
+  if (isLitCity()) {
+    const bootGrid = save.grid ? lcGridFromIds(save.grid) : spinLC(getLuckFactor())
+    lcRenderer.displayGrid(bootGrid)
+    lcRenderer.setMultiplier(1)
+  } else {
+    const bootGrid = save.grid ? gridFromIds(save.grid) : spin({}, getLuckFactor()).grid
+    renderer.displayGrid(bootGrid, bonusSystem.getModifiers())
+    renderer.showModifiers(bonusSystem.getModifiers())
+  }
+
   if (activeCharacter.effectKey === 'gula') {
     gulaBet = save.gulaBet ?? activeCharacter.params.betEscalationFloor
     setupGula()
     hud.showEscalatingBet(gulaBet, getGulaIncrement())
   }
   if (activeCharacter.effectKey === 'avaritia') setupAvaritia()
+  machineSelect.hide()
   characterSelect.hide()
 }
-// If no save: overlay stays visible — game starts via startRunWithCharacter()
+// If no save: machine select overlay stays visible
 
 // ── Start run with selected character ─────────────────
 function startRunWithCharacter(character) {
@@ -225,12 +270,24 @@ function startRunWithCharacter(character) {
   Object.assign(RUN, { level: 1, goal: 150 })
   economy.restart(activeCharacter.getStartBalance() ?? 100)
   bonusSystem.reset()
-  renderer.hideGameOver()
-  renderer.clearHighlights()
+  lcCascadeIndex = 0
 
-  const { grid } = spin({}, getLuckFactor(), getReelOptions())
-  renderer.displayGrid(grid, bonusSystem.getModifiers())
-  renderer.showModifiers(bonusSystem.getModifiers())
+  if (isLitCity()) {
+    lcRenderer.hideGameOver()
+    lcRenderer.clearHighlights()
+    lcRenderer.setMultiplier(1)
+    const grid = spinLC(getLuckFactor())
+    lcRenderer.displayGrid(grid)
+    saveGame(grid)
+  } else {
+    renderer.hideGameOver()
+    renderer.clearHighlights()
+    const { grid } = spin({}, getLuckFactor(), getReelOptions())
+    renderer.displayGrid(grid, bonusSystem.getModifiers())
+    renderer.showModifiers(bonusSystem.getModifiers())
+    saveGame(grid)
+  }
+
   shop.refresh(1)
   if (activeCharacter.effectKey === 'gula')     setupGula()
   if (activeCharacter.effectKey === 'avaritia') setupAvaritia()
@@ -239,7 +296,6 @@ function startRunWithCharacter(character) {
   hud.setSpinLabel('SPIN')
   isSpinning = false
   shop.addLog(`${character.emoji} ${character.name} — bonne chance.`, true)
-  saveGame(grid)
 }
 
 // ── Spin ─────────────────────────────────────────────
@@ -257,9 +313,25 @@ async function handleSpin() {
   isSpinning = true
   hud.setSpinEnabled(false)
   hud.setSpinLabel('SPIN…')
+  hud.update(RUN)
+
+  if (isLitCity()) {
+    await handleLitCitySpin()
+  } else {
+    await handleTrefleSpin()
+  }
+
+  isSpinning = false
+  await delay(150)
+  if (!economy.isGameOver()) {
+    hud.setSpinEnabled(true)
+    hud.setSpinLabel('SPIN')
+  }
+}
+
+async function handleTrefleSpin() {
   renderer.hideWin()
   renderer.clearHighlights()
-  hud.update(RUN)
 
   applySpinUpkeep()
 
@@ -284,7 +356,6 @@ async function handleSpin() {
     renderer.showWin(winResult.totalWin, winResult.winLines)
     hud.update(RUN, modifiers.luck)
     shop.addLog(buildWinLog(winResult))
-
     await delay(1400)
     renderer.hideWin()
     renderer.clearHighlights()
@@ -292,9 +363,7 @@ async function handleSpin() {
     shop.addLog('Aucune combinaison.', true)
   }
 
-  if (winResult.scatterTriggered) {
-    await handleFreeSpins(8)
-  }
+  if (winResult.scatterTriggered) await handleFreeSpins(8)
 
   if (winResult.dropBonus && !bonusSystem.isFull) {
     const level  = economy.getShopLevel()
@@ -309,18 +378,102 @@ async function handleSpin() {
 
   hud.update(RUN, bonusSystem.getModifiers().luck)
   shop.updateDisplay()
-
   applyBetEscalation()
   if (activeCharacter.effectKey === 'avaritia') updateAvaritiaLabel()
   checkRunProgress(grid)
   saveGame(grid)
+}
 
-  isSpinning = false
-  await delay(150)
+async function handleLitCitySpin() {
+  lcRenderer.hideWin()
+  lcRenderer.clearHighlights()
+  lcCascadeIndex = 0
+  lcRenderer.setMultiplier(1)
 
-  if (!economy.isGameOver()) {
-    hud.setSpinEnabled(true)
-    hud.setSpinLabel('SPIN')
+  let grid = spinLC(getLuckFactor())
+  await lcRenderer.animateSpin()
+  lcRenderer.displayGrid(grid)
+
+  let spinTotalWin = 0
+  let freeSpinsTriggered = false
+
+  // Tumble loop — cascade until no more clusters
+  while (true) {
+    const clusters = findClusters(grid)
+    const result   = calculateLCWins(grid, clusters, economy.currentBet, lcCascadeIndex)
+
+    if (result.freeSpinsTriggered) freeSpinsTriggered = true
+
+    if (result.totalWin === 0) break
+
+    lcRenderer.highlightClusters(result.winLines)
+    await delay(400)
+
+    const gridAfterTumble = tumble(grid, result.winLines)
+    const gridFilled      = fillGrid(gridAfterTumble, getLuckFactor())
+
+    await lcRenderer.animateTumble(grid, gridFilled)
+    grid = gridFilled
+    lcRenderer.displayGrid(grid)
+
+    spinTotalWin += result.totalWin
+    lcCascadeIndex++
+    lcRenderer.setMultiplier(result.cascadeMult)
+
+    economy.addWin(result.totalWin)
+    hud.update(RUN)
+    shop.addLog(`Cluster ×${result.cascadeMult} — +$${result.totalWin.toFixed(2)}`)
+  }
+
+  lcRenderer.clearHighlights()
+  lcRenderer.displayGrid(grid)
+
+  if (spinTotalWin > 0) {
+    lcRenderer.showWin(spinTotalWin, null)
+    await delay(1200)
+    lcRenderer.hideWin()
+  } else {
+    shop.addLog('Aucun cluster.', true)
+  }
+
+  if (freeSpinsTriggered) await handleLCFreeSpins(10)
+
+  hud.update(RUN, bonusSystem.getModifiers().luck)
+  shop.updateDisplay()
+  checkRunProgressLC(grid)
+  saveGame(grid)
+}
+
+async function handleLCFreeSpins(count) {
+  shop.addLog(`⚡ ${count} tours gratuits !`)
+  for (let i = 0; i < count; i++) {
+    await delay(400)
+    let grid = spinLC(getLuckFactor())
+    await lcRenderer.animateSpin()
+    lcRenderer.displayGrid(grid)
+
+    // Multiplier persists across free spins — only cascades reset index within one spin
+    let spinIdx = 0
+    while (true) {
+      const clusters = findClusters(grid)
+      const result   = calculateLCWins(grid, clusters, economy.currentBet, spinIdx, lcCascadeIndex > 0 ? 2 : 1)
+      if (result.totalWin === 0) break
+
+      lcRenderer.highlightClusters(result.winLines)
+      await delay(320)
+
+      const gridAfterTumble = tumble(grid, result.winLines)
+      const gridFilled      = fillGrid(gridAfterTumble, getLuckFactor())
+      await lcRenderer.animateTumble(grid, gridFilled)
+      grid = gridFilled
+      lcRenderer.displayGrid(grid)
+
+      economy.addWin(result.totalWin)
+      hud.update(RUN)
+      spinIdx++
+    }
+    lcRenderer.clearHighlights()
+    lcRenderer.displayGrid(grid)
   }
 }
 
@@ -362,12 +515,29 @@ function checkRunProgress(grid) {
   }
 }
 
+function checkRunProgressLC(grid) {
+  if (economy.balance >= RUN.goal) {
+    RUN.level++
+    RUN.goal = Math.round(RUN.goal * 2.6)
+    shop.refresh(economy.getShopLevel())
+    shop.addLog(`Niveau ${RUN.level} — boutique renouvelée !`)
+    hud.update(RUN)
+    if (grid) saveGame(grid)
+  } else if (economy.isGameOver()) {
+    clearSave()
+    const overText = `Niveau ${RUN.level} · objectif $${RUN.goal} · solde $${economy.balance.toFixed(2)}`
+    lcRenderer.showGameOver(overText)
+  }
+}
+
 function restartRun() {
   clearSave()
   renderer.hideGameOver()
   renderer.clearHighlights()
+  lcRenderer.hideGameOver()
+  lcRenderer.clearHighlights()
   hud.setSpinEnabled(false)
-  characterSelect.show()
+  machineSelect.show()
 }
 
 window.__newGame = restartRun

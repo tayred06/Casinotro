@@ -861,12 +861,159 @@
       color: #9a9f9c;
       margin-top: 2px;
     }
+
+    /* ── Machine Select Overlay ──────────────────── */
+    #machine-select-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      background: #0c0d0c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+    #machine-select-overlay.hidden { display: none; }
+
+    .ms-panel {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .ms-header { display: flex; flex-direction: column; gap: 7px; }
+    .ms-title { font-size: 20px; font-weight: 700; }
+    .ms-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2.2px;
+      color: #6d726f;
+      text-transform: uppercase;
+    }
+    .ms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ms-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 24px 22px 20px;
+      border-radius: 12px;
+      background: #0f1110;
+      border: 1px solid #21252a;
+      cursor: pointer;
+      text-align: left;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      color: #e7e5e0;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .ms-card:hover {
+      border-color: var(--ms-color, #c9a24a);
+      box-shadow: 0 0 28px color-mix(in srgb, var(--ms-color, #c9a24a) 15%, transparent);
+      background: #111413;
+    }
+    .ms-emoji { font-size: 36px; line-height: 1; margin-bottom: 4px; }
+    .ms-name  { font-size: 16px; font-weight: 700; }
+    .ms-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--ms-color, #6d726f);
+      text-transform: uppercase;
+    }
+    .ms-desc { font-size: 12px; line-height: 1.5; color: #9a9f9c; margin-top: 4px; }
+
+    /* ── Lit City grid ───────────────────────────── */
+    #lc-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      gap: 14px;
+    }
+    #lc-area.hidden { display: none; }
+
+    #lc-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: clamp(5px, 0.7vw, 10px);
+      width: min(90%, 520px);
+      aspect-ratio: 1;
+    }
+
+    .lc-cell {
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #15181a;
+      border: 1px solid #21252a;
+      position: relative;
+      overflow: hidden;
+      transition: background .15s, border-color .2s, box-shadow .2s;
+      min-height: 52px;
+    }
+    .lc-cell.lc-empty { background: #0f1110; border-color: #191c1b; }
+    .lc-icon { user-select: none; line-height: 1; transition: transform .15s; }
+
+    .lc-cell.lc-win {
+      background: #1a1c17;
+      border-color: var(--sym-color, #c9a24a);
+      box-shadow: inset 0 0 14px color-mix(in srgb, var(--sym-color, #c9a24a) 18%, transparent),
+                  0 0 10px color-mix(in srgb, var(--sym-color, #c9a24a) 22%, transparent);
+    }
+
+    @keyframes lcExplode {
+      0%   { transform: scale(1); opacity: 1; }
+      50%  { transform: scale(1.3); opacity: .7; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .lc-cell.lc-explode .lc-icon { animation: lcExplode .22s ease forwards; }
+
+    @keyframes lcFall {
+      0%   { transform: translateY(-24px); opacity: 0; }
+      100% { transform: translateY(0);     opacity: 1; }
+    }
+    .lc-cell.lc-fall .lc-icon { animation: lcFall .28s ease forwards; }
+
+    @keyframes lcSpin {
+      0%   { opacity: .2; transform: translateY(-6px); }
+      100% { opacity: .2; transform: translateY(6px); }
+    }
+    .lc-cell.lc-spinning .lc-icon { animation: lcSpin .1s linear infinite alternate; }
+
+    /* Multiplier badge */
+    #lc-multiplier {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      color: #4f5453;
+      letter-spacing: -.5px;
+      transition: color .2s, text-shadow .2s;
+    }
+    #lc-multiplier.lc-mult-active {
+      color: #E91E8C;
+      text-shadow: 0 0 16px rgba(233,30,140,.5);
+    }
   </style>
 </head>
 <body>
 
-  <!-- Character Select Overlay (visible by default; hidden once a game is active) -->
-  <div id="character-select-overlay">
+  <!-- Machine Select Overlay (step 1) -->
+  <div id="machine-select-overlay">
+    <div class="ms-panel">
+      <div class="ms-header">
+        <span class="ms-title">Choisissez votre machine</span>
+        <span class="ms-subtitle">Deux expériences · une seule âme</span>
+      </div>
+      <div class="ms-grid"></div>
+    </div>
+  </div>
+
+  <!-- Character Select Overlay (step 2, visible after machine is picked) -->
+  <div id="character-select-overlay" class="hidden">
     <div class="cs-panel">
       <div class="cs-header">
         <span class="cs-title">Choisissez votre péché</span>
@@ -910,13 +1057,19 @@
       <!-- Reels -->
       <div class="reel-area">
 
-        <!-- sym-badges (left) + col-badges (top) + reels -->
-        <div class="reels-layout">
+        <!-- Trèfle : sym-badges + col-badges + reels -->
+        <div class="reels-layout" id="trefle-area">
           <div class="sym-badges" id="sym-badges"></div>
           <div class="reels-col">
             <div class="col-badges-row" id="col-badges-row"></div>
             <div class="reels" id="reels-container"></div>
           </div>
+        </div>
+
+        <!-- Lit City : 5×5 grid + multiplier -->
+        <div id="lc-area" class="hidden">
+          <div id="lc-multiplier">×1</div>
+          <div id="lc-grid"></div>
         </div>
 
         <!-- Selection hint (appears during column/symbol picking) -->
