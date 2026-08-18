@@ -40,6 +40,11 @@ export class Economy {
     if (BET_OPTIONS.includes(amount)) this.#currentBet = amount
   }
 
+  setBetOptions(options: Souls[]): void {
+    BET_OPTIONS.splice(0, BET_OPTIONS.length, ...options)
+    if (!options.includes(this.#currentBet)) this.#currentBet = options[0]
+  }
+
   forceSetBet(amount: Souls): void {
     if (amount > 0) this.#currentBet = amount
   }
