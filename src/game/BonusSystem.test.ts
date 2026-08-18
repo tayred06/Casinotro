@@ -1,12 +1,15 @@
-// src/game/BonusSystem.test.js
+// src/game/BonusSystem.test.ts
 import { describe, it, expect, beforeEach } from 'vitest'
-import { BonusSystem, BONUS_POOL } from './BonusSystem.js'
+import { BonusSystem } from './BonusSystem.ts'
+import { ITEM_POOL } from './items/index.ts'
 
-const goldenColumn = BONUS_POOL.find(b => b.effect === 'column_multiplier')
-const jackpotBoost = BONUS_POOL.find(b => b.effect === 'jackpot_boost')
-const safetyNet    = BONUS_POOL.find(b => b.effect === 'safety_net')
-const freeReroll   = BONUS_POOL.find(b => b.effect === 'free_reroll')
-const symbolBonus  = BONUS_POOL.find(b => b.effect === 'symbol_multiplier')
+const BONUS_POOL = ITEM_POOL
+
+const goldenColumn = BONUS_POOL.find(b => b.effect === 'column_multiplier')!
+const jackpotBoost = BONUS_POOL.find(b => b.effect === 'jackpot_boost')!
+const safetyNet    = BONUS_POOL.find(b => b.effect === 'safety_net')!
+const freeReroll   = BONUS_POOL.find(b => b.effect === 'free_reroll')!
+const symbolBonus  = BONUS_POOL.find(b => b.effect === 'symbol_multiplier')!
 
 describe('BONUS_POOL', () => {
   it('contient au moins 9 bonus', () => {
@@ -25,7 +28,7 @@ describe('BONUS_POOL', () => {
 })
 
 describe('BonusSystem', () => {
-  let bs
+  let bs: BonusSystem
 
   beforeEach(() => { bs = new BonusSystem() })
 

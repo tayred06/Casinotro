@@ -1,105 +1,41 @@
-import { shuffleArray } from '../utils/Random.js'
-
-export const BONUS_POOL = [
-  // Niveau 1
-  {
-    id: 'golden_column', name: 'Colonne Dorée',
-    description: 'Un rouleau choisi vaut x2',
-    level: 1, price: 20, effect: 'column_multiplier', needsTarget: 'column',
-  },
-  {
-    id: 'safety_net', name: 'Filet de Sécurité',
-    description: 'Spin sans gain → récupère 50% de la mise',
-    level: 1, price: 15, effect: 'safety_net', needsTarget: null,
-  },
-  {
-    id: 'free_reroll', name: 'Reroll Gratuit',
-    description: '1 reroll de boutique gratuit',
-    level: 1, price: 10, effect: 'free_reroll', needsTarget: null,
-  },
-  {
-    id: 'symbol_multiplier', name: 'Symbole Béni',
-    description: 'Un symbole choisi rapporte x2',
-    level: 1, price: 25, effect: 'symbol_multiplier', needsTarget: 'symbol',
-  },
-  // Niveau 2
-  {
-    id: 'wild_column', name: 'Colonne Wild',
-    description: 'Un rouleau entier devient Wild (permanent)',
-    level: 2, price: 50, effect: 'wild_column', needsTarget: 'column',
-  },
-  {
-    id: 'chain', name: 'Chaîne',
-    description: 'Un symbole qui gagne 3 spins consécutifs gagne +50% permanent',
-    level: 2, price: 40, effect: 'chain', needsTarget: 'symbol',
-  },
-  {
-    id: 'sticky', name: 'Symbole Collant',
-    description: 'Les symboles gagnants restent en place 1 spin',
-    level: 2, price: 45, effect: 'sticky', needsTarget: null,
-  },
-  // Niveau 1 (suite)
-  {
-    id: 'luck_boost', name: 'Porte-Bonheur',
-    description: '+15 chance permanente (symboles rares plus fréquents)',
-    level: 1, price: 30, effect: 'luck_boost', needsTarget: null,
-  },
-  // Niveau 2 (suite)
-  {
-    id: 'lucky_streak', name: 'Coup de Chance',
-    description: '+30 chance pendant 10 spins',
-    level: 2, price: 45, effect: 'lucky_streak', needsTarget: null,
-  },
-  // Niveau 3
-  {
-    id: 'jackpot_boost', name: 'Jackpot Amplifié',
-    description: 'Le multiplicateur x6 passe de x20 à x50',
-    level: 3, price: 80, effect: 'jackpot_boost', needsTarget: null,
-  },
-  {
-    id: 'global_multiplier', name: 'Ligne Magique',
-    description: 'x3 sur tous les gains pendant 5 spins',
-    level: 3, price: 100, effect: 'global_multiplier', needsTarget: null,
-  },
-]
+import type { ItemDef, ItemInstance, Modifiers, SpinResult, GameSymbol } from '../types/index.ts'
+import { shuffleArray } from '../utils/Random.ts'
+import { getItemsByLevel } from './items/index.ts'
 
 export class BonusSystem {
   static #counter = 0
-  #active = []
-  #chainCounts = {}     // { [symbolId]: number } — spins consécutifs gagnants
-  #chainBonuses = {}    // { [symbolId]: number } — bonus permanents acquis
-  #stickyPositions = {} // { [`${reel}-${row}`]: Symbol }
+  #active: ItemInstance[] = []
+  #chainCounts: Record<string, number> = {}    // { [symbolId]: number } — spins consécutifs gagnants
+  #chainBonuses: Record<string, number> = {}   // { [symbolId]: number } — bonus permanents acquis
+  #stickyPositions: Record<string, GameSymbol> = {} // { [`${reel}-${row}`]: Symbol }
 
-  get activeBonus() { return [...this.#active] }
-  get isFull() { return this.#active.length >= 5 }
+  get activeBonus(): ItemInstance[] { return [...this.#active] }
+  get isFull(): boolean { return this.#active.length >= 5 }
 
-  addBonus(bonusDef, target = null) {
-    const instance = {
+  addBonus(bonusDef: ItemDef, target: number | string | null = null): ItemInstance {
+    const instance: ItemInstance = {
       ...bonusDef,
       instanceId: String(++BonusSystem.#counter),
       target,
-      remainingUses: bonusDef.effect === 'global_multiplier' ? 5
-                   : bonusDef.effect === 'lucky_streak'      ? 10
-                   : null,
+      remainingCharges: bonusDef.charges ?? undefined,
     }
     this.#active.push(instance)
     return instance
   }
 
-  removeBonus(instanceId) {
+  removeBonus(instanceId: string): number {
     const idx = this.#active.findIndex(b => b.instanceId === instanceId)
     if (idx === -1) return 0
     const [removed] = this.#active.splice(idx, 1)
     return Math.floor(removed.price * 0.5)
   }
 
-  getShopOffers(level) {
-    const eligible = BONUS_POOL.filter(b => b.level <= level)
-    return shuffleArray(eligible).slice(0, 3)
+  getShopOffers(level: 1 | 2 | 3): ItemDef[] {
+    return shuffleArray(getItemsByLevel(level)).slice(0, 3)
   }
 
-  getModifiers() {
-    const modifiers = {
+  getModifiers(): Modifiers {
+    const modifiers: Modifiers = {
       columnMultipliers: Array(6).fill(1),
       wildColumns: Array(6).fill(false),
       symbolMultipliers: { ...this.#chainBonuses },
@@ -116,15 +52,15 @@ export class BonusSystem {
     for (const bonus of this.#active) {
       switch (bonus.effect) {
         case 'column_multiplier':
-          if (bonus.target !== null) modifiers.columnMultipliers[bonus.target] = 2
+          if (bonus.target !== null && bonus.target !== undefined) modifiers.columnMultipliers[bonus.target as number] = 2
           break
         case 'wild_column':
-          if (bonus.target !== null) modifiers.wildColumns[bonus.target] = true
+          if (bonus.target !== null && bonus.target !== undefined) modifiers.wildColumns[bonus.target as number] = true
           break
         case 'symbol_multiplier':
           if (bonus.target) {
-            modifiers.symbolMultipliers[bonus.target] =
-              (modifiers.symbolMultipliers[bonus.target] ?? 1) * 2
+            modifiers.symbolMultipliers[bonus.target as string] =
+              (modifiers.symbolMultipliers[bonus.target as string] ?? 1) * 2
           }
           break
         case 'jackpot_boost':
@@ -143,13 +79,13 @@ export class BonusSystem {
           modifiers.chainEnabled = true
           break
         case 'global_multiplier':
-          if (bonus.remainingUses > 0) modifiers.globalMultiplier = 3
+          if ((bonus.remainingCharges ?? 0) > 0) modifiers.globalMultiplier = 3
           break
         case 'luck_boost':
           modifiers.luck += 15
           break
         case 'lucky_streak':
-          if (bonus.remainingUses > 0) modifiers.luck += 30
+          if ((bonus.remainingCharges ?? 0) > 0) modifiers.luck += 30
           break
       }
     }
@@ -157,7 +93,7 @@ export class BonusSystem {
     return modifiers
   }
 
-  processPostSpin(winResult, grid) {
+  processPostSpin(winResult: SpinResult, grid: GameSymbol[][]): { stickyPositions: Record<string, GameSymbol> } {
     const mods = this.getModifiers()
     const { winLines, totalWin } = winResult
 
@@ -165,7 +101,7 @@ export class BonusSystem {
     if (mods.chainEnabled) {
       const winningSymbols = new Set(winLines.map(l => l.symbolId))
       const chainBonus = this.#active.find(b => b.effect === 'chain')
-      const tracked = chainBonus?.target
+      const tracked = chainBonus?.target as string | undefined
 
       if (tracked) {
         if (winningSymbols.has(tracked)) {
@@ -181,7 +117,7 @@ export class BonusSystem {
     }
 
     // Sticky positions
-    const newSticky = {}
+    const newSticky: Record<string, GameSymbol> = {}
     if (mods.stickyEnabled && totalWin > 0) {
       for (const line of winLines) {
         for (let reel = 0; reel < line.count; reel++) {
@@ -198,28 +134,28 @@ export class BonusSystem {
     // Décrémenter les bonus à durée limitée
     for (const effect of ['global_multiplier', 'lucky_streak']) {
       const bonus = this.#active.find(b => b.effect === effect)
-      if (bonus && bonus.remainingUses > 0) {
-        bonus.remainingUses -= 1
-        if (bonus.remainingUses === 0) this.removeBonus(bonus.instanceId)
+      if (bonus && (bonus.remainingCharges ?? 0) > 0) {
+        bonus.remainingCharges = (bonus.remainingCharges ?? 0) - 1
+        if (bonus.remainingCharges === 0) this.removeBonus(bonus.instanceId)
       }
     }
 
     return { stickyPositions: this.#stickyPositions }
   }
 
-  resetWildColumns() {
+  resetWildColumns(): void {
     // wild_column is permanent — this method is a no-op by design
     // (kept for API compatibility; one-shot wild would remove here)
   }
 
-  useFreeReroll() {
+  useFreeReroll(): boolean {
     const bonus = this.#active.find(b => b.effect === 'free_reroll')
     if (!bonus) return false
     this.removeBonus(bonus.instanceId)
     return true
   }
 
-  reset() {
+  reset(): void {
     this.#active          = []
     this.#chainCounts     = {}
     this.#chainBonuses    = {}
@@ -235,7 +171,7 @@ export class BonusSystem {
     }
   }
 
-  restore(data) {
+  restore(data: ReturnType<BonusSystem['serialize']>): void {
     this.#active          = data.active          ?? []
     this.#chainCounts     = data.chainCounts     ?? {}
     this.#chainBonuses    = data.chainBonuses    ?? {}
