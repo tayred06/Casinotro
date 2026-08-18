@@ -21,14 +21,14 @@ const SYM_LABEL: Record<string, string> = {
 }
 
 const WIN_COLOR: Record<string, string> = {
-  lemon:   '#e7e5e0',
-  grape:   '#e7e5e0',
-  bell:    '#b7534f',
-  diamond: '#b7534f',
-  star:    '#c9a24a',
-  dog:     '#e7e5e0',
-  wild:    '#9a9f9c',
-  scatter: '#c9a24a',
+  lemon:   '#dcf7c8',
+  grape:   '#dcf7c8',
+  bell:    '#ff2d55',
+  diamond: '#ff2d55',
+  star:    '#b6f36a',
+  dog:     '#dcf7c8',
+  wild:    '#77a06a',
+  scatter: '#b6f36a',
 }
 
 export class ReelRenderer {
@@ -98,7 +98,7 @@ export class ReelRenderer {
     if (symbol.id === 'scatter') {
       const wrap = document.createElement('span')
       wrap.className = 'cell-scatter'
-      wrap.textContent = '$'
+      wrap.textContent = '⛧'
       return wrap
     }
 
@@ -208,7 +208,7 @@ export class ReelRenderer {
     const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
 
     winLines.forEach(line => {
-      const color = WIN_COLOR[line.symbolId] ?? '#c9a24a'
+      const color = WIN_COLOR[line.symbolId] ?? '#b6f36a'
       for (let r = 0; r < line.count; r++) {
         const cell = reelEls[r]?.querySelectorAll('.cell')[line.reelRows[r]] as HTMLElement | undefined
         if (!cell) continue
@@ -231,7 +231,7 @@ export class ReelRenderer {
 
   showWin(amount: number, winLines: WinLine[] | null, label: string | null = null) {
     this.#winLabel.textContent  = label ?? (winLines?.some(l => l.count >= 5) ? 'GROS GAIN' : 'GAIN')
-    this.#winAmount.textContent = `+$${amount.toFixed(2)}`
+    this.#winAmount.textContent = `+⛧${amount.toFixed(2)}`
 
     if (winLines?.length) {
       const best = winLines.reduce((a, b) => b.count > a.count ? b : a)

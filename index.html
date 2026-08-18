@@ -6,92 +6,313 @@
   <title>Casinotro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Silkscreen:wght@400;700&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root { --char-color: #0f1110; }
+    :root {
+      --char-color: #0a0f0b;
+      --bg:         #05070a;
+      --panel:      #0a0f0b;
+      --panel2:     #101a10;
+      --velvet:     #2a0810;
+      --line:       #2f5136;
+      --gold:       #b6f36a;
+      --gold-dim:   #4a7a37;
+      --ink:        #dcf7c8;
+      --ink-dim:    #77a06a;
+      --hot:        #ff2d55;
+      --neon:       #f2c14b;
+    }
 
     body {
-      background: #0c0d0c;
-      font-family: 'Space Grotesk', system-ui, sans-serif;
-      color: #e7e5e0;
+      background: var(--bg);
+      font-family: 'VT323', monospace;
+      color: var(--ink);
       width: 100vw;
       height: 100vh;
       overflow: hidden;
     }
 
+    /* ── Animations ─────────────────────────────── */
+    @keyframes sign {
+      0%,100% { opacity: 1 }
+      47%  { opacity: 1 }
+      48%  { opacity: .2 }
+      52%  { opacity: 1 }
+      71%  { opacity: .35 }
+      72%  { opacity: 1 }
+    }
+    @keyframes spinBlur {
+      0%   { opacity: .22; transform: translateY(-8px); }
+      100% { opacity: .22; transform: translateY(8px); }
+    }
+    @keyframes popIn {
+      0%   { transform: scale(.5); opacity: 0; }
+      60%  { transform: scale(1.06); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes bleed {
+      0%,100% { opacity: .55 }
+      50%     { opacity: 1 }
+    }
+
     /* ── Layout ─────────────────────────────────── */
     #game {
       width: 100%;
-      height: 100%;
-      display: flex;
-      gap: 1px;
-      background: #17191a;
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr) 320px;
+      gap: 20px;
+      padding: 20px;
+      background: var(--bg);
+      overflow: hidden;
+      box-sizing: border-box;
     }
 
-    /* ── Main panel (left) ──────────────────────── */
-    .main-panel {
-      flex: 1;
+    /* ── Left: char panel ────────────────────────── */
+    .char-panel {
       display: flex;
       flex-direction: column;
-      background: #0f1110;
-      min-width: 0;
+      gap: 14px;
+      min-height: 0;
     }
 
-    /* Top bar */
-    .top-bar {
-      display: flex;
-      align-items: center;
-      gap: 28px;
-      padding: clamp(14px, 1.6vh, 24px) clamp(20px, 2vw, 40px);
-      border-bottom: 1px solid #1d201f;
-      flex-shrink: 0;
-    }
-    .game-name { font-size: 15px; font-weight: 700; letter-spacing: .4px; }
-    .top-stats { display: flex; gap: 24px; }
-    .stat-item { display: flex; flex-direction: column; gap: 3px; }
-    .stat-lbl {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9.5px;
-      letter-spacing: 1.6px;
-      color: #6d726f;
-    }
-    .stat-val { font-size: 14px; font-weight: 500; }
-    .stat-val.gold { color: #c9a24a; }
-    .top-spacer { flex: 1; }
-    .progress-wrap { display: flex; align-items: center; gap: 10px; }
-    .progress-track {
-      width: 132px; height: 3px;
-      border-radius: 999px;
-      background: #1d201f;
+    .char-hud-identity {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color .12s;
       overflow: hidden;
     }
-    .progress-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: #c9a24a;
-      transition: width .4s ease;
-    }
-    .progress-pct {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10.5px;
-      color: #6d726f;
+    .char-hud-identity:hover { border-color: var(--gold); }
+
+    .char-hud-plate {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      border-bottom: 1px solid var(--line);
+      overflow: hidden;
+      background: var(--char-color, #0a0f0b);
+      background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgba(255,255,255,.04) 7px 8px);
+      transition: background .5s ease;
     }
 
-    /* Reel area */
-    .reel-area {
-      flex: 1;
+    .char-hud-sigil {
+      position: absolute;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: clamp(16px, 2vw, 40px);
+      font-family: 'Silkscreen', monospace;
+      font-size: 110px;
+      line-height: 1;
+      color: var(--char-edge, #2f5136);
+      opacity: .55;
+      transition: color .5s ease;
+    }
+
+    .char-hud-footer {
+      padding: 14px 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .char-hud-name-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .char-hud-name {
+      font-family: 'Silkscreen', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--ink);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .char-hud-lv {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--gold-dim);
+      white-space: nowrap;
+    }
+
+    .char-hud-sin {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .12em;
+      color: var(--hot);
+      text-transform: uppercase;
+    }
+
+    .char-hud-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .1em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .char-hud-inventory {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 14px;
+    }
+
+    .char-hud-inv-lbl {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .16em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .char-hud-slots {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .char-hud-slot {
+      aspect-ratio: 1;
+      border: 1px dashed var(--line);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--gold);
+    }
+
+    /* ── Center: main panel ─────────────────────── */
+    .main-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
       min-height: 0;
       min-width: 0;
-      position: relative;
-      background: var(--char-color);
-      transition: background 0.5s ease;
     }
+
+    /* Stats row */
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
+      align-items: stretch;
+    }
+    .stat-card {
+      flex: 1;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 12px 16px;
+    }
+    .stat-card-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .16em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      display: block;
+    }
+    .stat-card-primary {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      color: var(--ink);
+      display: block;
+      margin-top: 4px;
+      line-height: 1;
+    }
+    .stat-card-primary.gold { color: var(--gold); }
+    .stat-card-secondary {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--ink-dim);
+    }
+    .stat-card-bar {
+      height: 5px;
+      background: #000;
+      border: 1px solid var(--line);
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .stat-card-bar > div {
+      height: 100%;
+      background: var(--gold);
+      transition: width .4s ease;
+    }
+
+    /* Machine area */
+    .machine-area {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--char-edge, var(--line));
+      background: var(--char-color, #0a0f0b);
+      padding: 16px;
+      position: relative;
+      gap: 12px;
+      transition: background .5s ease, border-color .5s ease;
+    }
+    .machine-header {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .machine-name {
+      font-family: 'Silkscreen', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      animation: sign 5.5s infinite;
+    }
+    .machine-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--gold);
+      letter-spacing: .14em;
+    }
+    .machine-reels {
+      flex: 1;
+      min-height: 0;
+      background: #000;
+      padding: 8px;
+      border: 1px solid var(--char-edge, var(--line));
+      display: flex;
+      transition: border-color .5s ease;
+    }
+    .machine-reels .reels-layout {
+      flex: 1;
+      min-height: 0;
+      gap: 8px;
+      height: auto;
+    }
+    .machine-reels .reels-col {
+      min-height: 0;
+      gap: 7px;
+    }
+    .machine-reels .reels {
+      flex: 1;
+      min-height: 0;
+      gap: 8px;
+      height: auto;
+      width: 100%;
+    }
+    .machine-reels .reel { gap: 8px; }
     .reels {
       display: flex;
       gap: clamp(6px, 0.7vw, 14px);
@@ -110,17 +331,14 @@
       flex: 1;
       display: grid;
       place-items: center;
-      border-radius: 8px;
-      background: #15181a;
-      border: 1px solid #21252a;
+      background: var(--panel2);
+      border: 1px solid var(--line);
       position: relative;
       overflow: hidden;
       transition: background .15s, border-color .2s, box-shadow .2s;
       min-height: 52px;
     }
 
-    /* Card suit symbols — 44px fallback so symbols are never tiny
-       before JS scaling kicks in (e.g. during spin rebuild). */
     .cell-suit {
       font-family: Georgia, serif;
       font-size: 44px;
@@ -128,38 +346,34 @@
       user-select: none;
       transition: transform .15s;
     }
-    .cell-suit.black { color: #e7e5e0; }
-    .cell-suit.red   { color: #b7534f; }
+    .cell-suit.black { color: var(--ink); }
+    .cell-suit.red   { color: var(--hot); }
 
-    /* 7 symbol */
     .cell-seven {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: 'Silkscreen', monospace;
       font-weight: 700;
       font-size: 44px;
-      color: #c9a24a;
+      color: var(--gold);
       line-height: 1;
       user-select: none;
     }
 
-    /* Scatter: $ in dashed circle */
     .cell-scatter {
       display: grid;
       place-items: center;
       width: 44px;
       height: 44px;
-      border-radius: 999px;
-      border: 2px dashed #c9a24a;
+      border: 2px dashed var(--gold);
       font-family: 'JetBrains Mono', monospace;
       font-size: 18px;
-      color: #c9a24a;
+      color: var(--gold);
       user-select: none;
     }
 
-    /* Wild */
     .cell-wild {
       font-family: Georgia, serif;
       font-size: 44px;
-      color: #9a9f9c;
+      color: var(--ink-dim);
       line-height: 1;
       font-style: italic;
       user-select: none;
@@ -172,10 +386,9 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       font-weight: 500;
-      color: #c9a24a;
-      background: rgba(201,162,74,.12);
-      border: 1px solid rgba(201,162,74,.35);
-      border-radius: 4px;
+      color: var(--gold);
+      background: rgba(182,243,106,.1);
+      border: 1px solid rgba(182,243,106,.3);
       padding: 1px 4px;
       pointer-events: none;
       z-index: 2;
@@ -184,32 +397,23 @@
 
     /* Win state */
     .cell.win {
-      background: #1a1c17;
-      border-color: #c9a24a;
-      box-shadow: inset 0 0 16px rgba(201,162,74,.12), 0 0 12px rgba(201,162,74,.18);
+      background: rgba(182,243,106,.07);
+      border-color: var(--gold);
+      box-shadow: inset 0 0 16px rgba(182,243,106,.12), 0 0 12px rgba(182,243,106,.18);
     }
 
     /* Wild column */
     .cell.wild-col {
       border-color: rgba(255,255,255,.22);
-      background: #141618;
+      background: #0d1410;
     }
 
     /* Spinning animation */
-    @keyframes spinBlur {
-      0%   { opacity: .25; transform: translateY(-8px); }
-      100% { opacity: .25; transform: translateY(8px); }
-    }
     .cell.spinning > * {
       animation: spinBlur .11s linear infinite alternate;
     }
 
     /* Win overlay */
-    @keyframes popIn {
-      0%   { transform: scale(.5); opacity: 0; }
-      60%  { transform: scale(1.06); opacity: 1; }
-      100% { transform: scale(1); opacity: 1; }
-    }
     .win-overlay {
       position: absolute;
       inset: 0;
@@ -226,20 +430,29 @@
       align-items: center;
       gap: 6px;
       padding: 22px 44px;
-      border-radius: 10px;
-      background: #0f1110;
-      border: 1px solid #c9a24a;
-      box-shadow: 0 0 40px rgba(201,162,74,.18);
+      background: var(--panel);
+      border: 1px solid var(--gold);
+      box-shadow: 0 0 40px rgba(182,243,106,.18);
       animation: popIn .3s ease both;
     }
     .win-label {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       letter-spacing: 2.5px;
-      color: #6d726f;
+      color: var(--ink-dim);
     }
-    .win-amount { font-size: 40px; font-weight: 700; color: #c9a24a; letter-spacing: -.5px; }
-    .win-detail { font-size: 13px; color: #9a9f9c; }
+    .win-amount {
+      font-family: 'Silkscreen', monospace;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: .04em;
+    }
+    .win-detail {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      color: var(--ink-dim);
+    }
 
     /* Game over overlay */
     .game-over-overlay {
@@ -250,203 +463,288 @@
       align-items: center;
       justify-content: center;
       gap: 16px;
-      background: rgba(12,13,12,.9);
+      background: rgba(5,7,10,.9);
       backdrop-filter: blur(4px);
       z-index: 20;
     }
     .game-over-overlay.hidden { display: none; }
-    .game-over-title { font-size: 34px; font-weight: 700; }
-    .game-over-text  { font-size: 14px; color: #6d726f; }
+    .game-over-title {
+      font-family: 'Silkscreen', monospace;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--hot);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .game-over-text  {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      color: var(--ink-dim);
+      max-width: 420px;
+      text-align: center;
+      line-height: 1.4;
+    }
     .restart-btn {
       padding: 12px 30px;
-      border-radius: 8px;
-      border: none;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 14px;
+      border: 1px solid var(--gold);
+      background: transparent;
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: .4px;
-      color: #0f1110;
-      background: #c9a24a;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--gold);
       cursor: pointer;
-      transition: background .15s;
+      transition: background .15s, color .15s;
     }
-    .restart-btn:hover { background: #dcb662; }
+    .restart-btn:hover { background: var(--gold); color: var(--bg); }
 
-    /* Bottom bar */
-    .bottom-bar {
+    /* Control bar */
+    .control-bar {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
-      gap: 32px;
-      padding: clamp(14px, 1.6vh, 24px) clamp(20px, 2vw, 40px);
-      border-top: 1px solid #1d201f;
-      flex-shrink: 0;
+      gap: 22px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
     }
-    .balance-group { display: flex; flex-direction: column; gap: 4px; }
-    .bal-lbl {
+    .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
+    .ctrl-lbl {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 9.5px;
-      letter-spacing: 1.6px;
-      color: #6d726f;
+      font-size: 10px;
+      letter-spacing: .16em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
     }
-    #balance-display { font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -.5px; }
-    #highscore-display { font-size: 16px; font-weight: 500; color: #9a9f9c; line-height: 1.6; }
-    .bar-sep { width: 1px; height: 38px; background: #1d201f; }
-    .bet-group { display: flex; flex-direction: column; gap: 7px; }
-    .bet-chips { display: flex; gap: 6px; }
+    #balance-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 30px;
+      line-height: 1;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+    #highscore-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--gold-dim);
+      line-height: 1;
+    }
+    .ctrl-sep { width: 1px; align-self: stretch; background: var(--line); }
+    .ctrl-spacer { flex: 1; }
+    .bet-chips { display: flex; gap: 6px; flex-wrap: wrap; }
     .chip {
       min-width: 52px;
-      padding: 8px 0;
-      border-radius: 6px;
+      padding: 7px 10px;
       cursor: pointer;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px;
-      color: #9a9f9c;
+      font-size: 12px;
+      color: var(--ink-dim);
       background: transparent;
-      border: 1px solid #21252a;
+      border: 1px solid var(--line);
       transition: color .12s, border-color .12s, background .12s;
     }
-    .chip:hover { color: #e7e5e0; border-color: #363b3a; }
+    .chip:hover { color: var(--ink); border-color: var(--gold-dim); }
     .chip.active {
-      color: #0f1110;
-      background: #e7e5e0;
-      border-color: #e7e5e0;
+      color: var(--bg);
+      background: var(--gold);
+      border-color: var(--gold);
     }
-    .bar-spacer { flex: 1; }
     #spin-btn {
-      padding: 15px 46px;
-      border-radius: 8px;
-      border: none;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 1.4px;
-      color: #0f1110;
-      background: #c9a24a;
+      margin-left: auto;
+      padding: 20px 46px;
+      border: 1px solid var(--hot);
+      background: var(--hot);
+      font-family: 'VT323', monospace;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: #fff;
       cursor: pointer;
-      transition: background .15s;
+      transition: background .15s, border-color .15s;
     }
-    #spin-btn:hover:not(:disabled) { background: #dcb662; }
-    #spin-btn:disabled { opacity: .42; cursor: not-allowed; background: #c9a24a; }
+    #spin-btn:hover:not(:disabled) { background: #ff5570; border-color: #ff5570; }
+    #spin-btn:disabled { opacity: .42; cursor: not-allowed; background: var(--hot); }
 
     /* ── Shop panel (right) ─────────────────────── */
     .shop-panel {
-      width: clamp(300px, 24%, 420px);
-      flex-shrink: 0;
+      border: 1px solid var(--line);
+      background: var(--panel);
       display: flex;
       flex-direction: column;
-      background: #0f1110;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .shop-scroll {
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       scrollbar-width: thin;
-      scrollbar-color: #1d201f transparent;
+      scrollbar-color: var(--line) transparent;
+      display: flex;
+      flex-direction: column;
     }
+    .shop-log {
+      border-top: 1px solid var(--line);
+      padding: 10px 16px 12px;
+      flex-shrink: 0;
+    }
+    .shop-log-lbl {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 1.6px;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .log-entries { display: flex; flex-direction: column; gap: 3px; }
+    .log-entry { display: flex; gap: 8px; line-height: 1.3; }
+    .log-spin {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--line);
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+    .log-text { font-family: 'VT323', monospace; font-size: 14px; color: var(--ink-dim); }
+    .log-text.muted { color: var(--line); font-style: italic; }
     .shop-header {
       display: flex;
       align-items: baseline;
       gap: 10px;
-      padding: 20px 22px;
-      border-bottom: 1px solid #1d201f;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
       flex-shrink: 0;
     }
-    .shop-title { font-size: 15px; font-weight: 700; }
+    .shop-title {
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--ink);
+    }
     .shop-spacer { flex: 1; }
     .shop-level-lbl {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       letter-spacing: 1.4px;
-      color: #6d726f;
+      color: var(--ink-dim);
     }
     .new-game-btn {
       margin-left: 10px;
       padding: 4px 10px;
-      border-radius: 4px;
-      border: 1px solid #2a302d;
+      border: 1px solid var(--line);
       background: transparent;
       font-family: 'JetBrains Mono', monospace;
       font-size: 9.5px;
       letter-spacing: .8px;
-      color: #6d726f;
+      color: var(--ink-dim);
       cursor: pointer;
       transition: color .12s, border-color .12s;
     }
-    .new-game-btn:hover { color: #b7534f; border-color: #b7534f; }
+    .new-game-btn:hover { color: var(--hot); border-color: var(--hot); }
 
     /* Shop items */
     .shop-items { display: flex; flex-direction: column; }
     .shop-item {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding: 16px 22px;
-      border-bottom: 1px solid #1a1d1c;
+      gap: 8px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
     }
     .item-name-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-    .item-name { font-size: 14px; font-weight: 700; }
+    .item-name {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+    }
     .rarity-badge {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px;
       letter-spacing: 1.2px;
       padding: 2px 5px;
-      border-radius: 3px;
     }
-    .rarity-commun  { color: #7f8b83; border: 1px solid #2a302d; }
-    .rarity-rare    { color: #8fa8b7; border: 1px solid #2a3339; }
-    .rarity-épique  { color: #a07ab7; border: 1px solid #332a3a; }
-    .rarity-maudit  { color: #b7534f; border: 1px solid #3a2726; }
-    .item-desc { font-size: 12.5px; line-height: 1.45; color: #9a9f9c; }
+    .rarity-commun  { color: var(--ink-dim); border: 1px solid var(--line); }
+    .rarity-rare    { color: #8fa8b7;  border: 1px solid #2a3339; }
+    .rarity-épique  { color: #b09ac8;  border: 1px solid #342a3d; }
+    .rarity-maudit  { color: var(--hot); border: 1px solid #4a1e1e; }
+    .item-desc {
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      line-height: 1.3;
+      color: var(--ink-dim);
+    }
     .item-footer { display: flex; align-items: center; gap: 12px; }
-    .item-price { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #c9a24a; }
+    .item-price {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--gold);
+    }
     .item-spacer { flex: 1; }
     .buy-btn {
-      padding: 7px 16px;
-      border-radius: 6px;
+      padding: 5px 13px;
       cursor: pointer;
-      font-size: 12.5px;
-      font-weight: 500;
+      font-family: 'Silkscreen', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
       background: transparent;
-      border: 1px solid #363b3a;
-      color: #e7e5e0;
-      transition: background .15s;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      transition: background .15s, border-color .15s, color .15s;
     }
-    .buy-btn:hover:not(.cant-buy) { background: #1a1e1d; }
-    .buy-btn.cant-buy { color: #5c6160; border-color: #21252a; cursor: not-allowed; }
+    .buy-btn:hover:not(.cant-buy) { background: var(--panel2); border-color: var(--gold-dim); }
+    .buy-btn.cant-buy { color: var(--ink-dim); border-color: var(--line); opacity: .5; cursor: not-allowed; }
 
     /* Reroll */
-    .reroll-wrap { padding: 16px 22px; }
+    .reroll-wrap { padding: 12px 18px; }
     .reroll-btn {
       width: 100%;
       padding: 10px;
-      border-radius: 6px;
       cursor: pointer;
-      font-size: 12.5px;
-      font-weight: 500;
-      color: #9a9f9c;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--ink-dim);
       background: transparent;
-      border: 1px dashed #2a302d;
+      border: 1px dashed var(--line);
       transition: color .15s, border-color .15s;
     }
-    .reroll-btn:hover:not(:disabled) { color: #e7e5e0; border-color: #363b3a; }
+    .reroll-btn:hover:not(:disabled) { color: var(--ink); border-color: var(--gold-dim); }
     .reroll-btn:disabled { opacity: .45; cursor: not-allowed; }
 
     /* Active bonuses */
-    .bonuses-section { padding: 4px 22px 16px; }
+    .bonuses-section { padding: 4px 18px 14px; }
     .bonuses-lbl {
+      display: block;
       font-family: 'JetBrains Mono', monospace;
       font-size: 9.5px;
       letter-spacing: 1.6px;
-      color: #6d726f;
+      color: var(--ink-dim);
+      margin-bottom: 10px;
     }
-    .bonuses-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .bonuses-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .bonus-tag {
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      color: #cfd3d0;
-      background: #15181a;
-      border: 1px solid #21252a;
+      padding: 4px 9px;
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      color: var(--ink-dim);
+      background: var(--panel2);
+      border: 1px solid var(--line);
       cursor: pointer;
     }
-    .bonus-tag:hover { border-color: #b7534f; color: #b7534f; }
-    .no-bonus { font-size: 12px; color: #4f5453; font-style: italic; }
+    .bonus-tag:hover { border-color: var(--hot); color: var(--hot); }
+    .no-bonus {
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      color: var(--ink-dim);
+      font-style: italic;
+    }
 
     /* ── Reel layout (sym-badges left + col-badges top) ── */
     .reels-layout {
@@ -466,14 +764,13 @@
     }
     .sym-badges:empty { display: none; }
     .sym-badge {
-      padding: 5px 8px;
-      border-radius: 5px;
-      background: rgba(201,162,74,.07);
-      border: 1px solid rgba(201,162,74,.25);
+      padding: 4px 7px;
+      background: rgba(182,243,106,.07);
+      border: 1px solid rgba(182,243,106,.25);
       font-family: 'JetBrains Mono', monospace;
       font-size: 11px;
       font-weight: 500;
-      color: #c9a24a;
+      color: var(--gold);
       white-space: nowrap;
       text-align: center;
       letter-spacing: .3px;
@@ -488,7 +785,6 @@
     .reels-col .col-badges-row,
     .reels-col .reels {
       width: 100%;
-      max-width: 1100px;
     }
     .col-badges-row {
       display: none;
@@ -502,39 +798,36 @@
       min-width: 80px;
       text-align: center;
       padding: 3px 4px;
-      border-radius: 4px;
-      background: rgba(201,162,74,.07);
-      border: 1px solid rgba(201,162,74,.2);
+      background: rgba(182,243,106,.07);
+      border: 1px solid rgba(182,243,106,.2);
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       font-weight: 500;
-      color: #c9a24a;
+      color: var(--gold);
       letter-spacing: .4px;
     }
     .col-badge-top.wild {
       background: rgba(255,255,255,.04);
       border-color: rgba(255,255,255,.15);
-      color: #9a9f9c;
+      color: var(--ink-dim);
     }
     .col-badge-top.empty { visibility: hidden; }
 
     /* ── Column/symbol selection mode ─────────────── */
     .reel.selectable { cursor: pointer; }
-    .reel.selectable .cell {
-      transition: border-color .1s, box-shadow .1s;
-    }
+    .reel.selectable .cell { transition: border-color .1s, box-shadow .1s; }
     .reel.selectable:hover .cell {
-      border-color: rgba(201,162,74,.65);
-      box-shadow: inset 0 0 10px rgba(201,162,74,.1);
+      border-color: rgba(182,243,106,.65);
+      box-shadow: inset 0 0 10px rgba(182,243,106,.1);
     }
     .reel.selected .cell {
-      border-color: #c9a24a;
-      box-shadow: inset 0 0 14px rgba(201,162,74,.2), 0 0 8px rgba(201,162,74,.2);
+      border-color: var(--gold);
+      box-shadow: inset 0 0 14px rgba(182,243,106,.2), 0 0 8px rgba(182,243,106,.2);
     }
     .cell.sym-selectable { cursor: pointer; }
     .cell.sym-selectable:hover {
-      border-color: rgba(201,162,74,.65);
-      box-shadow: inset 0 0 10px rgba(201,162,74,.1);
+      border-color: rgba(182,243,106,.65);
+      box-shadow: inset 0 0 10px rgba(182,243,106,.1);
     }
     .selection-hint {
       position: absolute;
@@ -542,13 +835,12 @@
       left: 50%;
       transform: translateX(-50%);
       padding: 7px 20px;
-      background: #0f1110;
-      border: 1px solid rgba(201,162,74,.5);
-      border-radius: 6px;
+      background: var(--panel);
+      border: 1px solid rgba(182,243,106,.5);
       font-family: 'JetBrains Mono', monospace;
       font-size: 10.5px;
       letter-spacing: 2px;
-      color: #c9a24a;
+      color: var(--gold);
       z-index: 15;
       pointer-events: none;
       white-space: nowrap;
@@ -561,74 +853,23 @@
       transform: translateX(-50%);
       padding: 6px 18px;
       background: transparent;
-      border: 1px solid #363b3a;
-      border-radius: 5px;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 12px;
-      font-weight: 500;
-      color: #9a9f9c;
+      border: 1px solid var(--line);
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      color: var(--ink-dim);
       cursor: pointer;
       z-index: 15;
       transition: color .12s, border-color .12s;
     }
-    .selection-cancel:hover { color: #e7e5e0; border-color: #5c6160; }
+    .selection-cancel:hover { color: var(--ink); border-color: var(--gold-dim); }
     .selection-cancel.hidden { display: none; }
-
-    /* Character HUD */
-    .shop-grow { flex: 1; }
-    .char-hud {
-      padding: 16px 22px 22px;
-      border-top: 1px solid #1d201f;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .char-hud-identity {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .char-hud-emoji {
-      font-size: 34px;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-    .char-hud-info { display: flex; flex-direction: column; gap: 3px; }
-    .char-hud-name { font-size: 15px; font-weight: 700; }
-    .char-hud-sin {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      letter-spacing: 2px;
-      color: #6d726f;
-      text-transform: uppercase;
-    }
-    .char-hud-inv-lbl {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9.5px;
-      letter-spacing: 1.6px;
-      color: #6d726f;
-      display: block;
-      margin-bottom: 8px;
-    }
-    .char-hud-slots {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-    }
-    .char-hud-slot {
-      aspect-ratio: 1;
-      border-radius: 5px;
-      border: 1px dashed #21252a;
-      background: #0c0e0d;
-    }
 
     /* ── Profile Modal ────────────────────────────── */
     #profile-modal-overlay {
       position: fixed;
       inset: 0;
       z-index: 200;
-      background: rgba(12,13,12,.72);
+      background: rgba(5,7,10,.82);
       backdrop-filter: blur(6px);
       display: flex;
       align-items: center;
@@ -643,68 +884,65 @@
       max-height: 92vh;
       overflow-y: auto;
       scrollbar-width: thin;
-      scrollbar-color: #1d201f transparent;
-      background: #0f1110;
-      border: 1px solid #272b2a;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
+      scrollbar-color: var(--line) transparent;
+      background: var(--panel);
+      border: 1px solid var(--gold-dim);
     }
 
     .pm-header {
       display: flex;
       align-items: flex-start;
       gap: 18px;
-      padding: 26px 28px 22px;
-      border-bottom: 1px solid #1d201f;
+      padding: 22px 24px 18px;
+      border-bottom: 1px solid var(--line);
     }
-    .pm-emoji-big {
-      font-size: 48px;
-      line-height: 1;
-      flex-shrink: 0;
-    }
+    .pm-emoji-big { font-size: 44px; line-height: 1; flex-shrink: 0; }
     .pm-identity { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
     .pm-name {
-      font-size: 20px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 16px;
       font-weight: 700;
-      letter-spacing: .2px;
+      letter-spacing: .04em;
+      color: var(--ink);
+      text-transform: uppercase;
     }
     .pm-sin {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px;
       letter-spacing: 2.4px;
-      color: #6d726f;
+      color: var(--hot);
     }
     .pm-desc {
-      font-size: 12.5px;
-      line-height: 1.5;
-      color: #9a9f9c;
+      font-family: 'VT323', monospace;
+      font-size: 15px;
+      line-height: 1.4;
+      color: var(--ink-dim);
       margin-top: 4px;
     }
     .pm-close {
       background: transparent;
-      border: 1px solid #272b2a;
-      border-radius: 5px;
-      color: #6d726f;
-      font-size: 16px;
+      border: 1px solid var(--line);
+      color: var(--ink-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
       line-height: 1;
       padding: 5px 9px;
       cursor: pointer;
       flex-shrink: 0;
       transition: color .12s, border-color .12s;
     }
-    .pm-close:hover { color: #e7e5e0; border-color: #363b3a; }
+    .pm-close:hover { color: var(--hot); border-color: var(--hot); }
 
     .pm-section {
-      padding: 20px 28px;
-      border-bottom: 1px solid #1d201f;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
     }
     .pm-section:last-child { border-bottom: none; }
     .pm-section-lbl {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9.5px;
       letter-spacing: 1.8px;
-      color: #6d726f;
+      color: var(--ink-dim);
       display: block;
       margin-bottom: 14px;
     }
@@ -712,21 +950,22 @@
     .pm-stats-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 14px 10px;
+      gap: 12px 10px;
     }
     .pm-stat { display: flex; flex-direction: column; gap: 4px; }
     .pm-stat-lbl {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px;
       letter-spacing: 1.4px;
-      color: #4f5453;
+      color: var(--ink-dim);
     }
     .pm-stat-val {
-      font-size: 15px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 13px;
       font-weight: 600;
-      letter-spacing: -.2px;
+      color: var(--ink);
     }
-    .pm-stat-val.gold { color: #c9a24a; }
+    .pm-stat-val.gold { color: var(--gold); }
 
     .pm-bonus-row {
       display: flex;
@@ -734,22 +973,22 @@
       justify-content: space-between;
       gap: 12px;
       padding: 10px 0;
-      border-bottom: 1px solid #1a1d1c;
+      border-bottom: 1px solid var(--line);
     }
     .pm-bonus-row:last-child { border-bottom: none; padding-bottom: 0; }
     .pm-bonus-row:first-child { padding-top: 0; }
     .pm-bonus-left { display: flex; flex-direction: column; gap: 3px; }
-    .pm-bonus-name { font-size: 13px; font-weight: 600; }
-    .pm-bonus-desc { font-size: 11.5px; color: #9a9f9c; line-height: 1.4; }
+    .pm-bonus-name { font-family: 'VT323', monospace; font-size: 17px; color: var(--ink); }
+    .pm-bonus-desc { font-family: 'VT323', monospace; font-size: 14px; color: var(--ink-dim); line-height: 1.3; }
     .pm-bonus-uses {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
-      color: #c9a24a;
+      color: var(--gold);
       white-space: nowrap;
       padding-top: 2px;
       flex-shrink: 0;
     }
-    .pm-empty { font-size: 12px; color: #4f5453; font-style: italic; }
+    .pm-empty { font-family: 'VT323', monospace; font-size: 15px; color: var(--ink-dim); font-style: italic; }
 
     .pm-effect-row {
       display: flex;
@@ -757,198 +996,525 @@
       align-items: baseline;
       gap: 12px;
       padding: 8px 0;
-      border-bottom: 1px solid #1a1d1c;
+      border-bottom: 1px solid var(--line);
     }
     .pm-effect-row:last-child { border-bottom: none; padding-bottom: 0; }
     .pm-effect-row:first-child { padding-top: 0; }
-    .pm-effect-lbl { font-size: 12.5px; color: #9a9f9c; }
+    .pm-effect-lbl { font-family: 'VT323', monospace; font-size: 15px; color: var(--ink-dim); }
     .pm-effect-val {
       font-family: 'JetBrains Mono', monospace;
       font-size: 11.5px;
-      color: #e7e5e0;
+      color: var(--ink);
       text-align: right;
     }
-
-    /* Make the char-hud identity clickable */
-    .char-hud-identity {
-      cursor: pointer;
-      border-radius: 7px;
-      transition: background .12s;
-      margin: -6px;
-      padding: 6px;
-    }
-    .char-hud-identity:hover { background: #15181a; }
 
     /* ── Character Select Overlay ──────────────────── */
     #character-select-overlay {
       position: fixed;
       inset: 0;
       z-index: 100;
-      background: #0c0d0c;
+      background: var(--bg);
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 32px 24px;
-      overflow-y: auto;
+      overflow: hidden;
+      padding: 0 40px 20px;
     }
     #character-select-overlay.hidden { display: none; }
 
-    .cs-panel {
-      width: 100%;
-      max-width: 940px;
+    .cs-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 32px 0 16px;
       display: flex;
       flex-direction: column;
-      gap: 28px;
+      justify-content: center;
+      align-items: center;
     }
-    .cs-header { display: flex; flex-direction: column; gap: 7px; }
-    .cs-title {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: .3px;
+    .cs-panel {
+      width: 100%;
+      max-width: 2500px;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
+    .cs-header {
+      flex: none;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 40px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 22px;
+    }
+    .cs-header-left { display: flex; flex-direction: column; gap: 12px; }
     .cs-subtitle {
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
-      letter-spacing: 2.2px;
-      color: #6d726f;
+      letter-spacing: .3em;
+      color: var(--hot);
       text-transform: uppercase;
     }
-    .cs-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
+    .cs-title {
+      font-family: 'Silkscreen', monospace;
+      font-size: clamp(22px, 4vw, 52px);
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      line-height: .9;
+      color: var(--ink);
+      animation: sign 6s infinite;
     }
+    .cs-header-desc {
+      max-width: 380px;
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--ink-dim);
+    }
+    .cs-grid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(8, minmax(160px, 1fr));
+      grid-auto-rows: 1fr;
+      gap: 12px;
+      align-content: stretch;
+    }
+
+    /* ── Card ────────────────────────────────────── */
     .cs-card {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: 7px;
-      padding: 20px 18px 18px;
-      border-radius: 10px;
-      background: #0f1110;
-      border: 1px solid #21252a;
+      background: var(--panel);
+      border: 1px solid var(--line);
       cursor: pointer;
-      text-align: left;
-      font-family: 'Space Grotesk', system-ui, sans-serif;
-      color: #e7e5e0;
-      transition: border-color .15s, box-shadow .15s, background .15s;
+      overflow: hidden;
+      transition: border-color .15s;
     }
-    .cs-card:hover {
-      border-color: rgba(201,162,74,.55);
-      box-shadow: 0 0 22px rgba(201,162,74,.08);
-      background: #111413;
+    .cs-card:hover { border-color: rgba(182,243,106,.45); }
+    .cs-card.selected {
+      border-color: var(--gold);
     }
-    .cs-emoji {
-      font-size: 30px;
+
+    /* ── Plate (top visual, takes all remaining height) */
+    .cs-plate {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      border-bottom: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    /* Sigil: absolutely centered, large Silkscreen char */
+    .cs-sigil {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Silkscreen', monospace;
+      font-size: 88px;
       line-height: 1;
-      margin-bottom: 2px;
+    }
+
+    /* Badge: position absolute top-right */
+    .cs-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      letter-spacing: .14em;
+      padding: 4px 7px;
+      background: var(--hot);
+      color: #fff;
+    }
+
+    /* ── Card info (fixed-height bottom section) ─── */
+    .cs-card-info {
+      flex: none;
+      padding: 12px 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .cs-name {
-      font-size: 14px;
+      font-family: 'Silkscreen', monospace;
       font-weight: 700;
-      line-height: 1.2;
+      line-height: 1.05;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--ink);
     }
-    .cs-sin {
+    .cs-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--gold-dim);
+      letter-spacing: .1em;
+    }
+    .cs-mech-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--hot);
+    }
+    .cs-desc {
+      font-family: 'VT323', monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--ink-dim);
+    }
+
+    /* ── Bottom confirmation bar ─────────────────── */
+    .cs-bar {
+      flex-shrink: 0;
+      max-width: 2500px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+      padding: 20px 26px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .cs-bar-info {
+      display: flex;
+      align-items: center;
+      gap: 34px;
+      flex: 1;
+      min-width: 0;
+    }
+    .cs-bar-char {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cs-bar-lbl {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+    .cs-bar-name {
+      font-family: 'Silkscreen', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .cs-bar-sin {
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px;
       letter-spacing: 2px;
-      color: #6d726f;
       text-transform: uppercase;
+      color: var(--hot);
     }
-    .cs-desc {
-      font-size: 11.5px;
-      line-height: 1.5;
-      color: #9a9f9c;
-      margin-top: 2px;
+    .cs-bar-mech {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--hot);
+    }
+    .cs-bar-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cs-bar-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      color: var(--gold);
+    }
+    .cs-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+    .cs-confirm-btn {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--velvet);
+      border: 1px solid var(--gold);
+      padding: 18px 42px;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+    }
+    .cs-confirm-btn:not(:disabled):hover {
+      background: var(--hot);
+      border-color: var(--hot);
+    }
+    .cs-confirm-btn:disabled {
+      opacity: .35;
+      cursor: not-allowed;
     }
 
-    /* ── Dialogue UI ───────────────────────────────── */
-    .dialogue-overlay {
-      position: fixed; inset: 0; z-index: 100;
-      display: flex; align-items: flex-end; padding: 24px;
-      background: rgba(0,0,0,0.5); cursor: pointer;
+    /* ── Dialogue section (inline, entre machine et mise) ── */
+    .dialogue-section {
+      flex-shrink: 0;
+      height: 198px;
+      overflow: hidden;
+      visibility: hidden;
     }
-    .dialogue-overlay.hidden { display: none; }
-    .dialogue-box {
-      width: 100%; max-width: 700px; margin: 0 auto;
-      background: var(--panel, #111); border: 1px solid var(--gold, #c39b52);
-      padding: 20px 24px;
+    .dialogue-section.active { visibility: visible; }
+
+    .dlg-box {
+      border: 1px solid var(--hot);
+      background: var(--panel);
+      padding: 14px;
+      height: 100%;
+      display: flex;
+      gap: 14px;
+      overflow: hidden;
     }
-    .dialogue-speaker {
-      font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
-      color: var(--hot, #e0435c); margin-bottom: 10px;
+    .dlg-box.hidden { display: none; }
+
+    .dlg-plate {
+      position: relative;
+      width: 100px;
+      flex: none;
+      align-self: stretch;
+      overflow: hidden;
+      border: 1px solid var(--char-edge, var(--line));
+      background: var(--char-color, #0a0f0b);
+      background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgba(255,255,255,.04) 7px 8px);
+      transition: border-color .5s ease, background .5s ease;
     }
-    .dialogue-text { margin: 0; font-size: 16px; line-height: 1.6; }
-    .dialogue-hint {
-      margin-top: 12px; font-size: 10px; text-align: right;
-      opacity: .5; letter-spacing: .1em; text-transform: uppercase;
+    .dlg-plate-sigil {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Silkscreen', monospace;
+      font-size: 52px;
+      line-height: 1;
+      color: var(--char-edge, #2f5136);
+      opacity: .7;
+      transition: color .5s ease;
     }
+
+    .dlg-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .dlg-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .dlg-speaker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--hot);
+    }
+    .dlg-actions { display: flex; gap: 8px; }
+    .dlg-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink-dim);
+      cursor: pointer;
+      transition: color .12s, border-color .12s;
+    }
+    .dlg-btn:hover { color: var(--ink); border-color: var(--gold); }
+
+    .dlg-text {
+      margin: 0;
+      font-family: 'Silkscreen', monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--ink);
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .dlg-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      flex-shrink: 0;
+    }
+
+    .dlg-reveal {
+      width: 100%;
+      height: 100%;
+      text-align: left;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      border: 1px dashed var(--line);
+      background: transparent;
+      color: var(--ink-dim);
+      cursor: pointer;
+      transition: color .12s, border-color .12s;
+    }
+    .dlg-reveal:hover { color: var(--hot); border-color: var(--hot); }
+    .dlg-reveal.hidden { display: none; }
   </style>
 </head>
 <body>
 
-  <!-- Character Select Overlay (visible by default; hidden once a game is active) -->
+  <!-- Character Select Overlay -->
   <div id="character-select-overlay">
-    <div class="cs-panel">
-      <div class="cs-header">
-        <span class="cs-title">Choisissez votre péché</span>
-        <span class="cs-subtitle">Chaque âme a sa malédiction</span>
+    <div class="cs-scroll">
+      <div class="cs-panel">
+        <div class="cs-header">
+          <div class="cs-header-left">
+            <span class="cs-subtitle">Étage 9 — Salle des supplices mécanisés</span>
+            <span class="cs-title">Choisis ton vice</span>
+          </div>
+          <p class="cs-header-desc">Le ticket de sortie coûte un million. Personne ne l'a jamais payé. La direction vous souhaite néanmoins une excellente soirée.</p>
+        </div>
+        <div class="cs-grid"></div>
       </div>
-      <div class="cs-grid"></div>
+    </div>
+    <div class="cs-bar">
+      <div class="cs-bar-info">
+        <div class="cs-bar-char">
+          <span class="cs-bar-lbl">Sélection</span>
+          <span class="cs-bar-name" id="cs-bar-name">—</span>
+          <span class="cs-bar-sin" id="cs-bar-sin"></span>
+        </div>
+        <div class="cs-bar-stat">
+          <span class="cs-bar-lbl">Cagnotte de départ</span>
+          <span class="cs-bar-val" id="cs-bar-start">—</span>
+        </div>
+        <div class="cs-bar-stat">
+          <span class="cs-bar-lbl">Quota manche 1</span>
+          <span class="cs-bar-val" id="cs-bar-quota">—</span>
+        </div>
+        <div class="cs-bar-stat" style="display:none" id="cs-bar-mech-wrap">
+          <span class="cs-bar-lbl">Mécanique</span>
+          <span class="cs-bar-mech" id="cs-bar-mech"></span>
+        </div>
+      </div>
+      <div class="cs-bar-actions">
+        <button class="cs-confirm-btn" id="cs-confirm-btn" disabled>Signer le contrat</button>
+      </div>
     </div>
   </div>
 
   <div id="game">
 
-    <!-- ── Main panel ──────────────────────────── -->
-    <div class="main-panel">
+    <!-- ── Left: char panel (300px) ──────────────── -->
+    <div class="char-panel">
 
-      <!-- Top bar -->
-      <div class="top-bar">
-        <span class="game-name" id="game-name">Trèfle</span>
-        <div class="top-stats">
-          <div class="stat-item">
-            <span class="stat-lbl">NIVEAU</span>
-            <span class="stat-val" id="level-display">1</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-lbl">OBJECTIF</span>
-            <span class="stat-val gold" id="goal-display">$150</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-lbl">CHANCE</span>
-            <span class="stat-val" id="luck-display">0</span>
-          </div>
+      <!-- Identity card (clickable → profil) -->
+      <div class="char-hud-identity" id="char-hud-identity">
+        <div class="char-hud-plate" id="char-hud-plate">
+          <div class="char-hud-sigil" id="char-hud-sigil">—</div>
         </div>
-        <div class="top-spacer"></div>
-        <div class="progress-wrap">
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        <div class="char-hud-footer">
+          <div class="char-hud-name-row">
+            <span class="char-hud-name" id="char-hud-name">—</span>
+            <span class="char-hud-lv" id="luck-display">0</span>
           </div>
-          <span class="progress-pct" id="progress-pct">0%</span>
+          <span class="char-hud-sin" id="char-hud-sin">—</span>
+          <span class="char-hud-link">Voir le profil ›</span>
         </div>
       </div>
 
-      <!-- Reels -->
-      <div class="reel-area">
+      <!-- Inventory (5 slots) + active bonuses -->
+      <div class="char-hud-inventory">
+        <span class="char-hud-inv-lbl">Inventaire — 5 emplacements</span>
+        <div class="char-hud-slots">
+          <div class="char-hud-slot"></div>
+          <div class="char-hud-slot"></div>
+          <div class="char-hud-slot"></div>
+          <div class="char-hud-slot"></div>
+          <div class="char-hud-slot"></div>
+        </div>
+        <div class="bonuses-list" id="bonuses-list" style="margin-top:10px">
+          <span class="no-bonus">Aucun bonus actif.</span>
+        </div>
+      </div>
 
-        <!-- sym-badges (left) + col-badges (top) + reels -->
-        <div class="reels-layout">
-          <div class="sym-badges" id="sym-badges"></div>
-          <div class="reels-col">
-            <div class="col-badges-row" id="col-badges-row"></div>
-            <div class="reels" id="reels-container"></div>
+    </div>
+
+    <!-- ── Center: main panel ────────────────────── -->
+    <div class="main-panel">
+
+      <!-- Stats row (3 cards) -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-card-lbl">Manche <span id="level-display">1</span> — quota</span>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px;white-space:nowrap">
+            <span id="goal-display" class="stat-card-primary">⛧500</span>
+            <span class="stat-card-secondary" id="progress-pct">0%</span>
+          </div>
+          <div class="stat-card-bar">
+            <div id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-lbl">Machine</span>
+          <span class="stat-card-primary" id="game-name">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-lbl">Record</span>
+          <span class="stat-card-primary gold" id="highscore-display">⛧0</span>
+        </div>
+      </div>
+
+      <!-- Machine area (rouleaux) -->
+      <div class="machine-area" id="machine-area">
+
+        <div class="machine-header">
+          <span class="machine-name">Supplice des mécaniques</span>
+          <span class="machine-meta">20 lignes · 5 × 4</span>
+        </div>
+
+        <div class="machine-reels">
+          <div class="reels-layout">
+            <div class="sym-badges" id="sym-badges"></div>
+            <div class="reels-col">
+              <div class="col-badges-row" id="col-badges-row"></div>
+              <div class="reels" id="reels-container"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Selection hint (appears during column/symbol picking) -->
         <div class="selection-hint hidden" id="selection-hint"></div>
         <button class="selection-cancel hidden" id="selection-cancel">Annuler — Échap</button>
 
         <div class="win-overlay hidden" id="win-overlay">
           <div class="win-banner">
             <span class="win-label" id="win-label">GAIN</span>
-            <span class="win-amount" id="win-amount">+$0.00</span>
+            <span class="win-amount" id="win-amount">+⛧0</span>
             <span class="win-detail" id="win-detail"></span>
           </div>
         </div>
@@ -958,73 +1524,75 @@
           <span class="game-over-text" id="game-over-text"></span>
           <button class="restart-btn" id="restart-btn">Rejouer</button>
         </div>
+
       </div>
 
-      <!-- Bottom bar -->
-      <div class="bottom-bar">
-        <div class="balance-group">
-          <span class="bal-lbl">SOLDE</span>
-          <span id="balance-display">$100.00</span>
+      <!-- Dialogue section (inline, between machine and bet zone) -->
+      <div class="dialogue-section" id="dialogue-section">
+        <div class="dlg-box" id="dlg-box">
+          <div class="dlg-plate" id="dlg-plate">
+            <div class="dlg-plate-sigil" id="dlg-plate-sigil">—</div>
+          </div>
+          <div class="dlg-content">
+            <div class="dlg-header">
+              <span class="dlg-speaker" id="dlg-speaker">—</span>
+              <div class="dlg-actions">
+                <button class="dlg-btn" id="dlg-next">Suite ›</button>
+                <button class="dlg-btn" id="dlg-hide">Cacher</button>
+              </div>
+            </div>
+            <p class="dlg-text" id="dlg-text"></p>
+            <div class="dlg-footer">
+              <span>Transmission — étage 9</span>
+              <span id="dlg-count">1 / 1</span>
+            </div>
+          </div>
         </div>
-        <div class="balance-group">
-          <span class="bal-lbl">MEILLEUR</span>
-          <span id="highscore-display">$0.00</span>
+        <button class="dlg-reveal hidden" id="dlg-reveal">▲ Afficher les dialogues</button>
+      </div>
+
+      <!-- Control bar -->
+      <div class="control-bar">
+        <div class="ctrl-group">
+          <span class="ctrl-lbl">Cagnotte</span>
+          <span id="balance-display">⛧0</span>
         </div>
-        <div class="bar-sep"></div>
-        <div class="bet-group">
-          <span class="bal-lbl">MISE</span>
+        <div class="ctrl-sep"></div>
+        <div class="ctrl-group">
+          <span class="ctrl-lbl">Mise</span>
           <div class="bet-chips" id="bet-chips"></div>
         </div>
-        <div class="bar-spacer"></div>
+        <div class="ctrl-spacer"></div>
         <button id="spin-btn">SPIN</button>
       </div>
+
     </div>
 
-    <!-- ── Shop panel ──────────────────────────── -->
+    <!-- ── Right: shop panel (320px) ─────────────── -->
     <div class="shop-panel">
       <div class="shop-header">
-        <span class="shop-title">Boutique</span>
+        <span class="shop-title">Le Comptoir des Chairs</span>
         <div class="shop-spacer"></div>
         <span class="shop-level-lbl" id="shop-level-lbl">NIVEAU 1</span>
-        <button class="new-game-btn" onclick="window.__newGame()">Nouvelle partie</button>
+        <button class="new-game-btn" id="new-game-btn">Nouvelle partie</button>
       </div>
 
-      <div class="shop-items" id="shop-items"></div>
+      <div class="shop-scroll">
+        <div class="shop-items" id="shop-items"></div>
+      </div>
 
       <div class="reroll-wrap">
-        <button class="reroll-btn" id="reroll-btn">Renouveler les offres — $5</button>
+        <button class="reroll-btn" id="reroll-btn">Renouveler les offres — ⛧5</button>
       </div>
 
-      <div class="bonuses-section">
-        <span class="bonuses-lbl">BONUS ACTIFS</span>
-        <div class="bonuses-list" id="bonuses-list">
-          <span class="no-bonus">Aucun bonus actif.</span>
-        </div>
-      </div>
-
-      <div class="shop-grow"></div>
-
-      <div class="char-hud">
-        <div class="char-hud-identity">
-          <span class="char-hud-emoji" id="char-hud-emoji">—</span>
-          <div class="char-hud-info">
-            <span class="char-hud-name" id="char-hud-name">—</span>
-            <span class="char-hud-sin"  id="char-hud-sin">—</span>
-          </div>
-        </div>
-        <div class="char-hud-inventory">
-          <span class="char-hud-inv-lbl">INVENTAIRE</span>
-          <div class="char-hud-slots">
-            <div class="char-hud-slot"></div>
-            <div class="char-hud-slot"></div>
-            <div class="char-hud-slot"></div>
-            <div class="char-hud-slot"></div>
-          </div>
-        </div>
+      <div class="shop-log">
+        <span class="shop-log-lbl">Journal</span>
+        <div class="log-entries" id="log-entries"></div>
       </div>
     </div>
 
   </div>
+
   <!-- Profile Modal -->
   <div id="profile-modal-overlay" class="hidden">
     <div class="pm-panel">
@@ -1042,11 +1610,11 @@
         <span class="pm-section-lbl">STATS DE LA RUN</span>
         <div class="pm-stats-grid">
           <div class="pm-stat">
-            <span class="pm-stat-lbl">NIVEAU</span>
+            <span class="pm-stat-lbl">PALIER</span>
             <span class="pm-stat-val" id="pm-level">—</span>
           </div>
           <div class="pm-stat">
-            <span class="pm-stat-lbl">OBJECTIF</span>
+            <span class="pm-stat-lbl">QUOTA</span>
             <span class="pm-stat-val gold" id="pm-goal">—</span>
           </div>
           <div class="pm-stat">
@@ -1054,11 +1622,11 @@
             <span class="pm-stat-val gold" id="pm-progress">—</span>
           </div>
           <div class="pm-stat">
-            <span class="pm-stat-lbl">SOLDE</span>
+            <span class="pm-stat-lbl">CAGNOTTE</span>
             <span class="pm-stat-val" id="pm-balance">—</span>
           </div>
           <div class="pm-stat">
-            <span class="pm-stat-lbl">MEILLEUR</span>
+            <span class="pm-stat-lbl">RECORD</span>
             <span class="pm-stat-val" id="pm-best">—</span>
           </div>
           <div class="pm-stat">

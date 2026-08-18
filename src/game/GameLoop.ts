@@ -82,6 +82,7 @@ export class GameLoop {
     document.querySelector('.char-hud-identity')?.addEventListener('click', () => {
       this.profileModal.open(getCharacter(this.run.characterId)!, this.economy, { level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem)
     })
+    document.getElementById('new-game-btn')?.addEventListener('click', () => this.restartRun())
 
     this.boot()
   }
@@ -279,12 +280,14 @@ export class GameLoop {
     const char = getCharacter(this.run.characterId)
     if (!char) return
     document.documentElement.style.setProperty('--char-color', char.color ?? '#0f1110')
-    const emojiEl = document.getElementById('char-hud-emoji')
+    document.documentElement.style.setProperty('--char-edge', char.colorEdge ?? '#2f5136')
+    const sigilEl = document.getElementById('char-hud-sigil')
     const nameEl  = document.getElementById('char-hud-name')
     const sinEl   = document.getElementById('char-hud-sin')
-    if (emojiEl) emojiEl.textContent = char.emoji
+    if (sigilEl) sigilEl.textContent = char.sigil ?? char.emoji
     if (nameEl)  nameEl.textContent  = char.name
     if (sinEl)   sinEl.textContent   = char.sin
+    this.dialogueUI.setSigil(char.sigil ?? char.emoji)
   }
 
   private buildWinLog(result: SpinResult): string {

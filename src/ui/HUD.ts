@@ -73,7 +73,7 @@ export class HUD {
     this.#balanceDisplay.textContent  = `⛧${this.#economy.balance.toFixed(2)}`
     this.#highscoreDisplay.textContent = `⛧${this.#economy.highscore.toFixed(2)}`
     this.#luckDisplay.textContent = luck > 0 ? `+${luck}` : String(luck)
-    this.#luckDisplay.style.color = luck > 0 ? '#c9a24a' : ''
+    this.#luckDisplay.style.color = luck > 0 ? '#b6f36a' : ''
     this.#updateChipState()
 
     if (runState) {
@@ -115,8 +115,8 @@ export class HUD {
       const next = document.createElement('span')
       next.className = 'chip'
       next.style.pointerEvents = 'none'
-      next.style.color = '#b7534f'
-      next.style.borderColor = 'rgba(183,83,79,.35)'
+      next.style.color = '#ff2d55'
+      next.style.borderColor = 'rgba(255,45,85,.35)'
       next.style.fontSize = '11px'
       next.textContent = `+${fmt(nextIncrement)}`
       container.appendChild(next)

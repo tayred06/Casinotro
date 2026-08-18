@@ -163,7 +163,7 @@ export class ShopUI {
 
       const price = document.createElement('span')
       price.className   = 'item-price'
-      price.textContent = `$${offer.price}`
+      price.textContent = `⛧${offer.price}`
 
       const spacer = document.createElement('span')
       spacer.className = 'item-spacer'
@@ -212,14 +212,14 @@ export class ShopUI {
       const label = b.target !== null ? `${b.name} [${b.target}]` : b.name
       const uses  = b.remainingUses !== null ? ` (${b.remainingUses})` : ''
       tag.textContent = label + uses
-      tag.title       = `Vendre pour $${Math.floor(b.price * 0.5)}`
+      tag.title       = `Vendre pour ⛧${Math.floor(b.price * 0.5)}`
       tag.addEventListener('click', () => {
         const refund = this.#bonusSystem.removeBonus(b.instanceId)
         if (this.#onBonusSold) {
           this.#onBonusSold(bonus, refund)
         } else {
           this.#economy.addMoney(refund)
-          this.addLog(`Vendu : ${b.name} +$${refund}`, true)
+          this.addLog(`Vendu : ${b.name} +⛧${refund}`, true)
         }
         this.#renderBonuses()
         this.#renderItems()
@@ -233,7 +233,7 @@ export class ShopUI {
   #updateRerollBtn() {
     const btn  = document.getElementById('reroll-btn')!
     const free = this.#bonusSystem.getModifiers().freeRerolls > 0
-    const cost = free ? 'GRATUIT' : `$${this.#rerollCost}`
+    const cost = free ? 'GRATUIT' : `⛧${this.#rerollCost}`
     ;(btn as HTMLButtonElement).textContent = `Renouveler les offres — ${cost}`
     ;(btn as HTMLButtonElement).disabled    = !free && !this.#economy.canAfford(this.#rerollCost)
   }

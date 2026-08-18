@@ -33,7 +33,11 @@ export interface Character {
   sin: string
   emoji: string
   description: string
+  mechTitle?: string
+  sigil?: string
+  tag?: string
   color?: string
+  colorEdge?: string
   unlockOrder: number
   hidden?: boolean
   goal?: number
@@ -46,7 +50,11 @@ export const CHARACTERS: Character[] = [
     name: 'L\'Amante',
     sin: 'Luxuria',           // Luxure
     emoji: '🌹',
-    color: '#2A0A14',         // bordeaux profond, velours et néon rose
+    mechTitle: 'Entretien',
+    sigil: '♥',
+    tag: 'La Rouge',
+    color: '#2A0A14',
+    colorEdge: '#8a2038',         // bordeaux profond, velours et néon rose
     unlockOrder: 1,
     goal: 10000,
     description:
@@ -68,7 +76,11 @@ export const CHARACTERS: Character[] = [
     name: 'Le Convive',
     sin: 'Gula',              // Gourmandise
     emoji: '🍖',
-    color: '#2A1508',         // brun brûlé, graisse et cuivre terni
+    mechTitle: 'Escalade',
+    sigil: 'O',
+    tag: 'Le Gouffre',
+    color: '#2A1508',
+    colorEdge: '#8a5a24',         // brun brûlé, graisse et cuivre terni
     unlockOrder: 2,
     goal: 10000,
     description:
@@ -90,7 +102,11 @@ export const CHARACTERS: Character[] = [
     name: 'Le Banquier',
     sin: 'Avaritia',          // Avarice
     emoji: '💰',
-    color: '#241D06',         // or éteint sur fond de coffre-fort
+    mechTitle: 'Intérêts',
+    sigil: '$',
+    tag: 'Le Coffre',
+    color: '#241D06',
+    colorEdge: '#8a7420',         // or éteint sur fond de coffre-fort
     unlockOrder: 3,
     goal: 10000,
     description:
@@ -118,7 +134,11 @@ export const CHARACTERS: Character[] = [
     name: 'Le Boxeur',
     sin: 'Ira',               // Colère
     emoji: '🔥',
-    color: '#2B0C06',         // braise, métal chauffé à blanc
+    mechTitle: 'Frappe',
+    sigil: 'X',
+    tag: 'La Braise',
+    color: '#2B0C06',
+    colorEdge: '#96431a',         // braise, métal chauffé à blanc
     unlockOrder: 4,
     goal: 10000,
     description:
@@ -147,7 +167,11 @@ export const CHARACTERS: Character[] = [
     name: 'L\'Actrice',
     sin: 'Invidia',           // Envie
     emoji: '👁️',
-    color: '#0C2018',         // vert malade, lumière d'aquarium
+    mechTitle: 'Déclin',
+    sigil: 'E',
+    tag: 'Le Miroir',
+    color: '#0C2018',
+    colorEdge: '#1f7a6a',         // vert malade, lumière d'aquarium
     unlockOrder: 5,
     goal: 10000,
     description:
@@ -171,7 +195,11 @@ export const CHARACTERS: Character[] = [
     name: 'Le Voyageur',
     sin: 'Acedia',            // Paresse
     emoji: '💤',
-    color: '#141A26',         // bleu-gris froid, salle d'attente
+    mechTitle: 'Chrono',
+    sigil: 'Z',
+    tag: 'Le Dormeur',
+    color: '#141A26',
+    colorEdge: '#3a4a8a',         // bleu-gris froid, salle d'attente
     unlockOrder: 6,
     goal: 10000,
     description:
@@ -196,7 +224,11 @@ export const CHARACTERS: Character[] = [
     name: 'L\'Architecte',
     sin: 'Superbia',          // Orgueil
     emoji: '👑',
-    color: '#1C0F2B',         // pourpre royal, marbre sous néon
+    mechTitle: 'Annonce',
+    sigil: '★',
+    tag: 'Le Paon',
+    color: '#1C0F2B',
+    colorEdge: '#5a3fa0',         // pourpre royal, marbre sous néon
     unlockOrder: 7,
     goal: 10000,
     description:
@@ -229,7 +261,11 @@ export const CHARACTERS: Character[] = [
     name: 'Le Joueur',
     sin: 'Spes',              // Espoir — le péché de rester en sachant
     emoji: '❓',
-    color: '#0A0A0A',         // noir. rien d'autre.
+    mechTitle: 'Aucun don',
+    sigil: '♠',
+    tag: 'Vous',
+    color: '#0A0A0A',
+    colorEdge: '#4a5058',         // noir. rien d'autre.
     unlockOrder: 8,
     hidden: true,             // révélé uniquement après le twist final
     goal: 150000000000,
