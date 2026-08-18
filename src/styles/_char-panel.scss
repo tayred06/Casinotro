@@ -1,0 +1,122 @@
+.char-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.char-hud-identity {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color .12s;
+  overflow: hidden;
+
+  &:hover { border-color: var(--gold); }
+}
+
+.char-hud-plate {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  background: var(--char-color, #0a0f0b);
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgba(255,255,255,.04) 7px 8px);
+  transition: background .5s ease;
+}
+
+.char-hud-sigil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Silkscreen', monospace;
+  font-size: 110px;
+  line-height: 1;
+  color: var(--char-edge, #2f5136);
+  opacity: .55;
+  transition: color .5s ease;
+}
+
+.char-hud-footer {
+  padding: 14px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.char-hud-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.char-hud-name {
+  font-family: 'Silkscreen', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.char-hud-lv {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--gold-dim);
+  white-space: nowrap;
+}
+
+.char-hud-sin {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--hot);
+  text-transform: uppercase;
+}
+
+.char-hud-link {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.char-hud-inventory {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 14px;
+}
+
+.char-hud-inv-lbl {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.char-hud-slots {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.char-hud-slot {
+  aspect-ratio: 1;
+  border: 1px dashed var(--line);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--gold);
+}

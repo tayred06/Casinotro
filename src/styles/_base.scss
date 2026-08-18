@@ -1,0 +1,26 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --char-color: #0a0f0b;
+  --char-edge:  #2f5136;
+  --bg:         #05070a;
+  --panel:      #0a0f0b;
+  --panel2:     #101a10;
+  --velvet:     #2a0810;
+  --line:       #2f5136;
+  --gold:       #b6f36a;
+  --gold-dim:   #4a7a37;
+  --ink:        #dcf7c8;
+  --ink-dim:    #77a06a;
+  --hot:        #ff2d55;
+  --neon:       #f2c14b;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'VT323', monospace;
+  color: var(--ink);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}

@@ -1,0 +1,133 @@
+// Stats row (top of center panel)
+.stats-row {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+  align-items: stretch;
+}
+
+.stat-card {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px 16px;
+}
+
+.stat-card-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  display: block;
+}
+
+.stat-card-primary {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  color: var(--ink);
+  display: block;
+  margin-top: 4px;
+  line-height: 1;
+
+  &.gold { color: var(--gold); }
+}
+
+.stat-card-secondary {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.stat-card-bar {
+  height: 5px;
+  background: #000;
+  border: 1px solid var(--line);
+  margin-top: 10px;
+  overflow: hidden;
+
+  > div {
+    height: 100%;
+    background: var(--gold);
+    transition: width .4s ease;
+  }
+}
+
+// Control bar (bottom of center panel)
+.control-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.ctrl-group { display: flex; flex-direction: column; gap: 6px; }
+
+.ctrl-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+#balance-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+#highscore-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--gold-dim);
+  line-height: 1;
+}
+
+.ctrl-sep   { width: 1px; align-self: stretch; background: var(--line); }
+.ctrl-spacer { flex: 1; }
+
+.bet-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.chip {
+  min-width: 52px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  transition: color .12s, border-color .12s, background .12s;
+
+  &:hover { color: var(--ink); border-color: var(--gold-dim); }
+
+  &.active {
+    color: var(--bg);
+    background: var(--gold);
+    border-color: var(--gold);
+  }
+}
+
+#spin-btn {
+  margin-left: auto;
+  padding: 20px 46px;
+  border: 1px solid var(--hot);
+  background: var(--hot);
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+
+  &:hover:not(:disabled) { background: #ff5570; border-color: #ff5570; }
+  &:disabled { opacity: .42; cursor: not-allowed; background: var(--hot); }
+}
