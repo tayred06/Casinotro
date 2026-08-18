@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { spin, calculateWins } from './SlotMachine.js'
-import { getSymbolById } from './Symbols.js'
+import { spin, calculateWins } from './SlotMachine.ts'
+import { getSymbolById } from './Symbols.ts'
 
 const lemon = getSymbolById('lemon')
 const bell  = getSymbolById('bell')

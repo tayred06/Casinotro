@@ -1,12 +1,17 @@
-import { randomInt } from '../utils/Random.js'
-import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS } from './Symbols.js'
+import type { GameSymbol, SpinOptions, SpinResult, WinLine, Modifiers, Souls } from '../types/index.ts'
+import { randomInt } from '../utils/Random.ts'
+import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS } from './Symbols.ts'
 
 const REEL_COUNT = 6
 const MIN_ROWS = 2
 const MAX_ROWS = 7
 
-export function spin(stickyPositions = {}, luckFactor = 0, reelOptions = {}) {
-  const { rareMultiplier = 1 } = reelOptions
+export function spin(
+  stickyPositions: Record<string, GameSymbol> = {},
+  luckFactor = 0,
+  opts: SpinOptions = {}
+): { grid: GameSymbol[][], rowCounts: number[] } {
+  const { rareMultiplier = 1 } = opts
   const rowCounts = Array.from({ length: REEL_COUNT }, () => randomInt(MIN_ROWS, MAX_ROWS))
   const grid = rowCounts.map((rowCount, reel) => {
     const col = generateReelColumn(rowCount, luckFactor, rareMultiplier)
@@ -19,7 +24,11 @@ export function spin(stickyPositions = {}, luckFactor = 0, reelOptions = {}) {
   return { grid, rowCounts }
 }
 
-export function calculateWins(grid, bet, modifiers = {}) {
+export function calculateWins(
+  grid: GameSymbol[][],
+  bet: Souls,
+  modifiers: Partial<Modifiers> = {}
+): SpinResult {
   const {
     columnMultipliers = Array(REEL_COUNT).fill(1),
     wildColumns = Array(REEL_COUNT).fill(false),
@@ -36,16 +45,16 @@ export function calculateWins(grid, bet, modifiers = {}) {
       : col
   )
 
-  const winLines = []
+  const winLines: WinLine[] = []
 
   for (const symbol of WIN_SYMBOLS) {
-    const reelRows = []
+    const reelRows: number[] = []
     for (let reel = 0; reel < REEL_COUNT; reel++) {
       const col = effectiveGrid[reel]
       // Require a proportional number of matching symbols per column
       // (prevents every reel matching every symbol due to many rows)
       const threshold = Math.max(1, Math.ceil(col.length * 0.4))
-      const matchIndices = col.reduce((acc, s, i) => {
+      const matchIndices = col.reduce((acc: number[], s, i) => {
         if (s.id === symbol.id || s.id === 'wild') acc.push(i)
         return acc
       }, [])
