@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Economy, BET_OPTIONS } from './Economy.js'
+import { Economy, BET_OPTIONS } from './Economy.ts'
 
 describe('BET_OPTIONS', () => {
   it('contient les 5 mises attendues', () => {
