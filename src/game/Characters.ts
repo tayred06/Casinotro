@@ -27,7 +27,20 @@
  *   { type: 'custom',           key: String, value: any }// effet spécial géré manuellement
  */
 
-export const CHARACTERS = [
+export interface Character {
+  id: string
+  name: string
+  sin: string
+  emoji: string
+  description: string
+  color?: string
+  unlockOrder: number
+  hidden?: boolean
+  goal?: number
+  effect: { type: string; key?: string; params?: Record<string, any>; value?: any; bonusId?: string }
+}
+
+export const CHARACTERS: Character[] = [
   {
     id: 'luxuria',
     name: 'L\'Amante',
@@ -247,4 +260,4 @@ export const UNLOCK_ORDER = CHARACTERS
 /** Personnage de départ (seul débloqué à la première partie). */
 export const STARTING_CHARACTER_ID = 'luxuria'
 
-export const getCharacter = (id) => CHARACTERS.find((c) => c.id === id)
+export const getCharacter = (id: string): Character | undefined => CHARACTERS.find((c) => c.id === id)
