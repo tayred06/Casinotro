@@ -1,37 +1,43 @@
-import { BET_OPTIONS } from '../game/Economy.js'
+import { BET_OPTIONS } from '../game/Economy.ts'
+import type { Economy } from '../game/Economy.ts'
 
 const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
 
+interface RunState {
+  level: number
+  goal: number
+}
+
 export class HUD {
-  #economy
-  #onSpin
-  #onBetChange
+  #economy: Economy
+  #onSpin: () => void
+  #onBetChange: (amount: number) => void
 
-  #gameName
-  #levelDisplay
-  #goalDisplay
-  #luckDisplay
-  #progressFill
-  #progressPct
-  #balanceDisplay
-  #highscoreDisplay
-  #spinBtn
-  #betChips = []
+  #gameName: HTMLElement
+  #levelDisplay: HTMLElement
+  #goalDisplay: HTMLElement
+  #luckDisplay: HTMLElement
+  #progressFill: HTMLElement
+  #progressPct: HTMLElement
+  #balanceDisplay: HTMLElement
+  #highscoreDisplay: HTMLElement
+  #spinBtn: HTMLButtonElement
+  #betChips: Array<{ btn: HTMLButtonElement; amount: number }> = []
 
-  constructor(economy, onSpin, onBetChange) {
+  constructor(economy: Economy, onSpin: () => void, onBetChange: (amount: number) => void) {
     this.#economy     = economy
     this.#onSpin      = onSpin
     this.#onBetChange = onBetChange
 
-    this.#gameName       = document.getElementById('game-name')
-    this.#levelDisplay   = document.getElementById('level-display')
-    this.#goalDisplay    = document.getElementById('goal-display')
-    this.#luckDisplay    = document.getElementById('luck-display')
-    this.#progressFill   = document.getElementById('progress-fill')
-    this.#progressPct    = document.getElementById('progress-pct')
-    this.#balanceDisplay = document.getElementById('balance-display')
-    this.#highscoreDisplay = document.getElementById('highscore-display')
-    this.#spinBtn        = document.getElementById('spin-btn')
+    this.#gameName       = document.getElementById('game-name')!
+    this.#levelDisplay   = document.getElementById('level-display')!
+    this.#goalDisplay    = document.getElementById('goal-display')!
+    this.#luckDisplay    = document.getElementById('luck-display')!
+    this.#progressFill   = document.getElementById('progress-fill')!
+    this.#progressPct    = document.getElementById('progress-pct')!
+    this.#balanceDisplay = document.getElementById('balance-display')!
+    this.#highscoreDisplay = document.getElementById('highscore-display')!
+    this.#spinBtn        = document.getElementById('spin-btn') as HTMLButtonElement
 
     this.#spinBtn.addEventListener('click', () => this.#onSpin())
 
@@ -39,7 +45,7 @@ export class HUD {
   }
 
   #buildBetChips() {
-    const container = document.getElementById('bet-chips')
+    const container = document.getElementById('bet-chips')!
     container.textContent = ''
     this.#betChips = []
 
@@ -63,7 +69,7 @@ export class HUD {
     })
   }
 
-  update(runState = null, luck = 0) {
+  update(runState: RunState | null = null, luck: number = 0) {
     this.#balanceDisplay.textContent  = `$${this.#economy.balance.toFixed(2)}`
     this.#highscoreDisplay.textContent = `$${this.#economy.highscore.toFixed(2)}`
     this.#luckDisplay.textContent = luck > 0 ? `+${luck}` : String(luck)
@@ -83,19 +89,19 @@ export class HUD {
     }
   }
 
-  setSpinEnabled(enabled) {
+  setSpinEnabled(enabled: boolean) {
     this.#spinBtn.disabled = !enabled
   }
 
-  setSpinLabel(label) {
+  setSpinLabel(label: string) {
     this.#spinBtn.textContent = label
   }
 
-  showEscalatingBet(amount, nextIncrement = null) {
-    const container = document.getElementById('bet-chips')
+  showEscalatingBet(amount: number, nextIncrement: number | null = null) {
+    const container = document.getElementById('bet-chips')!
     container.textContent = ''
 
-    const fmt = n => `$${n % 1 === 0 ? n : n.toFixed(2)}`
+    const fmt = (n: number) => `$${n % 1 === 0 ? n : n.toFixed(2)}`
 
     const display = document.createElement('span')
     display.id = 'gula-bet-display'

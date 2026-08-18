@@ -1,42 +1,49 @@
-import { BONUS_POOL } from '../game/BonusSystem.js'
+import type { ItemDef, ItemInstance } from '../types/index.ts'
+import type { Economy } from '../game/Economy.ts'
+import type { BonusSystem } from '../game/BonusSystem.ts'
 
-const RARITY_CLASS = {
+const RARITY_CLASS: Record<number, string> = {
   1: 'commun',
   2: 'rare',
   3: 'épique',
 }
 
 // Assign rarity level to each bonus by price tier
-function rarityFor(bonus) {
+function rarityFor(bonus: ItemDef): string {
   if (bonus.id === 'greed' || bonus.id.includes('maudit')) return 'maudit'
   if (bonus.level >= 3)  return 'épique'
   if (bonus.level >= 2)  return 'rare'
   return 'commun'
 }
 
-function rarityLabel(bonus) {
+function rarityLabel(bonus: ItemDef): string {
   if (bonus.id === 'greed') return 'MAUDIT'
-  const map = { 1: 'COMMUN', 2: 'RARE', 3: 'ÉPIQUE' }
+  const map: Record<number, string> = { 1: 'COMMUN', 2: 'RARE', 3: 'ÉPIQUE' }
   return map[bonus.level] ?? 'COMMUN'
 }
 
 export class ShopUI {
-  #bonusSystem
-  #economy
-  #onUpdate
-  #selectTarget
-  #onBonusSold = null
-  #offerModifier = null
-  #currentOffers = []
-  #rerollCost = 5
+  #bonusSystem: BonusSystem
+  #economy: Economy
+  #onUpdate: () => void
+  #selectTarget: ((offer: ItemDef) => Promise<number | string>) | null
+  #onBonusSold: ((bonus: ItemInstance, refund: number) => void) | null = null
+  #offerModifier: ((offer: ItemDef) => ItemDef | null) | null = null
+  #currentOffers: ItemDef[] = []
+  #rerollCost: number = 5
 
-  constructor(bonusSystem, economy, onUpdate, selectTarget) {
+  constructor(
+    bonusSystem: BonusSystem,
+    economy: Economy,
+    onUpdate: () => void,
+    selectTarget: ((offer: ItemDef) => Promise<number | string>) | null
+  ) {
     this.#bonusSystem  = bonusSystem
     this.#economy      = economy
     this.#onUpdate     = onUpdate
     this.#selectTarget = selectTarget
 
-    document.getElementById('reroll-btn').addEventListener('click', () => {
+    document.getElementById('reroll-btn')!.addEventListener('click', () => {
       this.#handleReroll()
     })
 
@@ -44,8 +51,8 @@ export class ShopUI {
   }
 
   // Regenerate offers + redraw everything (call on level-up, restart, restore)
-  refresh(level = 1) {
-    this.#currentOffers = this.#bonusSystem.getShopOffers(level)
+  refresh(level: number = 1) {
+    this.#currentOffers = this.#bonusSystem.getShopOffers(level as 1 | 2 | 3)
     this.#renderItems()
     this.#renderBonuses()
     this.#updateRerollBtn()
@@ -61,14 +68,14 @@ export class ShopUI {
     this.#updateRerollBtn()
   }
 
-  setOnBonusSold(fn)    { this.#onBonusSold    = fn }
-  setOfferModifier(fn)  { this.#offerModifier  = fn }
+  setOnBonusSold(fn: (bonus: ItemInstance, refund: number) => void) { this.#onBonusSold = fn }
+  setOfferModifier(fn: (offer: ItemDef) => ItemDef | null)          { this.#offerModifier = fn }
 
   // For save/restore
-  getOffers()            { return this.#currentOffers }
-  getRerollCost()        { return this.#rerollCost }
-  setRerollCost(c)       { this.#rerollCost = c }
-  setOffers(offers, level = 1) {
+  getOffers(): ItemDef[]             { return this.#currentOffers }
+  getRerollCost(): number            { return this.#rerollCost }
+  setRerollCost(c: number)           { this.#rerollCost = c }
+  setOffers(offers: ItemDef[], level: number = 1) {
     this.#currentOffers = offers
     this.#renderItems()
     this.#renderBonuses()
@@ -77,7 +84,7 @@ export class ShopUI {
     if (levelLbl) levelLbl.textContent = `NIVEAU ${level}`
   }
 
-  addLog(text, muted = false) {
+  addLog(text: string, muted: boolean = false) {
     const container = document.getElementById('log-entries')
     if (!container) return
     const spinNum   = document.querySelectorAll('.log-entry').length + 1
@@ -100,16 +107,16 @@ export class ShopUI {
 
     // Keep max 5 entries
     while (container.children.length > 5) {
-      container.removeChild(container.lastChild)
+      container.removeChild(container.lastChild!)
     }
   }
 
   #renderItems() {
-    const container = document.getElementById('shop-items')
+    const container = document.getElementById('shop-items')!
     container.textContent = ''
 
     const visibleOffers = this.#offerModifier
-      ? this.#currentOffers.map(o => this.#offerModifier(o)).filter(Boolean)
+      ? this.#currentOffers.map(o => this.#offerModifier!(o)).filter(Boolean) as ItemDef[]
       : this.#currentOffers
 
     if (visibleOffers.length === 0 && this.#offerModifier) {
@@ -180,13 +187,13 @@ export class ShopUI {
     })
   }
 
-  setLevelLabel(text) {
+  setLevelLabel(text: string) {
     const el = document.getElementById('shop-level-lbl')
     if (el) el.textContent = text
   }
 
   #renderBonuses() {
-    const container = document.getElementById('bonuses-list')
+    const container = document.getElementById('bonuses-list')!
     container.textContent = ''
 
     const active = this.#bonusSystem.activeBonus
@@ -201,17 +208,18 @@ export class ShopUI {
     active.forEach(bonus => {
       const tag = document.createElement('span')
       tag.className   = 'bonus-tag'
-      const label = bonus.target !== null ? `${bonus.name} [${bonus.target}]` : bonus.name
-      const uses  = bonus.remainingUses !== null ? ` (${bonus.remainingUses})` : ''
+      const b = bonus as any
+      const label = b.target !== null ? `${b.name} [${b.target}]` : b.name
+      const uses  = b.remainingUses !== null ? ` (${b.remainingUses})` : ''
       tag.textContent = label + uses
-      tag.title       = `Vendre pour $${Math.floor(bonus.price * 0.5)}`
+      tag.title       = `Vendre pour $${Math.floor(b.price * 0.5)}`
       tag.addEventListener('click', () => {
-        const refund = this.#bonusSystem.removeBonus(bonus.instanceId)
+        const refund = this.#bonusSystem.removeBonus(b.instanceId)
         if (this.#onBonusSold) {
           this.#onBonusSold(bonus, refund)
         } else {
           this.#economy.addMoney(refund)
-          this.addLog(`Vendu : ${bonus.name} +$${refund}`, true)
+          this.addLog(`Vendu : ${b.name} +$${refund}`, true)
         }
         this.#renderBonuses()
         this.#renderItems()
@@ -223,15 +231,15 @@ export class ShopUI {
   }
 
   #updateRerollBtn() {
-    const btn  = document.getElementById('reroll-btn')
+    const btn  = document.getElementById('reroll-btn')!
     const free = this.#bonusSystem.getModifiers().freeRerolls > 0
     const cost = free ? 'GRATUIT' : `$${this.#rerollCost}`
-    btn.textContent = `Renouveler les offres — ${cost}`
-    btn.disabled    = !free && !this.#economy.canAfford(this.#rerollCost)
+    ;(btn as HTMLButtonElement).textContent = `Renouveler les offres — ${cost}`
+    ;(btn as HTMLButtonElement).disabled    = !free && !this.#economy.canAfford(this.#rerollCost)
   }
 
-  async #handleBuy(offer, btn) {
-    let target = null
+  async #handleBuy(offer: ItemDef, btn: HTMLButtonElement) {
+    let target: number | string | null = null
 
     if (offer.needsTarget && this.#selectTarget) {
       if (btn) { btn.textContent = 'Sélectionner…'; btn.disabled = true }
@@ -262,7 +270,7 @@ export class ShopUI {
       this.#rerollCost += 5
     }
     const level = this.#economy.getShopLevel()
-    this.#currentOffers = this.#bonusSystem.getShopOffers(level)
+    this.#currentOffers = this.#bonusSystem.getShopOffers(level as 1 | 2 | 3)
     this.#renderItems()
     this.#updateRerollBtn()
     this.#onUpdate()

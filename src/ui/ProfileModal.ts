@@ -1,9 +1,28 @@
+import type { Modifiers, ItemInstance } from '../types/index.ts'
+import type { Economy } from '../game/Economy.ts'
+import type { BonusSystem } from '../game/BonusSystem.ts'
+
+interface Character {
+  id: string
+  name: string
+  sin: string
+  emoji: string
+  description: string
+  params?: Record<string, any>
+  [key: string]: any
+}
+
+interface RunState {
+  level: number
+  goal: number
+}
+
 export class ProfileModal {
-  #overlay
-  #onClose
+  #overlay: HTMLElement
+  #onClose?: () => void
 
   constructor() {
-    this.#overlay = document.getElementById('profile-modal-overlay')
+    this.#overlay = document.getElementById('profile-modal-overlay')!
     this.#overlay.addEventListener('click', e => {
       if (e.target === this.#overlay) this.close()
     })
@@ -12,23 +31,23 @@ export class ProfileModal {
     })
   }
 
-  open(character, economy, runState, bonusSystem) {
+  open(character: Character, economy: Economy, runState: RunState, bonusSystem: BonusSystem) {
     const modifiers   = bonusSystem.getModifiers()
     const activeBonuses = bonusSystem.activeBonus
     const pct = Math.min(100, Math.round((economy.balance / runState.goal) * 100))
 
-    document.getElementById('pm-emoji').textContent = character.emoji
-    document.getElementById('pm-name').textContent  = character.name
-    document.getElementById('pm-sin').textContent   = character.sin.toUpperCase()
-    document.getElementById('pm-desc').textContent  = character.description
+    document.getElementById('pm-emoji')!.textContent = character.emoji
+    document.getElementById('pm-name')!.textContent  = character.name
+    document.getElementById('pm-sin')!.textContent   = character.sin.toUpperCase()
+    document.getElementById('pm-desc')!.textContent  = character.description
 
-    document.getElementById('pm-level').textContent   = String(runState.level)
-    document.getElementById('pm-goal').textContent    = `$${runState.goal.toLocaleString('fr-FR')}`
-    document.getElementById('pm-progress').textContent = `${pct}%`
-    document.getElementById('pm-balance').textContent = `$${economy.balance.toFixed(2)}`
-    document.getElementById('pm-best').textContent    = `$${economy.highscore.toFixed(2)}`
-    document.getElementById('pm-bet').textContent     = `$${economy.currentBet}`
-    document.getElementById('pm-luck').textContent    = modifiers.luck > 0 ? `+${modifiers.luck}` : String(modifiers.luck)
+    document.getElementById('pm-level')!.textContent   = String(runState.level)
+    document.getElementById('pm-goal')!.textContent    = `$${runState.goal.toLocaleString('fr-FR')}`
+    document.getElementById('pm-progress')!.textContent = `${pct}%`
+    document.getElementById('pm-balance')!.textContent = `$${economy.balance.toFixed(2)}`
+    document.getElementById('pm-best')!.textContent    = `$${economy.highscore.toFixed(2)}`
+    document.getElementById('pm-bet')!.textContent     = `$${economy.currentBet}`
+    document.getElementById('pm-luck')!.textContent    = modifiers.luck > 0 ? `+${modifiers.luck}` : String(modifiers.luck)
 
     this.#renderBonuses(activeBonuses, modifiers)
     this.#renderEffect(character)
@@ -40,8 +59,8 @@ export class ProfileModal {
     this.#overlay.classList.add('hidden')
   }
 
-  #renderBonuses(activeBonuses, modifiers) {
-    const container = document.getElementById('pm-bonuses')
+  #renderBonuses(activeBonuses: ItemInstance[], modifiers: Modifiers) {
+    const container = document.getElementById('pm-bonuses')!
     container.textContent = ''
 
     if (!activeBonuses.length) {
@@ -53,6 +72,7 @@ export class ProfileModal {
     }
 
     for (const bonus of activeBonuses) {
+      const b = bonus as any
       const row = document.createElement('div')
       row.className = 'pm-bonus-row'
 
@@ -61,21 +81,21 @@ export class ProfileModal {
 
       const name = document.createElement('span')
       name.className = 'pm-bonus-name'
-      name.textContent = bonus.name
+      name.textContent = b.name
 
       const desc = document.createElement('span')
       desc.className = 'pm-bonus-desc'
-      desc.textContent = this.#bonusDetail(bonus, modifiers)
+      desc.textContent = this.#bonusDetail(b, modifiers)
 
       left.appendChild(name)
       left.appendChild(desc)
 
       row.appendChild(left)
 
-      if (bonus.remainingUses !== null) {
+      if (b.remainingUses !== null) {
         const uses = document.createElement('span')
         uses.className = 'pm-bonus-uses'
-        uses.textContent = `${bonus.remainingUses} spin${bonus.remainingUses > 1 ? 's' : ''}`
+        uses.textContent = `${b.remainingUses} spin${b.remainingUses > 1 ? 's' : ''}`
         row.appendChild(uses)
       }
 
@@ -83,7 +103,7 @@ export class ProfileModal {
     }
   }
 
-  #bonusDetail(bonus, modifiers) {
+  #bonusDetail(bonus: any, modifiers: Modifiers): string {
     const target = bonus.target
     switch (bonus.effect) {
       case 'column_multiplier': return target !== null ? `Colonne ${target + 1} → ×2` : bonus.description
@@ -103,9 +123,9 @@ export class ProfileModal {
     }
   }
 
-  #renderEffect(character) {
-    const section = document.getElementById('pm-effect-section')
-    const container = document.getElementById('pm-effect-rows')
+  #renderEffect(character: Character) {
+    const section = document.getElementById('pm-effect-section')!
+    const container = document.getElementById('pm-effect-rows')!
     container.textContent = ''
 
     const params = character.params
@@ -116,7 +136,7 @@ export class ProfileModal {
 
     section.style.display = ''
 
-    const PARAM_LABELS = {
+    const PARAM_LABELS: Record<string, [string, (v: any) => string] | null> = {
       rareSymbolWeightMultiplier: ['Symboles rares', v => `×${v} plus fréquents`],
       upkeepPercent:              ['Entretien / spin', v => `${(v * 100).toFixed(0)}% du solde`],
       upkeepRamp:                 null,

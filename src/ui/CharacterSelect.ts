@@ -1,15 +1,26 @@
-export class CharacterSelect {
-  #onSelect
-  #overlay
+interface Character {
+  id: string
+  name: string
+  sin: string
+  emoji: string
+  description: string
+  hidden?: boolean
+  [key: string]: any
+}
 
-  constructor(characters, onSelect) {
+export class CharacterSelect {
+  #onSelect: (char: Character) => void
+  #overlay: HTMLElement
+
+  constructor(characters: Character[], onSelect: (char: Character) => void) {
     this.#onSelect = onSelect
-    this.#overlay  = document.getElementById('character-select-overlay')
+    this.#overlay  = document.getElementById('character-select-overlay')!
     this.#renderGrid(characters.filter(c => !c.hidden))
   }
 
-  #renderGrid(characters) {
-    const grid = this.#overlay.querySelector('.cs-grid')
+  #renderGrid(characters: Character[]) {
+    const grid = this.#overlay.querySelector('.cs-grid')!
+
     for (const char of characters) {
       const card = document.createElement('button')
       card.className = 'cs-card'

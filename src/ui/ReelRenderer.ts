@@ -1,5 +1,7 @@
+import type { WinLine, Modifiers, GameSymbol } from '../types/index.ts'
+
 // Maps existing symbol IDs → V2 card-suit visuals
-const VISUAL = {
+const VISUAL: Record<string, { text: string; cls: string }> = {
   lemon:   { text: '♠', cls: 'cell-suit black' },
   grape:   { text: '♣', cls: 'cell-suit black' },
   bell:    { text: '♥', cls: 'cell-suit red'   },
@@ -14,11 +16,11 @@ const VISUAL = {
 const SPIN_VISUALS = ['lemon', 'grape', 'bell', 'diamond', 'star', 'dog'].map(id => VISUAL[id])
 
 // Human-readable label for each symbol (shown in badges)
-const SYM_LABEL = {
+const SYM_LABEL: Record<string, string> = {
   lemon: '♠', grape: '♣', bell: '♥', diamond: '♦', star: '7', dog: '★',
 }
 
-const WIN_COLOR = {
+const WIN_COLOR: Record<string, string> = {
   lemon:   '#e7e5e0',
   grape:   '#e7e5e0',
   bell:    '#b7534f',
@@ -30,47 +32,47 @@ const WIN_COLOR = {
 }
 
 export class ReelRenderer {
-  #container
-  #colBadgesRow
-  #symBadges
-  #winOverlay
-  #winLabel
-  #winAmount
-  #winDetail
-  #gameOverOverlay
-  #gameOverText
-  #restartBtn
-  #selectionHint
-  #selectionCancel
-  #currentGrid = null
-  #spinTicker   = null
-  #spinTimeouts = []
+  #container: HTMLElement
+  #colBadgesRow: HTMLElement
+  #symBadges: HTMLElement
+  #winOverlay: HTMLElement
+  #winLabel: HTMLElement
+  #winAmount: HTMLElement
+  #winDetail: HTMLElement
+  #gameOverOverlay: HTMLElement
+  #gameOverText: HTMLElement
+  #restartBtn: HTMLElement
+  #selectionHint: HTMLElement
+  #selectionCancel: HTMLElement
+  #currentGrid: GameSymbol[][] | null = null
+  #spinTicker: ReturnType<typeof setInterval> | null = null
+  #spinTimeouts: ReturnType<typeof setTimeout>[] = []
 
   get currentGrid() { return this.#currentGrid }
 
-  constructor(onRestart) {
-    this.#container       = document.getElementById('reels-container')
-    this.#colBadgesRow    = document.getElementById('col-badges-row')
-    this.#symBadges       = document.getElementById('sym-badges')
-    this.#winOverlay      = document.getElementById('win-overlay')
-    this.#winLabel        = document.getElementById('win-label')
-    this.#winAmount       = document.getElementById('win-amount')
-    this.#winDetail       = document.getElementById('win-detail')
-    this.#gameOverOverlay = document.getElementById('game-over-overlay')
-    this.#gameOverText    = document.getElementById('game-over-text')
-    this.#restartBtn      = document.getElementById('restart-btn')
-    this.#selectionHint   = document.getElementById('selection-hint')
-    this.#selectionCancel = document.getElementById('selection-cancel')
+  constructor(onRestart: () => void) {
+    this.#container       = document.getElementById('reels-container')!
+    this.#colBadgesRow    = document.getElementById('col-badges-row')!
+    this.#symBadges       = document.getElementById('sym-badges')!
+    this.#winOverlay      = document.getElementById('win-overlay')!
+    this.#winLabel        = document.getElementById('win-label')!
+    this.#winAmount       = document.getElementById('win-amount')!
+    this.#winDetail       = document.getElementById('win-detail')!
+    this.#gameOverOverlay = document.getElementById('game-over-overlay')!
+    this.#gameOverText    = document.getElementById('game-over-text')!
+    this.#restartBtn      = document.getElementById('restart-btn')!
+    this.#selectionHint   = document.getElementById('selection-hint')!
+    this.#selectionCancel = document.getElementById('selection-cancel')!
     this.#restartBtn.addEventListener('click', onRestart)
   }
 
-  displayGrid(grid, modifiers = {}) {
+  displayGrid(grid: GameSymbol[][], modifiers: Partial<Modifiers> = {}) {
     this.#currentGrid = grid
     this.#buildCells(grid, modifiers)
     this.#scaleFonts()
   }
 
-  #buildCells(grid, modifiers = {}) {
+  #buildCells(grid: GameSymbol[][], modifiers: Partial<Modifiers> = {}) {
     this.#container.textContent = ''
     const { wildColumns = [] } = modifiers
 
@@ -90,7 +92,7 @@ export class ReelRenderer {
     })
   }
 
-  #makeSymbol(symbol) {
+  #makeSymbol(symbol: GameSymbol) {
     const v = VISUAL[symbol.id] || { text: symbol.emoji, cls: 'cell-suit black' }
 
     if (symbol.id === 'scatter') {
@@ -109,10 +111,10 @@ export class ReelRenderer {
   #scaleFonts() {
     requestAnimationFrame(() => {
       this.#container.querySelectorAll('.cell').forEach(cell => {
-        const h = cell.offsetHeight
+        const h = (cell as HTMLElement).offsetHeight
         if (!h) return
         const fs = Math.min(Math.round(h * 0.5), 64)
-        const inner = cell.querySelector('[class^="cell-"]')
+        const inner = cell.querySelector('[class^="cell-"]') as HTMLElement | null
         if (!inner) return
         inner.style.fontSize = fs + 'px'
         if (inner.classList.contains('cell-scatter')) {
@@ -137,7 +139,7 @@ export class ReelRenderer {
     )
   }
 
-  async animateSpin(finalGrid) {
+  async animateSpin(finalGrid: GameSymbol[][]) {
     this.#cancelAnimation()
 
     this.#currentGrid = finalGrid
@@ -148,12 +150,12 @@ export class ReelRenderer {
     const COLS = reelEls.length
     const BASE  = 280
     const STEP  = 200
-    const locked = new Set()
+    const locked = new Set<number>()
 
     reelEls.forEach(reel => {
       reel.querySelectorAll('.cell').forEach(cell => {
         cell.classList.add('spinning')
-        const inner = cell.querySelector('[class^="cell-"]')
+        const inner = cell.querySelector('[class^="cell-"]') as HTMLElement | null
         if (inner) {
           const v = this.#randomVisual()
           inner.className   = v.cls
@@ -167,8 +169,8 @@ export class ReelRenderer {
         if (locked.has(i)) return
         reel.querySelectorAll('.cell [class^="cell-"]').forEach(el => {
           const v = this.#randomVisual()
-          el.className   = v.cls
-          el.textContent = v.text
+          ;(el as HTMLElement).className   = v.cls
+          ;(el as HTMLElement).textContent = v.text
         })
       })
     }, 65)
@@ -178,7 +180,7 @@ export class ReelRenderer {
         locked.add(c)
         reelEls[c]?.querySelectorAll('.cell').forEach((cell, rowIdx) => {
           cell.classList.remove('spinning')
-          const inner = cell.querySelector('[class^="cell-"]')
+          const inner = cell.querySelector('[class^="cell-"]') as HTMLElement | null
           const sym   = finalGrid[c]?.[rowIdx]
           if (inner && sym) {
             const v = VISUAL[sym.id]
@@ -202,13 +204,13 @@ export class ReelRenderer {
     return SPIN_VISUALS[Math.floor(Math.random() * SPIN_VISUALS.length)]
   }
 
-  highlightWins(winLines) {
+  highlightWins(winLines: WinLine[]) {
     const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
 
     winLines.forEach(line => {
       const color = WIN_COLOR[line.symbolId] ?? '#c9a24a'
       for (let r = 0; r < line.count; r++) {
-        const cell = reelEls[r]?.querySelectorAll('.cell')[line.reelRows[r]]
+        const cell = reelEls[r]?.querySelectorAll('.cell')[line.reelRows[r]] as HTMLElement | undefined
         if (!cell) continue
         cell.classList.add('win')
         cell.style.setProperty('--win-color', color)
@@ -221,13 +223,13 @@ export class ReelRenderer {
   clearHighlights() {
     this.#container.querySelectorAll('.cell.win').forEach(cell => {
       cell.classList.remove('win')
-      cell.style.removeProperty('--win-color')
-      cell.style.removeProperty('border-color')
-      cell.style.removeProperty('box-shadow')
+      ;(cell as HTMLElement).style.removeProperty('--win-color')
+      ;(cell as HTMLElement).style.removeProperty('border-color')
+      ;(cell as HTMLElement).style.removeProperty('box-shadow')
     })
   }
 
-  showWin(amount, winLines, label = null) {
+  showWin(amount: number, winLines: WinLine[] | null, label: string | null = null) {
     this.#winLabel.textContent  = label ?? (winLines?.some(l => l.count >= 5) ? 'GROS GAIN' : 'GAIN')
     this.#winAmount.textContent = `+$${amount.toFixed(2)}`
 
@@ -244,7 +246,7 @@ export class ReelRenderer {
 
   hideWin() { this.#winOverlay.classList.add('hidden') }
 
-  showGameOver(text) {
+  showGameOver(text: string) {
     this.#gameOverText.textContent = text
     this.#gameOverOverlay.classList.remove('hidden')
   }
@@ -252,7 +254,7 @@ export class ReelRenderer {
   hideGameOver() { this.#gameOverOverlay.classList.add('hidden') }
 
   // Update all modifier badges (column multipliers, wild columns, symbol multipliers)
-  showModifiers(modifiers = {}) {
+  showModifiers(modifiers: Partial<Modifiers> = {}) {
     const { columnMultipliers = [], wildColumns = [], symbolMultipliers = {} } = modifiers
     const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
 
@@ -301,10 +303,10 @@ export class ReelRenderer {
   }
 
   // Interactive column selection — returns Promise<number> (0-indexed column)
-  selectColumn() {
+  selectColumn(): Promise<number> {
     return new Promise((resolve, reject) => {
       const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
-      const spinBtn = document.getElementById('spin-btn')
+      const spinBtn = document.getElementById('spin-btn') as HTMLButtonElement | null
 
       this.#selectionHint.textContent = 'CLIQUER SUR UN ROULEAU'
       this.#selectionHint.classList.remove('hidden')
@@ -324,7 +326,7 @@ export class ReelRenderer {
         if (cancelled) reject(new Error('cancelled'))
       }
 
-      const handlers = []
+      const handlers: Array<() => void> = []
 
       reelEls.forEach((reel, i) => {
         reel.classList.add('selectable')
@@ -339,7 +341,7 @@ export class ReelRenderer {
         reel.addEventListener('click', handler, { once: true })
       })
 
-      const onEsc = (e) => { if (e.key === 'Escape') cleanup(true) }
+      const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(true) }
       document.addEventListener('keydown', onEsc, { once: true })
 
       const onCancel = () => cleanup(true)
@@ -348,10 +350,10 @@ export class ReelRenderer {
   }
 
   // Interactive symbol selection — returns Promise<string> (symbol id)
-  selectSymbol() {
+  selectSymbol(): Promise<string> {
     return new Promise((resolve, reject) => {
       const cells = Array.from(this.#container.querySelectorAll('.cell'))
-      const spinBtn = document.getElementById('spin-btn')
+      const spinBtn = document.getElementById('spin-btn') as HTMLButtonElement | null
 
       this.#selectionHint.textContent = 'CLIQUER SUR UN SYMBOLE'
       this.#selectionHint.classList.remove('hidden')
@@ -363,7 +365,7 @@ export class ReelRenderer {
         ? this.#currentGrid.flat().map(s => s.id)
         : []
 
-      const handlers = []
+      const handlers: Array<(() => void) | null> = []
       let resolved = false
 
       const cleanup = (cancelled = false) => {
@@ -371,7 +373,8 @@ export class ReelRenderer {
         this.#selectionCancel.classList.add('hidden')
         cells.forEach((cell, i) => {
           cell.classList.remove('sym-selectable')
-          cell.removeEventListener('click', handlers[i])
+          const h = handlers[i]
+          if (h) cell.removeEventListener('click', h)
         })
         document.removeEventListener('keydown', onEsc)
         this.#selectionCancel.removeEventListener('click', onCancel)
@@ -398,7 +401,7 @@ export class ReelRenderer {
         cell.addEventListener('click', handler, { once: true })
       })
 
-      const onEsc = (e) => { if (e.key === 'Escape') cleanup(true) }
+      const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(true) }
       document.addEventListener('keydown', onEsc, { once: true })
 
       const onCancel = () => cleanup(true)
