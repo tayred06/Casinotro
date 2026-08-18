@@ -5,7 +5,9 @@
     "moduleResolution": "Bundler",
     "strict": false,
     "skipLibCheck": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": ["src/**/*.ts"]
 }
