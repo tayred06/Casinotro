@@ -861,6 +861,28 @@
       color: #9a9f9c;
       margin-top: 2px;
     }
+
+    /* ── Dialogue UI ───────────────────────────────── */
+    .dialogue-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: flex-end; padding: 24px;
+      background: rgba(0,0,0,0.5); cursor: pointer;
+    }
+    .dialogue-overlay.hidden { display: none; }
+    .dialogue-box {
+      width: 100%; max-width: 700px; margin: 0 auto;
+      background: var(--panel, #111); border: 1px solid var(--gold, #c39b52);
+      padding: 20px 24px;
+    }
+    .dialogue-speaker {
+      font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--hot, #e0435c); margin-bottom: 10px;
+    }
+    .dialogue-text { margin: 0; font-size: 16px; line-height: 1.6; }
+    .dialogue-hint {
+      margin-top: 12px; font-size: 10px; text-align: right;
+      opacity: .5; letter-spacing: .1em; text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
