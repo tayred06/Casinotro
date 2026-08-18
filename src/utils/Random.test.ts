@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { weightedRandom, randomInt, shuffleArray } from './Random.js'
+import { weightedRandom, randomInt, shuffleArray } from './Random.ts'
 
 describe('weightedRandom', () => {
   it('retourne toujours une valeur de la liste', () => {
