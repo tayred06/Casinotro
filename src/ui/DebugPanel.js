@@ -1,4 +1,4 @@
-import { BONUS_POOL } from '../game/BonusSystem.js'
+import { ITEM_POOL as BONUS_POOL } from '../game/items/index.ts'
 import { SYMBOLS } from '../game/Symbols.js'
 
 const SYMBOL_IDS = SYMBOLS.filter(s => s.id !== 'wild' && s.id !== 'scatter').map(s => s.id)
