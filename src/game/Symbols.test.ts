@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SYMBOLS, WIN_SYMBOLS, WILD, SCATTER, WIN_MULTIPLIERS, getSymbolById, generateReelColumn } from './Symbols.js'
+import { SYMBOLS, WIN_SYMBOLS, WILD, SCATTER, WIN_MULTIPLIERS, getSymbolById, generateReelColumn } from './Symbols.ts'
 
 describe('SYMBOLS', () => {
   it('contient 8 symboles', () => {
