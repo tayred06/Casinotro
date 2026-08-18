@@ -42,11 +42,11 @@ export class ProfileModal {
     document.getElementById('pm-desc')!.textContent  = character.description
 
     document.getElementById('pm-level')!.textContent   = String(runState.level)
-    document.getElementById('pm-goal')!.textContent    = `$${runState.goal.toLocaleString('fr-FR')}`
+    document.getElementById('pm-goal')!.textContent    = `⛧${runState.goal.toLocaleString('fr-FR')}`
     document.getElementById('pm-progress')!.textContent = `${pct}%`
-    document.getElementById('pm-balance')!.textContent = `$${economy.balance.toFixed(2)}`
-    document.getElementById('pm-best')!.textContent    = `$${economy.highscore.toFixed(2)}`
-    document.getElementById('pm-bet')!.textContent     = `$${economy.currentBet}`
+    document.getElementById('pm-balance')!.textContent = `⛧${economy.balance.toFixed(2)}`
+    document.getElementById('pm-best')!.textContent    = `⛧${economy.highscore.toFixed(2)}`
+    document.getElementById('pm-bet')!.textContent     = `⛧${economy.currentBet}`
     document.getElementById('pm-luck')!.textContent    = modifiers.luck > 0 ? `+${modifiers.luck}` : String(modifiers.luck)
 
     this.#renderBonuses(activeBonuses, modifiers)
@@ -92,10 +92,10 @@ export class ProfileModal {
 
       row.appendChild(left)
 
-      if (b.remainingUses !== null) {
+      if (b.remainingCharges !== null) {
         const uses = document.createElement('span')
         uses.className = 'pm-bonus-uses'
-        uses.textContent = `${b.remainingUses} spin${b.remainingUses > 1 ? 's' : ''}`
+        uses.textContent = `${b.remainingCharges} spin${b.remainingCharges > 1 ? 's' : ''}`
         row.appendChild(uses)
       }
 
@@ -112,8 +112,8 @@ export class ProfileModal {
         const mult = modifiers.symbolMultipliers[target] ?? 2
         return target ? `${target} → ×${mult}` : bonus.description
       }
-      case 'global_multiplier': return `×3 sur tous les gains — ${bonus.remainingUses} spin${bonus.remainingUses > 1 ? 's' : ''} restant${bonus.remainingUses > 1 ? 's' : ''}`
-      case 'lucky_streak':      return `+30 chance — ${bonus.remainingUses} spin${bonus.remainingUses > 1 ? 's' : ''} restant${bonus.remainingUses > 1 ? 's' : ''}`
+      case 'global_multiplier': return `×3 sur tous les gains — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
+      case 'lucky_streak':      return `+30 chance — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
       case 'chain': {
         const syms = modifiers.symbolMultipliers
         const bonusMult = target ? (syms[target] ?? 1) : 1
@@ -143,7 +143,7 @@ export class ProfileModal {
       upkeepRampEvery:            null,
       upkeepLabel:                null,
       betEscalationPercent:       ['Escalade de mise', v => `+${(v * 100).toFixed(0)}% / spin`],
-      betEscalationFloor:         ['Mise plancher', v => `$${v}`],
+      betEscalationFloor:         ['Mise plancher', v => `⛧${v}`],
       playerControlsBet:          null,
       devourResetsEscalation:     null,
       devourRefundPercent:        null,

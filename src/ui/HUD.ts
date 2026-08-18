@@ -52,7 +52,7 @@ export class HUD {
     BET_OPTIONS.forEach(amount => {
       const btn = document.createElement('button')
       btn.className = 'chip'
-      btn.textContent = `$${amount}`
+      btn.textContent = `⛧${amount}`
       btn.addEventListener('click', () => {
         this.#onBetChange(amount)
         this.#updateChipState()
@@ -70,8 +70,8 @@ export class HUD {
   }
 
   update(runState: RunState | null = null, luck: number = 0) {
-    this.#balanceDisplay.textContent  = `$${this.#economy.balance.toFixed(2)}`
-    this.#highscoreDisplay.textContent = `$${this.#economy.highscore.toFixed(2)}`
+    this.#balanceDisplay.textContent  = `⛧${this.#economy.balance.toFixed(2)}`
+    this.#highscoreDisplay.textContent = `⛧${this.#economy.highscore.toFixed(2)}`
     this.#luckDisplay.textContent = luck > 0 ? `+${luck}` : String(luck)
     this.#luckDisplay.style.color = luck > 0 ? '#c9a24a' : ''
     this.#updateChipState()
@@ -80,7 +80,7 @@ export class HUD {
       const { level, goal } = runState
       this.#gameName.textContent     = GAME_NAMES[(level - 1) % GAME_NAMES.length]
       this.#levelDisplay.textContent = String(level)
-      this.#goalDisplay.textContent  = `$${goal}`
+      this.#goalDisplay.textContent  = `⛧${goal}`
 
       const balance = this.#economy.balance
       const pct     = Math.min(100, Math.round((balance / goal) * 100))
@@ -101,7 +101,7 @@ export class HUD {
     const container = document.getElementById('bet-chips')!
     container.textContent = ''
 
-    const fmt = (n: number) => `$${n % 1 === 0 ? n : n.toFixed(2)}`
+    const fmt = (n: number) => `⛧${n % 1 === 0 ? n : n.toFixed(2)}`
 
     const display = document.createElement('span')
     display.id = 'gula-bet-display'

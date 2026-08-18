@@ -16,8 +16,6 @@ export const avaritiaPlugin: CharacterPlugin = {
 
   onAfterSpin(ctx: GameContext, result: SpinResult): void {
     if (result.totalWin > 0) {
-      const bonus = result.totalWin * (PARAMS.winMultiplier - 1)
-      ctx.economy.addWin(bonus)
       result.totalWin *= PARAMS.winMultiplier
       result.winLines = result.winLines.map(l => ({ ...l, win: l.win * PARAMS.winMultiplier }))
     }
