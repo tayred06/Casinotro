@@ -15,6 +15,7 @@ interface Character {
 interface RunState {
   level: number
   goal: number
+  progress?: number
 }
 
 export class ProfileModal {
@@ -34,7 +35,7 @@ export class ProfileModal {
   open(character: Character, economy: Economy, runState: RunState, bonusSystem: BonusSystem) {
     const modifiers   = bonusSystem.getModifiers()
     const activeBonuses = bonusSystem.activeBonus
-    const pct = Math.min(100, Math.round((economy.balance / runState.goal) * 100))
+    const pct = Math.min(100, Math.round(((runState.progress ?? economy.stageEarned) / runState.goal) * 100))
 
     document.getElementById('pm-emoji')!.textContent = character.emoji
     document.getElementById('pm-name')!.textContent  = character.name

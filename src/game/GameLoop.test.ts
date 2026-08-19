@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GameLoop } from './GameLoop.ts'
+import { STAGE_QUOTA_K, ENDLESS_GOAL_FACTOR } from './RunState.ts'
 import { mountIndexHtml, betChipLabels } from '../test/domFixture.ts'
 
 const SAVE_KEY = 'casinotro_v3'
@@ -13,15 +14,14 @@ function stage3Save() {
   return {
     run: {
       stage: 3,
-      stageGoals: [500, 2000, 10000],
-      betOptions: [25, 50, 125, 250, 625],
+      betOptions: [8, 16, 24, 40, 80],
       machineId: 'megaways',
       characterId: 'luxuria',
       spinCount: 12,
       dialoguePlayed: true,
     },
     economy: {
-      balance: 3000, currentBet: 125, totalEarned: 4000,
+      balance: 3000, currentBet: 24, totalEarned: 4000, stageEarned: 0,
       totalWagered: 900, totalReturned: 800,
     },
     bonusSystem: { active: [], chainCounts: {}, chainBonuses: {}, stickyPositions: {} },
@@ -45,7 +45,7 @@ describe('GameLoop — reprise de sauvegarde', () => {
     localStorage.setItem(SAVE_KEY, JSON.stringify(stage3Save()))
     new GameLoop()
 
-    expect(betChipLabels()).toEqual(['⛧25', '⛧50', '⛧125', '⛧250', '⛧625'])
+    expect(betChipLabels()).toEqual(['⛧8', '⛧16', '⛧24', '⛧40', '⛧80'])
   })
 
   it('conserve la mise sauvegardée, validée contre les bons paliers', () => {
@@ -53,7 +53,7 @@ describe('GameLoop — reprise de sauvegarde', () => {
     new GameLoop()
 
     const active = document.querySelector('#bet-chips .chip.active')
-    expect(active?.textContent).toBe('⛧125')
+    expect(active?.textContent).toBe('⛧24')
   })
 
   it('reprend la partie sans afficher la sélection de personnage', () => {
@@ -193,7 +193,7 @@ describe('GameLoop — nouvelle partie', () => {
     const bonusSystem = (loop as any).bonusSystem
     expect(bonusSystem.maxSlots).toBe(5)
 
-    ;(loop as any).economy.addMoney(600)
+    ;(loop as any).economy.addWin((loop as any).run.currentGoal)
     ;(loop as any).checkStageProgress([])
 
     expect((loop as any).run.stage).toBe(2)
@@ -206,7 +206,7 @@ describe('GameLoop — nouvelle partie', () => {
 
     const run = (loop as any).run
     run.stage = 3
-    ;(loop as any).economy.addMoney(20000)
+    ;(loop as any).economy.addWin(run.currentGoal)
     ;(loop as any).checkStageProgress([])
 
     expect(overlayVisible('end-screen-overlay')).toBe(true)
@@ -214,9 +214,35 @@ describe('GameLoop — nouvelle partie', () => {
 
     expect(overlayVisible('end-screen-overlay')).toBe(false)
     expect(run.isEndless).toBe(true)
-    expect(run.currentGoal).toBe(50000)
+    expect(run.currentGoal).toBe(Math.round(STAGE_QUOTA_K[2] * run.minBet * ENDLESS_GOAL_FACTOR))
     expect((loop as any).runEnded).toBe(false)
     expect((loop as any).bonusSystem.maxSlots).toBe(7)
+  })
+
+  it('franchit le quota sur les gains cumulés, même avec un solde ras', () => {
+    const loop = new GameLoop()
+    loop.startRun('luxuria')
+    const economy = (loop as any).economy
+    const run = (loop as any).run
+
+    // Solde presque vide mais quota rempli : le palier doit passer quand même.
+    economy.spend(economy.balance - 1)
+    economy.addWin(run.currentGoal)
+    ;(loop as any).checkStageProgress([])
+
+    expect(run.stage).toBe(2)
+    expect(economy.stageEarned).toBe(0)
+    // La prime finance le palier suivant.
+    expect(economy.balance).toBeGreaterThan(run.minBet)
+  })
+
+  it('un gros solde sans gains ne fait pas avancer le palier', () => {
+    const loop = new GameLoop()
+    loop.startRun('luxuria')
+    ;(loop as any).economy.addMoney(100000)
+    ;(loop as any).checkStageProgress([])
+
+    expect((loop as any).run.stage).toBe(1)
   })
 
   it('applique le thème du personnage choisi', () => {

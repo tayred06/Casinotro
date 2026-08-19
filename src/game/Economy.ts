@@ -23,6 +23,7 @@ export class Economy {
   #balance: Souls
   #currentBet: Souls
   #totalEarned: Souls
+  #stageEarned: Souls = 0
   #totalWagered: Souls = 0
   #totalReturned: Souls = 0
   #betOptions: Souls[]
@@ -39,6 +40,8 @@ export class Economy {
   get balance(): Souls { return this.#balance }
   get currentBet(): Souls { return this.#currentBet }
   get totalEarned(): Souls { return this.#totalEarned }
+  /** Gains encaissés depuis l'entrée dans le palier courant — jauge de progression du quota. */
+  get stageEarned(): Souls { return this.#stageEarned }
   get totalWagered(): Souls { return this.#totalWagered }
   get betOptions(): Souls[] { return [...this.#betOptions] }
   get minBet(): Souls { return Math.min(...this.#betOptions) }
@@ -82,6 +85,7 @@ export class Economy {
   addWin(amount: Souls): void {
     this.#balance += amount
     this.#totalEarned += amount
+    this.#stageEarned += amount
     this.#totalReturned += amount
     this.#highscoreStore.updateHighscore(this.#balance)
   }
@@ -90,7 +94,17 @@ export class Economy {
     this.#balance += amount
   }
 
-  getShopLevel(): 1 | 2 | 3 {
+  /** Remet à zéro la jauge de quota — appelé quand un palier est franchi. */
+  resetStageEarned(): void {
+    this.#stageEarned = 0
+  }
+
+  /**
+   * Niveau de boutique. Indexé sur le palier du run : les gains cumulés ne sont plus
+   * un proxy fiable de l'avancement depuis que le quota se remplit en gains.
+   */
+  getShopLevel(stage?: number): 1 | 2 | 3 {
+    if (stage !== undefined) return Math.min(3, Math.max(1, Math.round(stage))) as 1 | 2 | 3
     if (this.#totalEarned >= 2000) return 3
     if (this.#totalEarned >= 500) return 2
     return 1
@@ -117,6 +131,7 @@ export class Economy {
     this.#balance        = startBalance
     this.#currentBet     = this.#betOptions[0]
     this.#totalEarned    = 0
+    this.#stageEarned    = 0
     this.#totalWagered   = 0
     this.#totalReturned  = 0
   }
@@ -126,6 +141,7 @@ export class Economy {
       balance:       this.#balance,
       currentBet:    this.#currentBet,
       totalEarned:   this.#totalEarned,
+      stageEarned:   this.#stageEarned,
       totalWagered:  this.#totalWagered,
       totalReturned: this.#totalReturned,
       betOptions:    [...this.#betOptions],
@@ -137,6 +153,7 @@ export class Economy {
     this.#balance        = data.balance       ?? 100
     this.#currentBet     = this.#betOptions.includes(data.currentBet) ? data.currentBet : this.#betOptions[0]
     this.#totalEarned    = data.totalEarned   ?? 0
+    this.#stageEarned    = data.stageEarned   ?? 0
     this.#totalWagered   = data.totalWagered  ?? 0
     this.#totalReturned  = data.totalReturned ?? 0
   }

@@ -5,6 +5,8 @@ const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
 interface RunState {
   level: number
   goal: number
+  /** Gains encaissés dans le palier — la jauge de quota, distincte du solde. */
+  progress?: number
 }
 
 /** Les deux axes de chance affichés dans le HUD. */
@@ -93,13 +95,13 @@ export class HUD {
     this.#updateChipState()
 
     if (runState) {
-      const { level, goal } = runState
+      const { level, goal, progress } = runState
       this.#gameName.textContent     = GAME_NAMES[(level - 1) % GAME_NAMES.length]
       this.#levelDisplay.textContent = String(level)
       this.#goalDisplay.textContent  = `⛧${goal}`
 
-      const balance = this.#economy.balance
-      const pct     = Math.min(100, Math.round((balance / goal) * 100))
+      const earned = progress ?? 0
+      const pct    = Math.min(100, Math.round((earned / goal) * 100))
       this.#progressFill.style.width      = pct + '%'
       this.#progressPct.textContent       = pct + '%'
     }

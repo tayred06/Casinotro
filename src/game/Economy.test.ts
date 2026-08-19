@@ -44,6 +44,39 @@ describe('DEFAULT_BET_OPTIONS', () => {
   })
 })
 
+describe('Economy — jauge de quota', () => {
+  it('stageEarned cumule les gains et se remet à zéro au palier', () => {
+    const e = new Economy(100)
+    e.addWin(30)
+    e.addWin(12)
+    expect(e.stageEarned).toBe(42)
+    expect(e.totalEarned).toBe(42)
+    e.resetStageEarned()
+    expect(e.stageEarned).toBe(0)
+    expect(e.totalEarned).toBe(42)
+  })
+
+  it('addMoney (prime de quota) ne remplit pas la jauge', () => {
+    const e = new Economy(100)
+    e.addMoney(500)
+    expect(e.stageEarned).toBe(0)
+  })
+
+  it('survit au round-trip serialize / restore', () => {
+    const e = new Economy(100)
+    e.addWin(77)
+    const e2 = new Economy(0)
+    e2.restore(e.serialize())
+    expect(e2.stageEarned).toBe(77)
+  })
+
+  it('le niveau de boutique suit le palier quand il est fourni', () => {
+    const e = new Economy(100)
+    expect(e.getShopLevel(1)).toBe(1)
+    expect(e.getShopLevel(3)).toBe(3)
+  })
+})
+
 describe('Economy', () => {
   let eco: Economy
 

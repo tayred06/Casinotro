@@ -1,6 +1,14 @@
 # Refonte du quota — découpler progression et solde
 
-Statut : spec, non implémentée. Cible : run de ~30 min (≈400-500 spins) au lieu de 5-10 min.
+Statut : **implémenté** sur la branche `equilibrage-quota` (§1 à §3 et §6.1/6.3/6.4).
+Cible : run de ~20-30 min au lieu de 5-10 min. Mesure obtenue, mise minimale sans achats
+boutique, 200 runs simulés (`Balance.sim.test.ts`) :
+
+```
+spins médian 342 · min 152 · max 650 · victoires 21.5% · palier moyen 2.24
+```
+
+≈ 23 min à 4 s par spin, contre ~5 min avant. Les valeurs ci-dessous sont celles du code.
 
 ## 1. Pourquoi le run est court aujourd'hui
 
@@ -87,11 +95,13 @@ miseMini : 1 → 3 → 8
 
 | Palier | mise mini | K | quota (gains cumulés) | spins attendus @ mise mini | fuite bankroll attendue |
 |---|---|---|---|---|---|
-| 1 | 1⛧ | 100 | 100⛧ | ~110 | ~9⛧ |
-| 2 | 3⛧ | 130 | 390⛧ | ~140 | ~34⛧ |
-| 3 | 8⛧ | 160 | 1280⛧ | ~175 | ~112⛧ |
+| 1 | 1⛧ | 140 | 140⛧ | ~160 | ~13⛧ |
+| 2 | 3⛧ | 180 | 540⛧ | ~205 | ~50⛧ |
+| 3 | 8⛧ | 220 | 1760⛧ | ~250 | ~160⛧ |
 
-Total ≈ 425 spins. À ~4 s par spin (animation + décision), **≈ 28 min**.
+Total ≈ 615 spins pour un run gagné ; médiane mesurée 342 spins, les runs perdus tirant
+la distribution vers le bas. K a été calibré par balayage sur `Balance.sim.test.ts`
+([100,130,160] → 300 spins / 29,5 % de victoires ; [140,180,220] → 342 / 21,5 %).
 `spins attendus = K / RTP`. `fuite = (1 − RTP) × spins × mise`.
 
 Mode infini : `currentGoal = K_3 × miseMini_courante × ENDLESS_GOAL_FACTOR^endlessLevel`,
@@ -230,3 +240,19 @@ C'est le vrai bouton de difficulté du jeu : tant que le gain d'edge apporté pa
 nouveaux slots reste **sous** l'augmentation de fuite due à la mise, la pression monte
 palier après palier. À vérifier dans `Balance.sim.test.ts` (§4) avec achats boutique
 simulés, pas seulement à vide.
+
+
+## 7. Ce qui a été implémenté
+
+| Fichier | Changement |
+|---|---|
+| `Economy.ts` | `stageEarned` (jauge de quota) + `resetStageEarned()` ; `getShopLevel(stage?)` |
+| `RunState.ts` | `STAGE_QUOTA_K = [140,180,220]`, `STAGE_MIN_BETS = [1,3,8]`, `betOptionsFor()` = `[m,2m,3m,5m,10m]`, `currentGoal = K × miseMini`, `quotaReward` (60 %), `ENDLESS_BET_FACTOR = 3`, `ENDLESS_GOAL_FACTOR = 1.5`, restore tolérant aux vieilles sauvegardes |
+| `GameLoop.ts` | quota testé sur `stageEarned`, prime versée, prix et reroll réindexés sur la mise mini, boutique indexée sur le palier |
+| `SlotMachine.ts` | `combineMultipliers()` additif plafonné à `MULT_CAP = 6` ; `SAFETY_NET_REFUND = 0.15` (RTP + filet : 1.109 → ~0.95) |
+| `BonusSystem.ts` | `priceScale` appliqué aux offres de boutique |
+| `HUD.ts` / `ProfileModal.ts` | barre de progression sur les gains du palier, plus sur le solde |
+| `Balance.sim.test.ts` | garde-fou : médiane ∈ [250, 800] spins, victoires ∈ [5 %, 60 %] |
+
+Reste à faire : §6.2 (séparation explicite edge / burst, audit de `sticky`, `chain`,
+`regularity`), simulation avec achats boutique, aplatissement de la paytable.

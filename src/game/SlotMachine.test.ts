@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import type { GameSymbol } from '../types/index.ts'
-import { spin, calculateWins } from './SlotMachine.ts'
+import { spin, calculateWins, combineMultipliers, MULT_CAP, SAFETY_NET_REFUND } from './SlotMachine.ts'
 import { getSymbolById } from './Symbols.ts'
 import { getMachine } from './machines/index.ts'
 import { seedRng, setRng } from '../utils/Random.ts'
@@ -200,9 +200,10 @@ describe('calculateWins — modificateurs', () => {
     expect(r.winLines.find(l => l.symbolId === 'lemon')!.count).toBe(3)
   })
 
-  it('safetyNet rembourse la moitié quand rien ne tombe', () => {
+  it('safetyNet rembourse une fraction de la mise quand rien ne tombe', () => {
     const grid = [col(lemon), col(bell), col(lemon), col(bell), col(lemon), col(bell)]
-    expect(calculateWins(megaways, grid, 10, { safetyNet: true }).totalWin).toBe(5)
+    expect(calculateWins(megaways, grid, 10, { safetyNet: true }).totalWin)
+      .toBeCloseTo(10 * SAFETY_NET_REFUND)
   })
 
   it('globalMultiplier et symbolMultipliers se cumulent', () => {
@@ -212,7 +213,14 @@ describe('calculateWins — modificateurs', () => {
       globalMultiplier: 3,
       symbolMultipliers: { lemon: 2 },
     }).winLines.find(l => l.symbolId === 'lemon')!.win
-    expect(boosted).toBeCloseTo(base * 6)
+    // Additif et non multiplicatif : (3-1) + (2-1) + 1 = 4, pas 6.
+    expect(boosted).toBeCloseTo(base * 4)
+  })
+
+  it('plafonne le cumul des multiplicateurs d\'items', () => {
+    expect(combineMultipliers([2, 2, 2.5, 3])).toBe(MULT_CAP)
+    expect(combineMultipliers([1, 1, 1, 1])).toBe(1)
+    expect(combineMultipliers([2, 3])).toBe(4)
   })
 })
 

@@ -16,6 +16,7 @@ export class BonusSystem {
   #chainBonuses: Record<string, number> = {}   // { [symbolId]: number } — bonus permanents acquis
   #stickyPositions: Record<string, GameSymbol> = {} // { [`${reel}-${row}`]: Symbol }
   #maxSlots = DEFAULT_MAX_SLOTS
+  #priceScale = 1
 
   get activeBonus(): ItemInstance[] { return [...this.#active] }
   get reelCount(): number { return this.#reelCount }
@@ -45,8 +46,19 @@ export class BonusSystem {
     return Math.floor(removed.price * 0.5)
   }
 
-  getShopOffers(level: 1 | 2 | 3): ItemDef[] {
-    return shuffleArray(getItemsByLevel(level)).slice(0, 3)
+  /**
+   * Les prix sont exprimés en multiples de la mise minimale du palier : sinon un item à
+   * 80⛧ est hors de portée au palier 1 et bradé au palier 3.
+   */
+  getShopOffers(level: 1 | 2 | 3, priceScale: number = this.#priceScale): ItemDef[] {
+    return shuffleArray(getItemsByLevel(level))
+      .slice(0, 3)
+      .map(item => (priceScale === 1 ? item : { ...item, price: Math.round(item.price * priceScale) }))
+  }
+
+  get priceScale(): number { return this.#priceScale }
+  setPriceScale(scale: number): void {
+    if (scale > 0) this.#priceScale = scale
   }
 
   getModifiers(): Modifiers {
