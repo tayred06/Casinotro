@@ -71,7 +71,12 @@ export class GameLoop {
       updateHUD: () => {
         this.refreshBetChips()
         this.hud.update(
-          { level: this.run.stage, goal: this.run.currentGoal, progress: this.economy.stageEarned },
+          {
+            level: this.run.stage,
+            goal: this.run.currentGoal,
+            progress: this.economy.stageEarned,
+            hpFloor: this.run.hpFloor,
+          },
           this.bonusSystem.getModifiers(),
         )
       },
@@ -164,6 +169,8 @@ export class GameLoop {
       // Les paliers de mise appartiennent au run : sans ça, recharger la page
       // en palier 2/3 ramenait les mises initiales.
       this.economy.setBetOptions(this.run.betOptions)
+      this.economy.applyStageBounds(0, this.run.hpCap)
+      this.bonusSystem.setPriceScale(this.run.minBet)
       if (typeof save.economy?.currentBet === 'number') this.economy.setBet(save.economy.currentBet)
       this.plugin = getCharacterPlugin(this.run.characterId)
       this.plugin.onSetup?.(this.ctx)
@@ -200,7 +207,10 @@ export class GameLoop {
     this.run.reset(characterId, character?.machineId ?? DEFAULT_MACHINE_ID)
     this.bonusSystem.setReelCount(this.machine.reelCount)
     this.applyMachineMeta()
-    this.economy.restart(100)
+    this.economy.restart(this.run.hpFloor)
+    this.economy.applyStageBounds(this.run.hpFloor, this.run.hpCap)
+    this.economy.setBetOptions(this.run.betOptions)
+    this.bonusSystem.setPriceScale(this.run.minBet)
     this.refreshBetChips()
     this.bonusSystem.reset()
     this.renderer.hideGameOver()
@@ -271,7 +281,7 @@ export class GameLoop {
 
     if (result.totalWin > 0) {
       this.economy.addWin(result.totalWin)
-      this.progression.updateHighscore(this.economy.balance)
+      this.progression.updateHighscore(this.economy.totalEarned)
       this.renderer.highlightWins(result.winLines)
       this.renderer.showWin(result.totalWin, result.winLines)
       this.uiContext.updateHUD()
@@ -369,10 +379,11 @@ export class GameLoop {
     if (this.economy.stageEarned < this.run.currentGoal) return
 
     if (this.run.isEndless) {
-      this.progression.updateHighscore(this.economy.balance)
-      this.grantQuotaReward()
+      this.progression.updateHighscore(this.economy.totalEarned)
+      this.economy.resetStageEarned()
       this.run.advanceEndless()
       this.economy.setBetOptions(this.run.betOptions)
+      this.applyStageVitality()
       this.rescalePrices()
       this.grantQuotaSlots()
       this.refreshBetChips()
@@ -384,15 +395,16 @@ export class GameLoop {
     }
 
     if (this.run.stage >= 3) {
-      this.progression.updateHighscore(this.economy.balance)
+      this.progression.updateHighscore(this.economy.totalEarned)
       this.victory()
       return
     }
 
     this.plugin.onStageComplete?.(this.ctx, this.run.stage)
-    this.grantQuotaReward()
+    this.economy.resetStageEarned()
     this.run.advanceStage()
     this.economy.setBetOptions(this.run.betOptions)
+    this.applyStageVitality()
     this.rescalePrices()
     this.grantQuotaSlots()
     this.refreshBetChips()
@@ -403,14 +415,14 @@ export class GameLoop {
   }
 
   /**
-   * Prime de quota : la fuite de bankroll croît avec la mise minimale du palier, il faut
-   * un apport pour que le palier suivant reste jouable. C'est aussi le budget boutique.
+   * Vitalité du palier : plancher garanti à l'entrée, plafond au-dessus duquel les gains
+   * débordent en crédit boutique. À appeler après `advanceStage()` / `advanceEndless()`.
    */
-  private grantQuotaReward(): void {
-    const reward = this.run.quotaReward
-    this.economy.addMoney(reward)
-    this.economy.resetStageEarned()
-    this.shop.addLog(`Quota atteint — prime de ⛧${reward}.`, true)
+  private applyStageVitality(): void {
+    const before = this.economy.balance
+    this.economy.applyStageBounds(this.run.hpFloor, this.run.hpCap)
+    const healed = this.economy.balance - before
+    if (healed > 0) this.shop.addLog(`Vitalité restaurée à ⛧${this.economy.balance} (+${healed}).`, true)
   }
 
   /** Réindexe boutique et reroll sur la nouvelle mise minimale. */
@@ -434,6 +446,7 @@ export class GameLoop {
     this.isSpinning = false
     this.run.advanceEndless()
     this.economy.setBetOptions(this.run.betOptions)
+    this.applyStageVitality()
     this.rescalePrices()
     this.grantQuotaSlots()
     this.refreshBetChips()
@@ -503,7 +516,7 @@ export class GameLoop {
       await this.handleFreeSpins(res.freeSpins, res.winMultiplier ?? 1)
     }
 
-    this.progression.updateHighscore(this.economy.balance)
+    this.progression.updateHighscore(this.economy.totalEarned)
     this.checkStageProgress(this.currentGrid)
     if (this.runEnded) return
     this.uiContext.updateHUD()

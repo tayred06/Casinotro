@@ -180,9 +180,19 @@
 
       <!-- Control bar -->
       <div class="control-bar">
-        <div class="ctrl-group">
-          <span class="ctrl-lbl">Cagnotte</span>
-          <span id="balance-display">⛧0</span>
+        <div class="ctrl-group vitality-group">
+          <span class="ctrl-lbl">Vitalité</span>
+          <div class="hp-block">
+            <div class="hp-bar">
+              <div class="hp-fill" id="hp-fill" style="width:50%"></div>
+              <div class="hp-start" id="hp-start" style="left:50%" title="Vitalité de départ du palier"></div>
+            </div>
+            <div class="hp-nums">
+              <span id="balance-display">⛧0</span>
+              <span class="hp-max" id="hp-max">/ ⛧200</span>
+              <span class="hp-credit hidden" id="credit-display">+⛧0 crédit</span>
+            </div>
+          </div>
         </div>
         <div class="ctrl-sep"></div>
         <div class="ctrl-group">

@@ -5,10 +5,10 @@ Cible : run de ~20-30 min au lieu de 5-10 min. Mesure obtenue, mise minimale san
 boutique, 200 runs simulés (`Balance.sim.test.ts`) :
 
 ```
-spins médian 342 · min 152 · max 650 · victoires 21.5% · palier moyen 2.24
+spins médian 389 · min 152 · max 649 · victoires 23.5% · palier moyen 2.44
 ```
 
-≈ 23 min à 4 s par spin, contre ~5 min avant. Les valeurs ci-dessous sont celles du code.
+≈ 26 min à 4 s par spin, contre ~5 min avant. Les valeurs ci-dessous sont celles du code.
 
 ## 1. Pourquoi le run est court aujourd'hui
 
@@ -256,3 +256,49 @@ simulés, pas seulement à vide.
 
 Reste à faire : §6.2 (séparation explicite edge / burst, audit de `sticky`, `chain`,
 `regularity`), simulation avec achats boutique, aplatissement de la paytable.
+
+
+## 8. Vitalité — le solde est une barre de vie
+
+Le solde n'est plus une cagnotte, c'est une **barre de HP** : chaque spin entame (la mise),
+chaque gain soigne, un gros gain soigne à fond. Le surplus au-dessus du plafond ne
+disparaît pas — il déborde en **crédit boutique**, non misable.
+
+| Palier | départ (plancher) | plafond | marge en mises minimales |
+|---|---|---|---|
+| 1 | 100⛧ | 200⛧ | 200 |
+| 2 | 200⛧ | 400⛧ | 133 |
+| 3 | 400⛧ | 800⛧ | 100 |
+
+Le plancher remplace la prime de quota : « chaque palier démarre à X » se lit, un
+versement de 60 % du quota ne se lit pas. Le plafond empêche un joueur chanceux de se
+constituer un matelas qui rendrait le palier 3 formel, et la marge se resserre volontairement
+palier après palier (200 → 133 → 100 mises).
+
+Mesuré : plancher + plafond font passer la médiane de 342 à 389 spins et le taux de
+victoire de 21,5 % à 23,5 %. L'essentiel du gain vient du **plancher** ; le plafond ne mord
+que dans ~25 % des runs et sert surtout à borner la dérive haute.
+
+### Conséquences
+
+- **La boutique se paie en HP.** Une seule monnaie misable : acheter un bonus, c'est
+  sacrifier de la survie immédiate contre du RTP durable. Le crédit d'overheal amortit ce
+  choix — `Economy.spend()` consomme toujours le crédit avant la vitalité.
+- **Le record passe sur `totalEarned`.** Avec un solde plafonné à 800⛧, un highscore basé
+  sur le solde s'écrasait sur 800 pour tout le monde. Les gains cumulés sont la seule mesure
+  de performance non bornée.
+- **Mode infini** : plancher et plafond sont multipliés par `ENDLESS_BET_FACTOR ^ niveau`,
+  comme les mises.
+
+### UI
+
+Barre de vie dans la barre de contrôle, à la place de « Cagnotte » :
+
+- remplissage sur le plafond du palier, `⛧142 / ⛧200` sous la barre ;
+- **repère pointillé au point de départ** (à 50 % de la barre au palier 1) : il montre d'un
+  coup d'œil qu'on démarre à mi-jauge et qu'il y a autant à gagner au-dessus ;
+- vert → orange sous 50 % → rouge pulsant sous 20 % ;
+- pastille `+⛧73 crédit` qui apparaît et tressaute quand l'overheal alimente la boutique.
+
+La jauge de quota reste séparée, dans la carte « Manche — quota » : progression et survie
+sont deux barres distinctes, jamais la même.

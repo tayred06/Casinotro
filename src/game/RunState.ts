@@ -12,8 +12,13 @@ export const STAGE_QUOTA_K: [number, number, number] = [140, 180, 220]
 export const STAGE_MIN_BETS: [Souls, Souls, Souls] = [1, 3, 8]
 /** Facteur d'escalade de la mise minimale en mode infini. */
 export const ENDLESS_BET_FACTOR = 3
-/** Prime versée à chaque quota franchi, en fraction du quota. Finance le palier suivant. */
-export const QUOTA_REWARD_FACTOR = 0.6
+/**
+ * Vitalité : le solde est une barre de vie. On démarre un palier à son plancher et on ne
+ * peut jamais dépasser son plafond — le trop-plein d'un gain part en crédit boutique.
+ * La marge se resserre à chaque palier (200, puis 133, puis 100 mises minimales).
+ */
+export const STAGE_HP_FLOOR: [Souls, Souls, Souls] = [100, 200, 400]
+export const STAGE_HP_CAP: [Souls, Souls, Souls] = [200, 400, 800]
 /** Durcissement du quota à chaque palier du mode infini (la mise monte déjà ×3). */
 export const ENDLESS_GOAL_FACTOR = 1.5
 
@@ -51,9 +56,18 @@ export class RunState {
     return Math.round(k * this.minBet * scale)
   }
 
-  /** Prime versée quand le quota courant est franchi. */
-  get quotaReward(): Souls {
-    return Math.round(this.currentGoal * QUOTA_REWARD_FACTOR)
+  /** Plancher de vitalité à l'entrée du palier. */
+  get hpFloor(): Souls {
+    return STAGE_HP_FLOOR[Math.min(this.stage, 3) - 1] * this.#endlessHpScale
+  }
+
+  /** Plafond de vitalité du palier — le solde ne monte jamais au-dessus. */
+  get hpCap(): Souls {
+    return STAGE_HP_CAP[Math.min(this.stage, 3) - 1] * this.#endlessHpScale
+  }
+
+  get #endlessHpScale(): number {
+    return this.endlessLevel > 0 ? ENDLESS_BET_FACTOR ** this.endlessLevel : 1
   }
 
   /** Quota suivant en mode infini : objectif ×5 et paliers de mise rehaussés. */

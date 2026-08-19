@@ -28,9 +28,17 @@ describe('RunState', () => {
     expect(ratios).toEqual([...STAGE_QUOTA_K])
   })
 
-  it('verse une prime proportionnelle au quota', () => {
+  it('resserre la marge de vitalité palier après palier', () => {
     const run = new RunState()
-    expect(run.quotaReward).toBe(Math.round(run.currentGoal * 0.6))
+    const margins: number[] = []
+    for (let i = 0; i < 3; i++) {
+      expect(run.hpCap).toBe(run.hpFloor * 2)
+      margins.push(run.hpCap / run.minBet)
+      run.advanceStage()
+    }
+    // 200 → 133 → 100 mises minimales de marge : la pression monte.
+    expect(margins[0]).toBeGreaterThan(margins[1])
+    expect(margins[1]).toBeGreaterThan(margins[2])
   })
 
   it('advanceStage from stage 3 does nothing', () => {

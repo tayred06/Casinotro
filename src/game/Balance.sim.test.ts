@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { getMachine } from './machines/index.ts'
 import { Economy } from './Economy.ts'
-import { RunState, START_BALANCE } from './RunState.ts'
+import { RunState } from './RunState.ts'
 import { seedRng } from '../utils/Random.ts'
 import type { Modifiers } from '../types/index.ts'
 
@@ -24,7 +24,8 @@ interface RunOutcome {
 
 function simulateRun(): RunOutcome {
   const run = new RunState()
-  const economy = new Economy(START_BALANCE)
+  const economy = new Economy(run.hpFloor)
+  economy.applyStageBounds(run.hpFloor, run.hpCap)
   economy.setBetOptions(run.betOptions)
   let spins = 0
 
@@ -40,10 +41,10 @@ function simulateRun(): RunOutcome {
     if (result.totalWin > 0) economy.addWin(result.totalWin)
 
     if (economy.stageEarned >= run.currentGoal) {
-      economy.addMoney(run.quotaReward)
       economy.resetStageEarned()
       if (run.stage >= 3) return { spins, won: true, stageReached: 3 }
       run.advanceStage()
+      economy.applyStageBounds(run.hpFloor, run.hpCap)
       economy.setBetOptions(run.betOptions)
     }
   }

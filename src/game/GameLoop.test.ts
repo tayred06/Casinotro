@@ -112,7 +112,7 @@ describe('GameLoop — nouvelle partie', () => {
     const loop = new GameLoop()
     loop.startRun('luxuria')
 
-    expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧5', '⛧10', '⛧25'])
+    expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧3', '⛧5', '⛧10'])
     expect(document.getElementById('balance-display')!.textContent).toBe('⛧100.00')
   })
 
@@ -148,7 +148,7 @@ describe('GameLoop — nouvelle partie', () => {
 
     loop.startRun('luxuria')
     expect(document.getElementById('gula-bet-display')).toBeNull()
-    expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧5', '⛧10', '⛧25'])
+    expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧3', '⛧5', '⛧10'])
   })
 
   /**
@@ -232,8 +232,9 @@ describe('GameLoop — nouvelle partie', () => {
 
     expect(run.stage).toBe(2)
     expect(economy.stageEarned).toBe(0)
-    // La prime finance le palier suivant.
-    expect(economy.balance).toBeGreaterThan(run.minBet)
+    // Le plancher du palier 2 restaure la vitalité.
+    expect(economy.balance).toBe(run.hpFloor)
+    expect(economy.maxBalance).toBe(run.hpCap)
   })
 
   it('un gros solde sans gains ne fait pas avancer le palier', () => {

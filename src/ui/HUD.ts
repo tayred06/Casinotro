@@ -7,6 +7,8 @@ interface RunState {
   goal: number
   /** Gains encaissés dans le palier — la jauge de quota, distincte du solde. */
   progress?: number
+  /** Vitalité de départ du palier, repérée sur la barre de vie. */
+  hpFloor?: number
 }
 
 /** Les deux axes de chance affichés dans le HUD. */
@@ -28,6 +30,12 @@ export class HUD {
   #progressFill: HTMLElement
   #progressPct: HTMLElement
   #balanceDisplay: HTMLElement
+  #hpFill: HTMLElement | null = null
+  #hpBar: HTMLElement | null = null
+  #hpStart: HTMLElement | null = null
+  #hpMax: HTMLElement | null = null
+  #creditDisplay: HTMLElement | null = null
+  #lastCredit = 0
   #highscoreDisplay: HTMLElement
   #spinBtn: HTMLButtonElement
   #betChips: Array<{ btn: HTMLButtonElement; amount: number }> = []
@@ -45,6 +53,11 @@ export class HUD {
     this.#progressFill   = document.getElementById('progress-fill')!
     this.#progressPct    = document.getElementById('progress-pct')!
     this.#balanceDisplay = document.getElementById('balance-display')!
+    this.#hpFill         = document.getElementById('hp-fill')
+    this.#hpBar          = this.#hpFill?.parentElement ?? null
+    this.#hpStart        = document.getElementById('hp-start')
+    this.#hpMax          = document.getElementById('hp-max')
+    this.#creditDisplay  = document.getElementById('credit-display')
     this.#highscoreDisplay = document.getElementById('highscore-display')!
     this.#spinBtn        = document.getElementById('spin-btn') as HTMLButtonElement
 
@@ -87,8 +100,41 @@ export class HUD {
     el.style.color = value > 0 ? '#b6f36a' : ''
   }
 
+  /**
+   * Le solde est une barre de vie : remplissage sur le plafond du palier, repère au
+   * point de départ, couleur qui vire à l'orange puis au rouge quand ça descend.
+   */
+  #renderVitality(hpFloor: number | undefined) {
+    const cap = this.#economy.maxBalance
+    if (!this.#hpFill || !isFinite(cap) || cap <= 0) return
+
+    const ratio = Math.max(0, Math.min(1, this.#economy.balance / cap))
+    this.#hpFill.style.width = (ratio * 100).toFixed(1) + '%'
+    this.#hpBar?.classList.toggle('low', ratio <= 0.5 && ratio > 0.2)
+    this.#hpBar?.classList.toggle('crit', ratio <= 0.2)
+
+    if (this.#hpMax) this.#hpMax.textContent = `/ ⛧${cap}`
+    if (this.#hpStart && hpFloor !== undefined) {
+      this.#hpStart.style.left = Math.min(100, (hpFloor / cap) * 100).toFixed(1) + '%'
+      this.#hpStart.title = `Vitalité de départ du palier : ⛧${hpFloor}`
+    }
+
+    const credit = this.#economy.shopCredit
+    if (this.#creditDisplay) {
+      this.#creditDisplay.classList.toggle('hidden', credit <= 0)
+      this.#creditDisplay.textContent = `+⛧${credit.toFixed(0)} crédit`
+      if (credit > this.#lastCredit) {
+        this.#creditDisplay.classList.remove('bump')
+        void this.#creditDisplay.offsetWidth
+        this.#creditDisplay.classList.add('bump')
+      }
+      this.#lastCredit = credit
+    }
+  }
+
   update(runState: RunState | null = null, luck: LuckDisplay = { rarity: 0, cohesion: 0 }) {
     this.#balanceDisplay.textContent  = `⛧${this.#economy.balance.toFixed(2)}`
+    this.#renderVitality(runState?.hpFloor)
     this.#highscoreDisplay.textContent = `⛧${this.#economy.highscore.toFixed(2)}`
     this.#setStat(this.#luckDisplay, '★', luck.rarity)
     this.#setStat(this.#cohesionDisplay, '≡', luck.cohesion)
