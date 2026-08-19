@@ -119,7 +119,9 @@ export class ShopUI {
       ? this.#currentOffers.map(o => this.#offerModifier!(o)).filter(Boolean) as ItemDef[]
       : this.#currentOffers
 
-    if (visibleOffers.length === 0 && this.#offerModifier) {
+    // Verrouillé = des offres existent mais le personnage les a toutes filtrées.
+    // (Une liste d'offres vide au démarrage n'est pas un verrouillage.)
+    if (visibleOffers.length === 0 && this.#currentOffers.length > 0) {
       const locked = document.createElement('div')
       locked.className = 'shop-item'
       locked.style.color = '#4f5453'

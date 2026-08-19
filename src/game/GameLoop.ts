@@ -28,6 +28,7 @@ export class GameLoop {
   private progression = new Progression()
   private plugin: CharacterPlugin = { id: 'joueur' }
   private isSpinning = false
+  private gameEnded = false
   private lastRowCounts: number[] = []
   private symbolMap: Record<string, any>
 
@@ -78,6 +79,19 @@ export class GameLoop {
         return null
       }
     )
+    // Hooks boutique du personnage : sans ce câblage, les paliers d'Avaritia
+    // et le « dévorer » de Gula n'existent pas en jeu.
+    this.shop.setOfferModifier((offer) =>
+      this.plugin.offerModifier ? this.plugin.offerModifier(offer) : offer
+    )
+    this.shop.setOnBonusSold((item, refund) => {
+      this.economy.addMoney(refund)
+      this.shop.addLog(`Vendu : ${item.name} +⛧${refund}`, true)
+      this.plugin.onShopSell?.(this.ctx, item)
+      this.uiContext.updateHUD()
+      this.save()
+    })
+
     this.characterSelect = new CharacterSelect(CHARACTERS, (c) => this.startRun(c.id))
     this.profileModal = new ProfileModal()
 
@@ -92,10 +106,15 @@ export class GameLoop {
 
   private boot(): void {
     const save = this.loadSave()
-    if (save) {
+    if (!save) return
+
+    try {
       this.run.restore(save.run)
       this.economy.restore(save.economy)
       this.bonusSystem.restore(save.bonusSystem)
+      // Les paliers de mise vivent dans RunState : sans ça, une reprise en
+      // palier 2/3 repart sur les mises initiales.
+      this.applyBetOptions()
       this.plugin = getCharacterPlugin(this.run.characterId)
       this.plugin.onSetup?.(this.ctx)
 
@@ -111,7 +130,20 @@ export class GameLoop {
       this.applyCharacterTheme()
       this.applyCharacterActions()
       this.characterSelect.hide()
+    } catch (err) {
+      // Sauvegarde corrompue ou issue d'une version antérieure : on repart
+      // proprement sur l'écran de sélection plutôt que de bloquer le boot.
+      console.error('[boot] sauvegarde illisible, réinitialisation', err)
+      // restartRun() ramène l'écran de sélection ; startRun() remettra
+      // economy / run / bonusSystem à zéro au choix du personnage.
+      this.restartRun()
     }
+  }
+
+  /** Aligne Economy et les chips du HUD sur les paliers de mise du run. */
+  private applyBetOptions(): void {
+    this.economy.setBetOptions(this.run.betOptions)
+    this.hud.restoreBetChips()
   }
 
   startRun(characterId: string): void {
@@ -119,8 +151,11 @@ export class GameLoop {
     this.plugin = getCharacterPlugin(characterId)
 
     this.run.reset(characterId, 'megaways')
+    // Avant restart() : BET_OPTIONS peut encore porter les paliers du run précédent.
+    this.applyBetOptions()
     this.economy.restart(100)
     this.bonusSystem.reset()
+    this.gameEnded = false
     this.renderer.hideGameOver()
     this.renderer.clearHighlights()
     this.characterSelect.hide()
@@ -186,6 +221,26 @@ export class GameLoop {
     this.uiContext.updateHUD()
     this.run.spinCount++
 
+    try {
+      await this.resolveSpin(req)
+    } catch (err) {
+      // Sans ce filet, une exception d'un hook laisse isSpinning à true
+      // et le bouton SPIN désactivé : la partie est bloquée jusqu'au reload.
+      console.error('[spin] tour interrompu', err)
+      this.shop.addLog('Erreur pendant le tour — spin interrompu.', true)
+    } finally {
+      this.isSpinning = false
+      if (!this.gameEnded) {
+        await delay(150)
+        this.hud.setSpinEnabled(true)
+        this.hud.setSpinLabel('SPIN')
+        this.refreshActions(true)
+      }
+    }
+  }
+
+  /** Corps du tour. Peut lever : runSpin garantit le déverrouillage. */
+  private async resolveSpin(req: SpinRequest): Promise<void> {
     if (!this.run.dialoguePlayed) {
       this.run.dialoguePlayed = true
       const lines = this.plugin.onDialogueTrigger?.(this.ctx)
@@ -250,11 +305,7 @@ export class GameLoop {
     }
 
     this.save(grid)
-    this.isSpinning = false
-    await delay(150)
-    this.hud.setSpinEnabled(true)
-    this.hud.setSpinLabel('SPIN')
-    this.refreshActions(true)
+    // Déverrouillage géré par le finally de runSpin.
   }
 
   private async handleFreeSpins(count: number): Promise<void> {
@@ -284,7 +335,7 @@ export class GameLoop {
     if (this.economy.balance >= this.run.currentGoal && this.run.stage < 3) {
       this.plugin.onStageComplete?.(this.ctx, this.run.stage)
       this.run.advanceStage()
-      this.economy.setBetOptions(this.run.betOptions)
+      this.applyBetOptions()
       this.shop.refresh(this.economy.getShopLevel())
       this.shop.addLog(`Palier ${this.run.stage} atteint — boutique renouvelée !`)
       this.uiContext.updateHUD()
@@ -293,6 +344,7 @@ export class GameLoop {
   }
 
   private gameOver(text: string): void {
+    this.gameEnded = true
     this.clearSave()
     this.renderer.showGameOver(text)
     this.isSpinning = false
