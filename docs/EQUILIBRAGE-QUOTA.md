@@ -302,3 +302,38 @@ Barre de vie dans la barre de contrôle, à la place de « Cagnotte » :
 
 La jauge de quota reste séparée, dans la carte « Manche — quota » : progression et survie
 sont deux barres distinctes, jamais la même.
+
+## 9. Balayage de calibration — durée vs jouabilité
+
+Mesures `Balance.sim.test.ts`, 200 runs, graine 7, mise minimale, sans achats boutique.
+
+**Le quota seul est un mauvais levier de durée** (HP laissés à 100/200) :
+
+| K | spins médians | victoires |
+|---|---|---|
+| `[140,180,220]` *(actuel)* | 389 | 23,5 % |
+| `[200,260,320]` | 433 | 13,0 % |
+| `[300,390,480]` | 481 | 4,0 % |
+
+La fuite de bankroll est linéaire dans le nombre de spins alors que le plafond de HP est
+fixe : allonger le quota ne fait qu'ajouter des occasions de mourir avant la ligne. On
+achète des minutes en rendant le run ingagnable.
+
+**La durée se pilote par les HP, le quota suit** :
+
+| K | HP plancher / plafond | spins médians | victoires |
+|---|---|---|---|
+| `[180,235,290]` | `[125,250,500]` / `[250,500,1000]` | 558 | 29,5 % |
+| `[200,260,320]` | `[125,250,500]` / `[250,500,1000]` | 573 | 19,0 % |
+| `[220,290,360]` | `[150,300,600]` / `[300,600,1200]` | 733 | 28,5 % |
+| `[300,390,480]` | `[150,300,600]` / `[300,600,1200]` | 763 | 20,5 % |
+| `[300,390,480]` | `[200,400,800]` / `[400,800,1600]` | 1027 | 29,0 % |
+
+Candidats retenus si la durée actuelle (389 spins ≈ 26 min) se révèle trop courte en jeu :
+
+- **~37 min** — `K=[180,235,290]`, `HP=[125,250,500]/[250,500,1000]` : 558 spins, 29,5 %
+  de victoires. Allonge *et* rend le run plus juste que l'actuel.
+- **~49 min** — `K=[220,290,360]`, `HP=[150,300,600]/[300,600,1200]` : 733 spins, 28,5 %.
+
+Changer la config = trois constantes dans `RunState.ts` plus les bornes du garde-fou dans
+`Balance.sim.test.ts`.
