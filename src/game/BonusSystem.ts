@@ -47,6 +47,7 @@ export class BonusSystem {
       chainEnabled: false,
       stickyPositions: this.#stickyPositions,
       luck: 0,
+      cellDamage: Array.from({ length: 6 }, () => Array(7).fill(0)),
     }
 
     for (const bonus of this.#active) {

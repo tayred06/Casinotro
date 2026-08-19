@@ -1,4 +1,4 @@
-import type { CharacterPlugin, GameContext, SpinResult, UIContext, Souls } from '../types/index.ts'
+import type { CharacterPlugin, GameContext, SpinResult, UIContext, Souls, SpinRequest, Modifiers } from '../types/index.ts'
 import { Economy } from './Economy.ts'
 import { BonusSystem } from './BonusSystem.ts'
 import { RunState } from './RunState.ts'
@@ -28,6 +28,7 @@ export class GameLoop {
   private progression = new Progression()
   private plugin: CharacterPlugin = { id: 'joueur' }
   private isSpinning = false
+  private lastRowCounts: number[] = []
   private symbolMap: Record<string, any>
 
   private renderer: ReelRenderer
@@ -41,6 +42,8 @@ export class GameLoop {
     return {
       economy: this.economy,
       bonusSystem: this.bonusSystem,
+      rowCounts: this.lastRowCounts,
+      requestSpin: (req) => this.requestSpin(req),
       ui: this.uiContext,
       addLog: (msg, muted) => this.shop.addLog(msg, muted),
     }
@@ -100,11 +103,13 @@ export class GameLoop {
         ? save.grid.map((col: string[]) => col.map((id: string) => this.symbolMap[id] ?? SYMBOLS[0]))
         : spin({}, this.getLuckFactor(), this.plugin.getSpinOptions?.(this.ctx) ?? {}).grid
 
-      this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
+      this.lastRowCounts = grid.map((c: any[]) => c.length)
+      this.renderer.displayGrid(grid, this.getModifiers())
       this.renderer.showModifiers(this.bonusSystem.getModifiers())
       this.shop.setOffers(save.shopOffers ?? [], this.economy.getShopLevel())
       this.uiContext.updateHUD()
       this.applyCharacterTheme()
+      this.applyCharacterActions()
       this.characterSelect.hide()
     }
   }
@@ -123,10 +128,12 @@ export class GameLoop {
 
     this.plugin.onSetup?.(this.ctx)
     this.applyCharacterTheme()
+    this.applyCharacterActions()
 
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
     const { grid } = spin({}, this.getLuckFactor(), opts)
-    this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
+    this.lastRowCounts = grid.map(c => c.length)
+    this.renderer.displayGrid(grid, this.getModifiers())
     this.renderer.showModifiers(this.bonusSystem.getModifiers())
     this.shop.refresh(1)
     this.hud.setSpinEnabled(true)
@@ -146,9 +153,33 @@ export class GameLoop {
       }
       return
     }
+    await this.runSpin({})
+  }
 
+  /** Spin demandé par un personnage (ex. FRAPPER d'Ira) — peut être gratuit. */
+  private async requestSpin(req: SpinRequest = {}): Promise<void> {
+    if (this.isSpinning || this.economy.isGameOver()) return
+    if (!req.free && !this.economy.placeBet()) return
+    await this.runSpin(req)
+  }
+
+  /** Modificateurs du tour : bonus + overrides du personnage + boost du SpinRequest. */
+  private getModifiers(req: SpinRequest = {}): Modifiers {
+    const base = this.bonusSystem.getModifiers()
+    const overrides = this.plugin.getModifierOverrides?.(this.ctx) ?? {}
+    const merged: Modifiers = { ...base, ...overrides }
+    if (req.globalMultiplier) merged.globalMultiplier *= req.globalMultiplier
+    return merged
+  }
+
+  private refreshActions(enabled: boolean): void {
+    this.hud.setActionsEnabled(enabled, a => a.isEnabled?.(this.ctx) ?? true)
+  }
+
+  private async runSpin(req: SpinRequest): Promise<void> {
     this.isSpinning = true
     this.hud.setSpinEnabled(false)
+    this.refreshActions(false)
     this.hud.setSpinLabel('SPIN…')
     this.renderer.hideWin()
     this.renderer.clearHighlights()
@@ -163,12 +194,14 @@ export class GameLoop {
 
     await this.plugin.onBeforeSpin?.(this.ctx)
 
-    const mods = this.bonusSystem.getModifiers()
+    const mods = this.getModifiers(req)
     const stickyPositions = mods.stickyPositions ?? {}
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-    const { grid } = spin(stickyPositions, this.getLuckFactor(), opts)
+    const { grid } = spin(stickyPositions, this.getLuckFactor(req), opts)
+    this.lastRowCounts = grid.map(c => c.length)
 
     await this.renderer.animateSpin(grid)
+    this.renderer.showDamage(mods.cellDamage)
 
     const result: SpinResult = calculateWins(grid, this.economy.currentBet, mods)
     this.bonusSystem.processPostSpin(result, grid)
@@ -221,18 +254,20 @@ export class GameLoop {
     await delay(150)
     this.hud.setSpinEnabled(true)
     this.hud.setSpinLabel('SPIN')
+    this.refreshActions(true)
   }
 
   private async handleFreeSpins(count: number): Promise<void> {
     for (let i = 0; i < count; i++) {
       await delay(380)
-      const mods = this.bonusSystem.getModifiers()
+      const mods = this.getModifiers()
       const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
       const { grid } = spin(mods.stickyPositions ?? {}, this.getLuckFactor(), opts)
+      this.lastRowCounts = grid.map(c => c.length)
       await this.renderer.animateSpin(grid)
       const result = calculateWins(grid, this.economy.currentBet, mods)
       this.bonusSystem.processPostSpin(result, grid)
-      this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
+      this.renderer.displayGrid(grid, this.getModifiers())
       if (result.totalWin > 0) {
         this.economy.addWin(result.totalWin)
         this.renderer.highlightWins(result.winLines)
@@ -271,9 +306,10 @@ export class GameLoop {
     this.characterSelect.show()
   }
 
-  private getLuckFactor(): number {
+  private getLuckFactor(req: SpinRequest = {}): number {
     const luckBonus = this.plugin.getLuckBonus?.(this.ctx) ?? 0
-    return (this.bonusSystem.getModifiers().luck + luckBonus) / 100 + this.economy.rtpNudge
+    const reqBonus = req.luckBonus ?? 0
+    return (this.bonusSystem.getModifiers().luck + luckBonus + reqBonus) / 100 + this.economy.rtpNudge
   }
 
   private applyCharacterTheme(): void {
@@ -288,6 +324,12 @@ export class GameLoop {
     if (nameEl)  nameEl.textContent  = char.name
     if (sinEl)   sinEl.textContent   = char.sin
     this.dialogueUI.setSigil(char.sigil ?? char.emoji)
+  }
+
+  private applyCharacterActions(): void {
+    const actions = this.plugin.actions ?? []
+    this.hud.setCharacterActions(actions, async (a) => { await a.onInvoke(this.ctx) })
+    this.refreshActions(actions.length > 0)
   }
 
   private buildWinLog(result: SpinResult): string {

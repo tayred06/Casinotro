@@ -376,3 +376,26 @@
 
   &:hover { background: var(--gold); color: var(--bg); }
 }
+
+/* ── Dégâts des cases (Ira) ──────────────────────────────── */
+.cell.dmg-cracked {
+  border-color: rgba(255, 149, 0, .6);
+  box-shadow: inset 0 0 12px rgba(255, 149, 0, .14);
+  background:
+    repeating-linear-gradient(
+      118deg,
+      transparent 0 9px,
+      rgba(255, 149, 0, .1) 9px 10px
+    ),
+    var(--panel2);
+
+  > span { opacity: .72; }
+}
+
+.cell.dmg-dead {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, .18);
+  background: #0a0b0a;
+  opacity: .32;
+  filter: grayscale(1);
+}

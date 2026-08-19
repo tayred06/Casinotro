@@ -1,34 +1,75 @@
 import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemDef } from '../../types/index.ts'
+import type { Economy } from '../Economy.ts'
 
 const PARAMS = {
   winMultiplier: 2,
+  weakLineThreshold: 2,      // count <= this = médiocre
   shopGates: [
-    { progress: 0.0, maxTier: 0, priceMultiplier: null },
-    { progress: 0.25, maxTier: 1, priceMultiplier: 2 },
-    { progress: 0.5, maxTier: 2, priceMultiplier: 1.5 },
-    { progress: 0.75, maxTier: 3, priceMultiplier: 1 },
+    { minEarned: 0,    maxTier: 0, priceMultiplier: null },
+    { minEarned: 500,  maxTier: 1, priceMultiplier: 2 },
+    { minEarned: 2000, maxTier: 2, priceMultiplier: 1.5 },
+    { minEarned: 6000, maxTier: 3, priceMultiplier: 1 },
   ],
-  goal: 10000,
 }
 
-export const avaritiaPlugin: CharacterPlugin = {
-  id: 'avaritia',
+export function createAvaritiaPlugin(): CharacterPlugin {
+  let economy: Economy | null = null
 
-  onAfterSpin(ctx: GameContext, result: SpinResult): void {
-    if (result.totalWin > 0) {
-      result.totalWin *= PARAMS.winMultiplier
-      result.winLines = result.winLines.map(l => ({ ...l, win: l.win * PARAMS.winMultiplier }))
+  function currentGate() {
+    const earned = economy?.totalEarned ?? 0
+    let gate = PARAMS.shopGates[0]
+    for (const g of PARAMS.shopGates) {
+      if (earned >= g.minEarned) gate = g
     }
-  },
+    return gate
+  }
 
-  offerModifier(offer: ItemDef): ItemDef | null {
-    return offer
-  },
+  return {
+    id: 'avaritia',
 
-  onDialogueTrigger(_ctx: GameContext): DialogueLine[] {
-    return [
-      { speaker: 'Le Croupier', text: "Vous ne dépensez rien, madame. Comment comptez-vous acheter le ticket ?" },
-      { speaker: 'Avaritia', text: "En attendant. L'attente est gratuite et elle rapporte sept pour cent." },
-    ]
-  },
+    onSetup(ctx: GameContext): void {
+      economy = ctx.economy
+    },
+
+    onTeardown(_ctx: GameContext): void {
+      economy = null
+    },
+
+    onAfterSpin(ctx: GameContext, result: SpinResult): void {
+      const strong = result.winLines.filter(l => l.count > PARAMS.weakLineThreshold)
+      const weak   = result.winLines.filter(l => l.count <= PARAMS.weakLineThreshold)
+
+      for (const line of weak) {
+        ctx.economy.spend(line.win)
+        ctx.addLog(`Combinaison médiocre — -${line.win.toFixed(2)}⛧`, true)
+      }
+
+      const strongTotal = strong.reduce((s, l) => s + l.win, 0)
+      if (strongTotal > 0) {
+        const amplified = strongTotal * PARAMS.winMultiplier
+        result.totalWin = amplified
+        result.winLines = strong.map(l => ({ ...l, win: l.win * PARAMS.winMultiplier }))
+      } else {
+        result.totalWin = 0
+        result.winLines = []
+      }
+    },
+
+    offerModifier(offer: ItemDef): ItemDef | null {
+      const gate = currentGate()
+      if (gate.maxTier === 0) return null
+      if (offer.level > gate.maxTier) return null
+      if (gate.priceMultiplier && gate.priceMultiplier > 1) {
+        return { ...offer, price: Math.round(offer.price * gate.priceMultiplier) }
+      }
+      return offer
+    },
+
+    onDialogueTrigger(_ctx: GameContext): DialogueLine[] {
+      return [
+        { speaker: 'Le Croupier', text: "Vous ne dépensez rien, madame. Comment comptez-vous acheter le ticket ?" },
+        { speaker: 'Avaritia', text: "En attendant. L'attente est gratuite et elle rapporte sept pour cent." },
+      ]
+    },
+  }
 }

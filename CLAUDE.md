@@ -47,7 +47,9 @@ Each playable character (`src/game/characters/`) implements `CharacterPlugin` (d
 
 `getCharacterPlugin(id)` is the single entry point — it handles both patterns.
 
-Key hooks: `onBeforeSpin`, `onAfterSpin`, `onWin`, `onStageComplete`, `onLossCheck`, `onDialogueTrigger`, `getSpinOptions`, `getLuckBonus`, `offerModifier`.
+Key hooks: `onBeforeSpin`, `onAfterSpin`, `onWin`, `onStageComplete`, `onLossCheck`, `onDialogueTrigger`, `getSpinOptions`, `getLuckBonus`, `offerModifier`, `getModifierOverrides`.
+
+Characters can also declare `actions: CharacterAction[]` — buttons rendered next to SPIN by `HUD.setCharacterActions()`. An action receives `GameContext` and may call `ctx.requestSpin({ free, globalMultiplier, luckBonus })` to trigger a spin outside the normal bet flow (used by Ira's FRAPPER). `Modifiers.cellDamage` is a 6×7 grid of per-cell damage states (0 intact / 1 cracked / 2 dead) consumed by `calculateWins`; `SpinOptions.minRowsPerReel` keeps damaged cells on screen despite variable Megaways row counts.
 
 ### Run progression
 

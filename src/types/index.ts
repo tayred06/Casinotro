@@ -13,6 +13,7 @@ export interface GameSymbol {
 // ─── Spin ────────────────────────────────────────────────
 export interface SpinOptions {
   rareMultiplier?: number
+  minRowsPerReel?: number[]
 }
 
 export interface SpinResult {
@@ -43,6 +44,7 @@ export interface Modifiers {
   chainEnabled: boolean
   stickyPositions: Record<string, GameSymbol>
   luck: number
+  cellDamage: number[][]
 }
 
 // ─── Items (bonus + consommables) ────────────────────────
@@ -94,6 +96,8 @@ export interface UIContext {
 export interface GameContext {
   economy: import('../game/Economy').Economy
   bonusSystem: import('../game/BonusSystem').BonusSystem
+  rowCounts: number[]
+  requestSpin(req?: SpinRequest): Promise<void>
   ui: UIContext
   addLog(msg: string, muted?: boolean): void
 }
@@ -113,4 +117,22 @@ export interface CharacterPlugin {
   getSpinOptions?(ctx: GameContext): SpinOptions
   getLuckBonus?(ctx: GameContext): number
   offerModifier?(offer: ItemDef): ItemDef | null
+  actions?: CharacterAction[]
+  getModifierOverrides?(ctx: GameContext): Partial<Modifiers>
+}
+
+// ─── Actions de personnage (boutons UI) ──────────────────
+export interface CharacterAction {
+  id: string
+  label: string
+  title?: string
+  isEnabled?(ctx: GameContext): boolean
+  onInvoke(ctx: GameContext): void | Promise<void>
+}
+
+// ─── Spin déclenché par un personnage ────────────────────
+export interface SpinRequest {
+  free?: boolean
+  globalMultiplier?: number
+  luckBonus?: number
 }

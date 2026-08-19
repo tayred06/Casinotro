@@ -131,3 +131,31 @@
   &:hover:not(:disabled) { background: #ff5570; border-color: #ff5570; }
   &:disabled { opacity: .42; cursor: not-allowed; background: var(--hot); }
 }
+
+/* ── Actions de personnage (ex. FRAPPER — Ira) ───────────── */
+.char-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.char-action-btn {
+  padding: 20px 26px;
+  border: 1px solid rgba(255, 45, 85, .55);
+  background: transparent;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #ff5570;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 45, 85, .14);
+    border-color: #ff5570;
+    color: #fff;
+  }
+
+  &:disabled { opacity: .35; cursor: not-allowed; }
+}

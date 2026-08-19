@@ -1,5 +1,6 @@
 import { BET_OPTIONS } from '../game/Economy.ts'
 import type { Economy } from '../game/Economy.ts'
+import type { CharacterAction } from '../types/index.ts'
 
 const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
 
@@ -22,6 +23,8 @@ export class HUD {
   #balanceDisplay: HTMLElement
   #highscoreDisplay: HTMLElement
   #spinBtn: HTMLButtonElement
+  #actionsContainer: HTMLElement
+  #actionBtns: Array<{ btn: HTMLButtonElement; action: CharacterAction }> = []
   #betChips: Array<{ btn: HTMLButtonElement; amount: number }> = []
 
   constructor(economy: Economy, onSpin: () => void, onBetChange: (amount: number) => void) {
@@ -38,6 +41,7 @@ export class HUD {
     this.#balanceDisplay = document.getElementById('balance-display')!
     this.#highscoreDisplay = document.getElementById('highscore-display')!
     this.#spinBtn        = document.getElementById('spin-btn') as HTMLButtonElement
+    this.#actionsContainer = document.getElementById('char-actions')!
 
     this.#spinBtn.addEventListener('click', () => this.#onSpin())
 
@@ -126,5 +130,26 @@ export class HUD {
   restoreBetChips() {
     this.#buildBetChips()
     this.#updateChipState()
+  }
+
+  /** Boutons d'action propres au personnage (ex. FRAPPER pour Ira). */
+  setCharacterActions(actions: CharacterAction[], onInvoke: (a: CharacterAction) => void) {
+    this.#actionsContainer.textContent = ''
+    this.#actionBtns = []
+    actions.forEach(action => {
+      const btn = document.createElement('button')
+      btn.className = 'char-action-btn'
+      btn.textContent = action.label
+      if (action.title) btn.title = action.title
+      btn.addEventListener('click', () => onInvoke(action))
+      this.#actionsContainer.appendChild(btn)
+      this.#actionBtns.push({ btn, action })
+    })
+  }
+
+  setActionsEnabled(enabled: boolean, isEnabled?: (a: CharacterAction) => boolean) {
+    this.#actionBtns.forEach(({ btn, action }) => {
+      btn.disabled = !enabled || (isEnabled ? !isEnabled(action) : false)
+    })
   }
 }

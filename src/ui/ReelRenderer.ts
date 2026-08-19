@@ -74,21 +74,34 @@ export class ReelRenderer {
 
   #buildCells(grid: GameSymbol[][], modifiers: Partial<Modifiers> = {}) {
     this.#container.textContent = ''
-    const { wildColumns = [] } = modifiers
+    const { wildColumns = [], cellDamage = [] } = modifiers
 
     grid.forEach((col, reelIdx) => {
       const reel = document.createElement('div')
       reel.className = 'reel'
 
-      col.forEach(symbol => {
+      col.forEach((symbol, rowIdx) => {
         const cell = document.createElement('div')
         cell.className = 'cell'
         if (wildColumns[reelIdx]) cell.classList.add('wild-col')
+        const dmg = cellDamage[reelIdx]?.[rowIdx] ?? 0
+        if (dmg === 1) cell.classList.add('dmg-cracked')
+        if (dmg >= 2) cell.classList.add('dmg-dead')
         cell.appendChild(this.#makeSymbol(symbol))
         reel.appendChild(cell)
       })
 
       this.#container.appendChild(reel)
+    })
+  }
+
+  showDamage(cellDamage: number[][] = []) {
+    this.#container.querySelectorAll('.reel').forEach((reel, reelIdx) => {
+      reel.querySelectorAll('.cell').forEach((cell, rowIdx) => {
+        const dmg = cellDamage[reelIdx]?.[rowIdx] ?? 0
+        cell.classList.toggle('dmg-cracked', dmg === 1)
+        cell.classList.toggle('dmg-dead', dmg >= 2)
+      })
     })
   }
 
@@ -209,7 +222,8 @@ export class ReelRenderer {
 
     winLines.forEach(line => {
       const color = WIN_COLOR[line.symbolId] ?? '#b6f36a'
-      for (let r = 0; r < line.count; r++) {
+      for (let r = 0; r < line.reelRows.length; r++) {
+        if (line.reelRows[r] === -1) continue
         const cell = reelEls[r]?.querySelectorAll('.cell')[line.reelRows[r]] as HTMLElement | undefined
         if (!cell) continue
         cell.classList.add('win')
