@@ -5,6 +5,7 @@ import { RunState } from './RunState.ts'
 import { Progression } from '../meta/Progression.ts'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { SYMBOLS } from './Symbols.ts'
+import type { LuckProfile } from './Symbols.ts'
 import { getCharacterPlugin } from './characters/index.ts'
 import { getMachine, DEFAULT_MACHINE_ID } from './machines/index.ts'
 import { ReelRenderer } from '../ui/ReelRenderer.ts'
@@ -59,7 +60,7 @@ export class GameLoop {
     return {
       addLog: (msg, muted) => this.shop.addLog(msg, muted),
       triggerDialogue: (lines) => this.dialogueUI.show(lines),
-      updateHUD: () => this.hud.update({ level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem.getModifiers().luck),
+      updateHUD: () => this.hud.update({ level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem.getModifiers()),
       updateShop: () => this.shop.updateDisplay(),
     }
   }
@@ -115,7 +116,7 @@ export class GameLoop {
 
       const rawGrid = save.grid
         ? save.grid.map((col: string[]) => col.map((id: string) => this.symbolMap[id] ?? SYMBOLS[0]))
-        : spin(this.machine, {}, this.getLuckFactor(), this.plugin.getSpinOptions?.(this.ctx) ?? {}).grid
+        : spin(this.machine, {}, this.getLuckProfile(), this.plugin.getSpinOptions?.(this.ctx) ?? {}).grid
 
       const grid = this.applyGridTransform(rawGrid)
       this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
@@ -149,7 +150,7 @@ export class GameLoop {
     this.applyCharacterTheme()
 
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-    const { grid: rawGrid } = spin(this.machine, {}, this.getLuckFactor(), opts)
+    const { grid: rawGrid } = spin(this.machine, {}, this.getLuckProfile(), opts)
     const grid = this.applyGridTransform(rawGrid)
     this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
     this.renderer.showModifiers(this.bonusSystem.getModifiers())
@@ -192,7 +193,7 @@ export class GameLoop {
     const mods = this.bonusSystem.getModifiers()
     const stickyPositions = mods.stickyPositions ?? {}
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-    const { grid: rawGrid } = spin(this.machine, stickyPositions, this.getLuckFactor(), opts)
+    const { grid: rawGrid } = spin(this.machine, stickyPositions, this.getLuckProfile(), opts)
     const grid = this.applyGridTransform(rawGrid)
 
     await this.renderer.animateSpin(grid)
@@ -256,7 +257,7 @@ export class GameLoop {
       await delay(380)
       const mods = this.bonusSystem.getModifiers()
       const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-      const { grid: rawGrid } = spin(this.machine, mods.stickyPositions ?? {}, this.getLuckFactor(), opts)
+      const { grid: rawGrid } = spin(this.machine, mods.stickyPositions ?? {}, this.getLuckProfile(), opts)
       const grid = this.applyGridTransform(rawGrid)
       await this.renderer.animateSpin(grid)
       const result = calculateWins(this.machine, grid, this.economy.currentBet, mods)
@@ -380,9 +381,18 @@ export class GameLoop {
     this.characterSelect.show()
   }
 
-  private getLuckFactor(): number {
-    const luckBonus = this.plugin.getLuckBonus?.(this.ctx) ?? 0
-    return (this.bonusSystem.getModifiers().luck + luckBonus) / 100 + this.economy.rtpNudge
+  /**
+   * Les deux axes de chance. `rtpNudge` ne touche que la convoitise : il corrige le RTP,
+   * pas la fréquence de gain.
+   */
+  private getLuckProfile(): LuckProfile {
+    const mods = this.bonusSystem.getModifiers()
+    const rarityBonus = this.plugin.getLuckBonus?.(this.ctx) ?? 0
+    return {
+      rarity:   (mods.rarity + rarityBonus) / 100,
+      cohesion: mods.cohesion / 100,
+      nudge:    this.economy.rtpNudge,
+    }
   }
 
   /** Libellé de la machine affiché au-dessus de la grille. */

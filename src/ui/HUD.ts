@@ -7,6 +7,12 @@ interface RunState {
   goal: number
 }
 
+/** Les deux axes de chance affichés dans le HUD. */
+interface LuckDisplay {
+  rarity: number
+  cohesion: number
+}
+
 export class HUD {
   #economy: Economy
   #onSpin: () => void
@@ -16,6 +22,7 @@ export class HUD {
   #levelDisplay: HTMLElement
   #goalDisplay: HTMLElement
   #luckDisplay: HTMLElement
+  #cohesionDisplay: HTMLElement
   #progressFill: HTMLElement
   #progressPct: HTMLElement
   #balanceDisplay: HTMLElement
@@ -32,6 +39,7 @@ export class HUD {
     this.#levelDisplay   = document.getElementById('level-display')!
     this.#goalDisplay    = document.getElementById('goal-display')!
     this.#luckDisplay    = document.getElementById('luck-display')!
+    this.#cohesionDisplay = document.getElementById('cohesion-display')!
     this.#progressFill   = document.getElementById('progress-fill')!
     this.#progressPct    = document.getElementById('progress-pct')!
     this.#balanceDisplay = document.getElementById('balance-display')!
@@ -71,11 +79,17 @@ export class HUD {
     })
   }
 
-  update(runState: RunState | null = null, luck: number = 0) {
+  #setStat(el: HTMLElement | null, icon: string, value: number): void {
+    if (!el) return
+    el.textContent = `${icon}${value > 0 ? '+' : ''}${value}`
+    el.style.color = value > 0 ? '#b6f36a' : ''
+  }
+
+  update(runState: RunState | null = null, luck: LuckDisplay = { rarity: 0, cohesion: 0 }) {
     this.#balanceDisplay.textContent  = `⛧${this.#economy.balance.toFixed(2)}`
     this.#highscoreDisplay.textContent = `⛧${this.#economy.highscore.toFixed(2)}`
-    this.#luckDisplay.textContent = luck > 0 ? `+${luck}` : String(luck)
-    this.#luckDisplay.style.color = luck > 0 ? '#b6f36a' : ''
+    this.#setStat(this.#luckDisplay, '★', luck.rarity)
+    this.#setStat(this.#cohesionDisplay, '≡', luck.cohesion)
     this.#updateChipState()
 
     if (runState) {

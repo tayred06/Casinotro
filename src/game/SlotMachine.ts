@@ -2,7 +2,8 @@ import type {
   GameSymbol, MachineConfig, Modifiers, SpinOptions, SpinResult, Souls, WinLine,
 } from '../types/index.ts'
 import { random, randomInt } from '../utils/Random.ts'
-import { generateReelColumn, WILD_ID, SCATTER_ID, winSymbolsOf } from './Symbols.ts'
+import { generateReelColumn, pickAnchor, toLuckProfile, WILD_ID, SCATTER_ID, winSymbolsOf } from './Symbols.ts'
+import type { LuckProfile } from './Symbols.ts'
 
 /** Hauteur de chaque colonne pour ce spin. `fixedRows` prime sur la config machine. */
 function resolveRowCounts(machine: MachineConfig, fixedRows?: number): number[] {
@@ -22,13 +23,20 @@ function resolveRowCounts(machine: MachineConfig, fixedRows?: number): number[] 
 export function spin(
   machine: MachineConfig,
   stickyPositions: Record<string, GameSymbol> = {},
-  luckFactor = 0,
+  luck: number | LuckProfile = 0,
   opts: SpinOptions = {}
 ): { grid: GameSymbol[][], rowCounts: number[] } {
   const { rareMultiplier = 1, fixedRows } = opts
+  const profile = toLuckProfile(luck)
   const rowCounts = resolveRowCounts(machine, fixedRows)
+  // Une seule ancre pour tout le spin : c'est ce qui aligne les symboles entre rouleaux.
+  // Limitée aux `minMatch` premiers rouleaux — au-delà, elle ne créerait plus des gains
+  // plus fréquents mais des gains pleins, et le RTP part en vrille (mesuré ×2 à ×7).
+  const anchor = pickAnchor(machine.symbolPool, profile.cohesion)
+  const anchorReels = machine.minMatch
   const grid = rowCounts.map((rowCount, reel) => {
-    const col = generateReelColumn(machine.symbolPool, rowCount, luckFactor, rareMultiplier)
+    const col = generateReelColumn(machine.symbolPool, rowCount, profile, rareMultiplier,
+      reel < anchorReels ? anchor : null)
     for (let row = 0; row < rowCount; row++) {
       const key = `${reel}-${row}`
       if (stickyPositions[key]) col[row] = stickyPositions[key]

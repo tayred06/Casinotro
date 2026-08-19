@@ -53,7 +53,10 @@ export interface Modifiers {
   stickyEnabled: boolean
   chainEnabled: boolean
   stickyPositions: Record<string, GameSymbol>
-  luck: number
+  /** Convoitise : biais vers les hauts-payants (gains plus gros, moins fréquents). */
+  rarity: number
+  /** Régularité : biais de répétition d'un symbole (gains plus fréquents, même taille). */
+  cohesion: number
 }
 
 // ─── Items (bonus + consommables) ────────────────────────

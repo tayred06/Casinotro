@@ -24,8 +24,13 @@ export const ITEM_POOL: ItemDef[] = [
   },
   {
     id: 'luck_boost', name: 'Porte-Bonheur', kind: 'bonus',
-    description: '+15 chance permanente', level: 1, price: 30,
+    description: '+10 régularité et +10 convoitise', level: 1, price: 30,
     effect: 'luck_boost', needsTarget: null,
+  },
+  {
+    id: 'regularity', name: 'Métronome', kind: 'bonus',
+    description: '+20 régularité — tu gagnes plus souvent, pas plus gros', level: 1, price: 30,
+    effect: 'regularity', needsTarget: null,
   },
   // ── Niveau 2 ─────────────────────────────────────────
   {
@@ -44,8 +49,13 @@ export const ITEM_POOL: ItemDef[] = [
     effect: 'sticky', needsTarget: null,
   },
   {
+    id: 'greed_eye', name: 'Œil du Cupide', kind: 'bonus',
+    description: '+25 convoitise — les hauts-payants sortent plus souvent', level: 2, price: 55,
+    effect: 'greed_eye', needsTarget: null,
+  },
+  {
     id: 'lucky_streak', name: 'Coup de Chance', kind: 'consumable',
-    description: '+30 chance pendant 10 spins', level: 2, price: 45,
+    description: '+30 convoitise pendant 10 spins', level: 2, price: 45,
     effect: 'lucky_streak', needsTarget: null, charges: 10,
   },
   // ── Niveau 3 ─────────────────────────────────────────

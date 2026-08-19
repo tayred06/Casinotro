@@ -18,7 +18,7 @@
  *
  * Types d'effect disponibles (à étendre si besoin) :
  *   { type: 'start_balance',    value: Number }          // solde de départ modifié
- *   { type: 'luck_bonus',       value: Number }          // bonus de chance permanent (0-100)
+ *   { type: 'luck_bonus',       value: Number }          // bonus de convoitise permanent (0-100)
  *   { type: 'bet_multiplier',   value: Number }          // multiplicateur sur chaque mise
  *   { type: 'win_multiplier',   value: Number }          // multiplicateur sur chaque gain
  *   { type: 'safety_net',       value: Number }          // % remboursé sur spin sans gain

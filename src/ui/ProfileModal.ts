@@ -47,7 +47,9 @@ export class ProfileModal {
     document.getElementById('pm-balance')!.textContent = `⛧${economy.balance.toFixed(2)}`
     document.getElementById('pm-best')!.textContent    = `⛧${economy.highscore.toFixed(2)}`
     document.getElementById('pm-bet')!.textContent     = `⛧${economy.currentBet}`
-    document.getElementById('pm-luck')!.textContent    = modifiers.luck > 0 ? `+${modifiers.luck}` : String(modifiers.luck)
+    const stat = (v: number) => (v > 0 ? `+${v}` : String(v))
+    document.getElementById('pm-rarity')!.textContent   = stat(modifiers.rarity)
+    document.getElementById('pm-cohesion')!.textContent = stat(modifiers.cohesion)
 
     this.#renderBonuses(activeBonuses, modifiers)
     this.#renderEffect(character)
@@ -113,7 +115,7 @@ export class ProfileModal {
         return target ? `${target} → ×${mult}` : bonus.description
       }
       case 'global_multiplier': return `×3 sur tous les gains — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
-      case 'lucky_streak':      return `+30 chance — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
+      case 'lucky_streak':      return `+30 convoitise — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
       case 'chain': {
         const syms = modifiers.symbolMultipliers
         const bonusMult = target ? (syms[target] ?? 1) : 1

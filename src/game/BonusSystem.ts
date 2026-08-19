@@ -51,7 +51,8 @@ export class BonusSystem {
       stickyEnabled: false,
       chainEnabled: false,
       stickyPositions: this.#stickyPositions,
-      luck: 0,
+      rarity: 0,
+      cohesion: 0,
     }
 
     for (const bonus of this.#active) {
@@ -87,10 +88,18 @@ export class BonusSystem {
           if ((bonus.remainingCharges ?? 0) > 0) modifiers.globalMultiplier = 3
           break
         case 'luck_boost':
-          modifiers.luck += 15
+          // Hybride : un peu des deux, sans exceller nulle part.
+          modifiers.rarity += 10
+          modifiers.cohesion += 10
+          break
+        case 'regularity':
+          modifiers.cohesion += 20
+          break
+        case 'greed_eye':
+          modifiers.rarity += 25
           break
         case 'lucky_streak':
-          if ((bonus.remainingCharges ?? 0) > 0) modifiers.luck += 30
+          if ((bonus.remainingCharges ?? 0) > 0) modifiers.rarity += 30
           break
       }
     }

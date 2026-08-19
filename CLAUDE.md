@@ -86,7 +86,26 @@ any sequence deterministic.
 
 `RunState` tracks `stage` (1→2→3), `stageGoals` (500⛧ / 2000⛧ / 10000⛧), and `betOptions`. Advancing a stage scales bet options by the last bet in the current set.
 
-`Economy.rtpNudge` nudges the luck factor toward 92% RTP once ≥50⛧ wagered — implemented as a weight adjustment in symbol selection, invisible to players.
+`Economy.rtpNudge` nudges symbol weights toward 92% RTP once ≥50⛧ wagered — invisible to
+players. It rides the `nudge` field of `LuckProfile`, deliberately **not** amplified by the
+rarity gains.
+
+### Luck: two independent axes
+
+`LuckProfile` (`src/game/Symbols.ts`) replaces the old single `luck` number, because the two
+things players call "luck" pull in opposite directions:
+
+- **`rarity`** (*convoitise*) — biases weights toward high payers via `RARITY_BIAS`. Bigger
+  wins, slightly *fewer* of them. Gains are asymmetric (`RARITY_POS_GAIN` 3 /
+  `RARITY_NEG_GAIN` 0.4): a symmetric bias destroys more small wins than it creates big
+  ones and lowers RTP.
+- **`cohesion`** (*régularité*) — `pickAnchor()` draws one anchor symbol per spin (weighted
+  on base weights, wild/scatter excluded) and overweights it on the first `minMatch` reels
+  only. Raises hit rate on both evaluators; extending it to every reel multiplies full-line
+  wins and blows RTP up (measured ×2 to ×7).
+
+Both are clamped in `toLuckProfile()`. `Modifiers` carries `rarity` and `cohesion`;
+`SlotMachine.luck.test.ts` guards that each axis still moves its own metric.
 
 Bet tiers live on the `Economy` instance (`betOptions`), never in a shared module-level
 array. `DEFAULT_BET_OPTIONS` is frozen. The HUD must call `rebuildBetChips()` whenever

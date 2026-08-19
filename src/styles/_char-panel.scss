@@ -63,6 +63,12 @@
   letter-spacing: .04em;
 }
 
+.char-hud-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .char-hud-lv {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
