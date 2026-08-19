@@ -109,11 +109,11 @@ export class GameLoop {
 
     try {
       this.run.restore(save.run)
+      // Avant economy.restore() : les paliers vivent dans RunState, et
+      // restore() valide la mise sauvegardée contre les paliers courants.
+      this.applyBetOptions()
       this.economy.restore(save.economy)
       this.bonusSystem.restore(save.bonusSystem)
-      // Les paliers de mise vivent dans RunState : sans ça, une reprise en
-      // palier 2/3 repart sur les mises initiales.
-      this.applyBetOptions()
       this.plugin = getCharacterPlugin(this.run.characterId)
       this.plugin.onSetup?.(this.ctx)
 

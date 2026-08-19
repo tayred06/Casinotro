@@ -1,6 +1,7 @@
 import type { Souls } from '../types/index.ts'
 
-export const BET_OPTIONS: Souls[] = [1, 2, 5, 10, 25]
+/** Paliers de mise par défaut. Gelé : chaque Economy en garde sa propre copie. */
+export const BET_OPTIONS: readonly Souls[] = Object.freeze([1, 2, 5, 10, 25])
 
 const HIGHSCORE_KEY = 'casinotro_highscore'
 const TARGET_RTP = 0.92
@@ -12,16 +13,18 @@ export class Economy {
   #highscore: Souls
   #totalWagered: Souls = 0
   #totalReturned: Souls = 0
+  #betOptions: Souls[] = [...BET_OPTIONS]
 
   constructor(startBalance: Souls = 100) {
     this.#balance = startBalance
-    this.#currentBet = BET_OPTIONS[0]
+    this.#currentBet = this.#betOptions[0]
     this.#totalEarned = 0
     this.#highscore = this.#loadHighscore()
   }
 
   get balance(): Souls { return this.#balance }
   get currentBet(): Souls { return this.#currentBet }
+  get betOptions(): Souls[] { return [...this.#betOptions] }
   get totalEarned(): Souls { return this.#totalEarned }
   get highscore(): Souls { return this.#highscore }
   get totalWagered(): Souls { return this.#totalWagered }
@@ -37,12 +40,13 @@ export class Economy {
   }
 
   setBet(amount: Souls): void {
-    if (BET_OPTIONS.includes(amount)) this.#currentBet = amount
+    if (this.#betOptions.includes(amount)) this.#currentBet = amount
   }
 
   setBetOptions(options: Souls[]): void {
-    BET_OPTIONS.splice(0, BET_OPTIONS.length, ...options)
-    if (!options.includes(this.#currentBet)) this.#currentBet = options[0]
+    if (!options.length) return
+    this.#betOptions = [...options]
+    if (!this.#betOptions.includes(this.#currentBet)) this.#currentBet = this.#betOptions[0]
   }
 
   forceSetBet(amount: Souls): void {
@@ -87,7 +91,7 @@ export class Economy {
   }
 
   isGameOver(): boolean {
-    return this.#balance < Math.min(...BET_OPTIONS)
+    return this.#balance < Math.min(...this.#betOptions)
   }
 
   #saveHighscore(): void {
@@ -105,7 +109,8 @@ export class Economy {
 
   restart(startBalance: Souls = 100): void {
     this.#balance        = startBalance
-    this.#currentBet     = BET_OPTIONS[0]
+    this.#betOptions     = [...BET_OPTIONS]
+    this.#currentBet     = this.#betOptions[0]
     this.#totalEarned    = 0
     this.#totalWagered   = 0
     this.#totalReturned  = 0
@@ -124,7 +129,7 @@ export class Economy {
 
   restore(data: Record<string, Souls>): void {
     this.#balance        = data.balance       ?? 100
-    this.#currentBet     = BET_OPTIONS.includes(data.currentBet) ? data.currentBet : BET_OPTIONS[0]
+    this.#currentBet     = this.#betOptions.includes(data.currentBet) ? data.currentBet : this.#betOptions[0]
     this.#totalEarned    = data.totalEarned   ?? 0
     this.#highscore      = data.highscore     ?? this.#loadHighscore()
     this.#totalWagered   = data.totalWagered  ?? 0

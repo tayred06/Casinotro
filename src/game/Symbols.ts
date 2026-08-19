@@ -1,5 +1,6 @@
 import type { GameSymbol } from '../types/index.ts'
 import { weightedRandom } from '../utils/Random.ts'
+import type { Rng } from '../utils/Random.ts'
 
 interface SymbolDef extends GameSymbol {
   rare?: boolean
@@ -43,7 +44,8 @@ const LUCK_BIAS: Record<string, number> = {
 export function generateReelColumn(
   rowCount: number,
   luckFactor = 0,
-  rareMultiplier = 1
+  rareMultiplier = 1,
+  rng: Rng = Math.random
 ): GameSymbol[] {
   const pool = ALL_SYMBOLS.map(s => ({
     value:  s as GameSymbol,
@@ -53,5 +55,5 @@ export function generateReelColumn(
       * (s.rare ? rareMultiplier : 1)
     ),
   }))
-  return Array.from({ length: rowCount }, () => weightedRandom(pool))
+  return Array.from({ length: rowCount }, () => weightedRandom(pool, rng))
 }

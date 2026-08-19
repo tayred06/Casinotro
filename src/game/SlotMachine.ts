@@ -1,5 +1,6 @@
 import type { GameSymbol, SpinOptions, SpinResult, WinLine, Modifiers, Souls } from '../types/index.ts'
 import { randomInt } from '../utils/Random.ts'
+import type { Rng } from '../utils/Random.ts'
 import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS } from './Symbols.ts'
 
 const REEL_COUNT = 6
@@ -18,7 +19,8 @@ export { REEL_COUNT, MIN_ROWS, MAX_ROWS }
 export function spin(
   stickyPositions: Record<string, GameSymbol> = {},
   luckFactor = 0,
-  opts: SpinOptions = {}
+  opts: SpinOptions = {},
+  rng: Rng = Math.random
 ): { grid: GameSymbol[][], rowCounts: number[] } {
   const { rareMultiplier = 1, minRowsPerReel = [] } = opts
 
@@ -26,11 +28,11 @@ export function spin(
     // Un rouleau doit garder assez de rangées pour que ses cases abîmées
     // restent affichées d'un tour à l'autre.
     const floor = Math.min(Math.max(MIN_ROWS, minRowsPerReel[reel] ?? MIN_ROWS), MAX_ROWS)
-    return randomInt(floor, MAX_ROWS)
+    return randomInt(floor, MAX_ROWS, rng)
   })
 
   const grid = rowCounts.map((rowCount, reel) => {
-    const col = generateReelColumn(rowCount, luckFactor, rareMultiplier)
+    const col = generateReelColumn(rowCount, luckFactor, rareMultiplier, rng)
     for (let row = 0; row < rowCount; row++) {
       const key = `${reel}-${row}`
       if (stickyPositions[key]) col[row] = stickyPositions[key]
@@ -43,7 +45,8 @@ export function spin(
 export function calculateWins(
   grid: GameSymbol[][],
   bet: Souls,
-  modifiers: Partial<Modifiers> = {}
+  modifiers: Partial<Modifiers> = {},
+  rng: Rng = Math.random
 ): SpinResult {
   const {
     columnMultipliers = Array(REEL_COUNT).fill(1),
@@ -133,7 +136,7 @@ export function calculateWins(
   }
 
   const hasLargeWin = winLines.some(l => l.count >= 4)
-  const dropBonus = hasLargeWin && Math.random() < 0.15
+  const dropBonus = hasLargeWin && rng() < 0.15
 
   return { totalWin, winLines, scatterTriggered, dropBonus }
 }

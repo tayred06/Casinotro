@@ -5,6 +5,36 @@ describe('BET_OPTIONS', () => {
   it('contient les 5 mises attendues', () => {
     expect(BET_OPTIONS).toEqual([1, 2, 5, 10, 25])
   })
+
+  it('est immuable : setBetOptions ne doit pas le réécrire', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125, 250, 625])
+    expect(BET_OPTIONS).toEqual([1, 2, 5, 10, 25])
+  })
+
+  it('les paliers sont propres à chaque Economy', () => {
+    const a = new Economy(100)
+    const b = new Economy(100)
+    a.setBetOptions([25, 50, 125, 250, 625])
+    expect(b.betOptions).toEqual([1, 2, 5, 10, 25])
+    expect(a.betOptions).toEqual([25, 50, 125, 250, 625])
+  })
+
+  it('restart() ramène les paliers initiaux', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125, 250, 625])
+    eco.restart(100)
+    expect(eco.betOptions).toEqual([1, 2, 5, 10, 25])
+    expect(eco.currentBet).toBe(1)
+  })
+
+  it('isGameOver() se base sur les paliers courants', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125, 250, 625])
+    expect(eco.isGameOver()).toBe(false)
+    eco.spend(80) // solde 20 < plus petite mise (25)
+    expect(eco.isGameOver()).toBe(true)
+  })
 })
 
 describe('Economy', () => {

@@ -1,4 +1,3 @@
-import { BET_OPTIONS } from '../game/Economy.ts'
 import type { Economy } from '../game/Economy.ts'
 import type { CharacterAction } from '../types/index.ts'
 
@@ -53,7 +52,8 @@ export class HUD {
     container.textContent = ''
     this.#betChips = []
 
-    BET_OPTIONS.forEach(amount => {
+    // Les paliers appartiennent à l'Economy du run, pas au module.
+    this.#economy.betOptions.forEach(amount => {
       const btn = document.createElement('button')
       btn.className = 'chip'
       btn.textContent = `⛧${amount}`
