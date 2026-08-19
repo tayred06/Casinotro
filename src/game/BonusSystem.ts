@@ -1,6 +1,7 @@
 import type { ItemDef, ItemInstance, Modifiers, SpinResult, GameSymbol } from '../types/index.ts'
 import { shuffleArray } from '../utils/Random.ts'
 import { getItemsByLevel } from './items/index.ts'
+import { WIN_MULTIPLIERS } from './Symbols.ts'
 
 export class BonusSystem {
   static #counter = 0
@@ -39,7 +40,7 @@ export class BonusSystem {
       columnMultipliers: Array(6).fill(1),
       wildColumns: Array(6).fill(false),
       symbolMultipliers: { ...this.#chainBonuses },
-      jackpotMultiplier: 20,
+      jackpotMultiplier: WIN_MULTIPLIERS[6]!,
       safetyNet: false,
       globalMultiplier: 1,
       freeRerolls: 0,

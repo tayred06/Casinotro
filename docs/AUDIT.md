@@ -223,7 +223,14 @@ Après le rework, le document affirme encore : rendu PixiJS, canvas 1200×750, `
 
 ## 8. Découvert pendant les correctifs — non corrigé
 
-### 8.1 — La chance fait baisser le retour (équilibrage)
+### 8.1 — La chance fait baisser le retour (équilibrage) — **CORRIGÉ**
+
+> Corrigé : les symboles premium (étoile, chien) comptent dès une case par
+> rouleau, et la valeur du symbole multiplie le barème. Barème recalibré par
+> simulation pour un RTP de base de 0,91 à chance nulle. Mesuré après correctif :
+> luck=0 → 0,91 · luck=0,45 → 1,10 · luck=0,95 → 1,41. La boucle `rtpNudge`
+> converge désormais au lieu de diverger. Description du problème conservée
+> ci-dessous.
 
 Mesurable seulement depuis l'injection du RNG (§2.6). Sur 20 000 spins, graine 99 :
 

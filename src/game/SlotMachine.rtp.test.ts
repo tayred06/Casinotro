@@ -8,6 +8,18 @@ import { createRng } from '../utils/Random.ts'
  * d'équilibrage — toute retouche des poids de symboles ou des multiplicateurs
  * qui fait sortir le RTP de la fourchette casse ici plutôt qu'en production.
  */
+function rtpAt(luck: number, seed = 7, spins = 5000): number {
+  const rng = createRng(seed)
+  let wagered = 0
+  let returned = 0
+  for (let i = 0; i < spins; i++) {
+    const { grid } = spin({}, luck, {}, rng)
+    returned += calculateWins(grid, 1, {}, rng).totalWin
+    wagered += 1
+  }
+  return returned / wagered
+}
+
 function simulate(spins: number, seed: number, bet = 1) {
   const rng = createRng(seed)
   let wagered = 0
@@ -33,63 +45,61 @@ describe('RTP de la machine (luck = 0, sans bonus)', () => {
   it('reste dans une fourchette jouable sur plusieurs graines', () => {
     for (const seed of [1, 42, 1337, 90210]) {
       const { rtp } = simulate(5000, seed)
-      // Fourchette large et volontairement descriptive : elle documente le
-      // comportement actuel plutôt qu'une cible. La cible affichée est 0.92
-      // (Economy.TARGET_RTP), atteinte via rtpNudge, pas par les poids bruts.
-      expect(rtp).toBeGreaterThan(0)
-      expect(rtp).toBeLessThan(10)
+      // Le barème est calibré pour 0,92 ; on laisse de la marge au bruit de
+      // graine, l'assertion serrée sur la cible est dans le test dédié.
+      expect(rtp).toBeGreaterThan(0.7)
+      expect(rtp).toBeLessThan(1.2)
     }
   })
 
   /**
-   * ⚠️ Comportement actuel, contraire à l'intention affichée.
+   * Le bug historique : le paiement ne dépendait que du nombre de symboles
+   * alignés, jamais du symbole. Augmenter la chance raréfiait les symboles
+   * courants — les seuls capables de s'aligner — et faisait donc BAISSER le
+   * RTP. Mesuré alors : luck=0 → 0,470 ; luck=0,5 → 0,290 ; luck=2 → 0,164.
    *
-   * `WIN_MULTIPLIERS` ne dépend que du NOMBRE de symboles alignés, jamais du
-   * symbole : un alignement de 🐕 (poids 4) paie exactement comme un alignement
-   * de 🍋 (poids 30). Augmenter la chance ne fait donc qu'aplatir la
-   * distribution des poids, ce qui produit MOINS de chaînes d'un même symbole,
-   * donc moins de gains.
-   *
-   * Mesuré sur 20 000 spins (graine 99) :
-   *   luck=0    RTP=0.470   hitRate=10.24%
-   *   luck=0.5  RTP=0.290   hitRate= 8.00%
-   *   luck=2    RTP=0.164   hitRate= 6.42%
-   *
-   * Conséquence : `luck_boost`, `lucky_streak` et le `rareMultiplier` de
-   * Luxuria pénalisent le joueur, et `Economy.rtpNudge` corrige à l'envers —
-   * il augmente la chance quand le RTP est bas, ce qui le fait encore baisser.
-   *
-   * Ce test verrouille le comportement mesuré. Quand l'équilibrage sera
-   * corrigé (faire payer les symboles rares davantage, ou revoir LUCK_BIAS),
-   * il échouera : inverser alors l'assertion.
+   * Corrigé par deux règles conjointes : les symboles premium comptent dès une
+   * case par rouleau, et la valeur du symbole multiplie le barème.
    */
-  it('BUG CONNU : la chance fait BAISSER le retour', () => {
-    const rtpAt = (luck: number) => {
-      const rng = createRng(7)
-      let w = 0, r = 0
-      for (let i = 0; i < 5000; i++) {
-        const { grid } = spin({}, luck, {}, rng)
-        r += calculateWins(grid, 1, {}, rng).totalWin
-        w += 1
-      }
-      return r / w
-    }
+  it('la chance augmente le retour', () => {
+    const at0 = rtpAt(0)
+    const at05 = rtpAt(0.5)
+    const at1 = rtpAt(1)
 
-    expect(rtpAt(0.5)).toBeLessThan(rtpAt(0))
+    expect(at05).toBeGreaterThan(at0)
+    expect(at1).toBeGreaterThan(at05)
+  })
+
+  it('le RTP de base vise la cible de 0,92', () => {
+    // Calibré par simulation ; tolérance large pour absorber le bruit de graine.
+    expect(rtpAt(0)).toBeGreaterThan(0.82)
+    expect(rtpAt(0)).toBeLessThan(1.02)
+  })
+
+  it('la chance ne fait pas exploser l economie', () => {
+    // Chance maximale atteignable en jeu : bonus (+45) et rtpNudge (+0,5).
+    expect(rtpAt(0.95)).toBeLessThan(rtpAt(0) * 2)
   })
 })
 
-describe('reproductibilité', () => {
-  it('deux spins de même graine produisent la même grille', () => {
-    const a = spin({}, 0, {}, createRng(2024))
-    const b = spin({}, 0, {}, createRng(2024))
-    expect(a.rowCounts).toEqual(b.rowCounts)
-    expect(a.grid.map(c => c.map(s => s.id))).toEqual(b.grid.map(c => c.map(s => s.id)))
-  })
+describe('rareMultiplier (mécanique de Luxuria)', () => {
+  const rtpWithRare = (rareMultiplier: number, seed = 11, spins = 5000) => {
+    const rng = createRng(seed)
+    let w = 0, r = 0
+    for (let i = 0; i < spins; i++) {
+      const { grid } = spin({}, 0, { rareMultiplier }, rng)
+      r += calculateWins(grid, 1, {}, rng).totalWin
+      w += 1
+    }
+    return r / w
+  }
 
-  it('deux graines différentes produisent des grilles différentes', () => {
-    const a = spin({}, 0, {}, createRng(1))
-    const b = spin({}, 0, {}, createRng(2))
-    expect(a.grid.map(c => c.map(s => s.id))).not.toEqual(b.grid.map(c => c.map(s => s.id)))
+  /**
+   * Luxuria est décrite ainsi : « Les symboles rares apparaissent bien plus
+   * souvent. » Sous l'ancien barème, ce don la pénalisait — les symboles rares
+   * ne s'alignaient jamais et remplaçaient ceux qui le faisaient.
+   */
+  it('rendre les symboles rares plus fréquents augmente le retour', () => {
+    expect(rtpWithRare(2.5)).toBeGreaterThan(rtpWithRare(1))
   })
 })

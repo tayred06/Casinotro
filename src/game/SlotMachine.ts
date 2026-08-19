@@ -1,7 +1,7 @@
 import type { GameSymbol, SpinOptions, SpinResult, WinLine, Modifiers, Souls } from '../types/index.ts'
 import { randomInt } from '../utils/Random.ts'
 import type { Rng } from '../utils/Random.ts'
-import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS } from './Symbols.ts'
+import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS, symbolValue, isPremium } from './Symbols.ts'
 import { getMachine } from './machines/index.ts'
 
 // Les dimensions viennent de la config machine plutôt que d'être redéclarées ici.
@@ -57,7 +57,7 @@ export function calculateWins(
     columnMultipliers = Array(REEL_COUNT).fill(1),
     wildColumns = Array(REEL_COUNT).fill(false),
     symbolMultipliers = {},
-    jackpotMultiplier = 50,
+    jackpotMultiplier = WIN_MULTIPLIERS[6]!,
     safetyNet = false,
     globalMultiplier = 1,
     cellDamage = [],
@@ -96,9 +96,13 @@ export function calculateWins(
         continue
       }
 
-      // Require a proportional number of matching symbols per column
-      // (prevents every reel matching every symbol due to many rows)
-      const threshold = Math.max(1, Math.ceil(liveRows.length * 0.4))
+      // Les symboles courants doivent occuper 40 % de la colonne, ce qui évite
+      // qu'un rouleau haut valide tous les symboles à la fois. Les premium
+      // comptent dès une case : sans ça ils ne s'alignaient jamais, et la
+      // chance faisait baisser le RTP en les favorisant.
+      const threshold = isPremium(symbol.id)
+        ? 1
+        : Math.max(1, Math.ceil(liveRows.length * 0.4))
       const matchIndices = liveRows.filter(
         i => col[i].id === symbol.id || col[i].id === 'wild'
       )
@@ -121,7 +125,9 @@ export function calculateWins(
     }
 
     const symMult = symbolMultipliers[symbol.id] ?? 1
-    const totalMultiplier = baseMultiplier * colMult * symMult * globalMultiplier
+    // La rareté détermine la taille du gain ; le nombre aligné, le palier.
+    const totalMultiplier =
+      baseMultiplier * symbolValue(symbol.id) * colMult * symMult * globalMultiplier
     let lineWin = bet * totalMultiplier
 
     // Une case fissurée dans la chaîne divise le gain de la ligne

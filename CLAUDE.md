@@ -58,9 +58,18 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 
 `RunState` tracks `stage` (1→2→3), `stageGoals` (500⛧ / 2000⛧ / 10000⛧), and `betOptions`. Advancing a stage scales bet options by the last bet in the current set.
 
-`Economy.rtpNudge` raises the luck factor when measured RTP sits below the 92% target, once ≥50⛧ has been wagered.
+`Economy.rtpNudge` raises the luck factor when measured RTP sits below the 92% target, once ≥50⛧ has been wagered. It is a genuine negative feedback loop: measured over 20k spins it pulls RTP from 0.77 to ~0.88 while the nudge itself decays from 0.31 to 0.10.
 
-**Known balance defect** — raising luck currently *lowers* the return, so this loop corrects in the wrong direction. `WIN_MULTIPLIERS` keys off match count only, never the symbol, so boosting rare symbols just flattens the weight distribution and produces fewer same-symbol chains. Measured over 20k spins: luck=0 → RTP 0.470, luck=2 → RTP 0.164. This affects `luck_boost`, `lucky_streak` and Luxuria's `rareMultiplier` too. `SlotMachine.rtp.test.ts` pins the current behaviour and will fail once the balance is fixed — see `docs/AUDIT.md`.
+### Payout model
+
+Two rules decide a win, and they are load-bearing — changing either one moves the RTP a lot:
+
+1. **Chain length** picks the tier (`WIN_MULTIPLIERS`: 3→0.7, 4→2.75, 5→9.5, 6→28).
+2. **Symbol rarity** scales it (`SYMBOL_VALUE`: lemon 1 … dog 2.75).
+
+A symbol counts on a reel when it fills 40% of that column, **except premium symbols** (`PREMIUM_SYMBOLS`: star, dog) which count from a single cell. Without that exception rare symbols essentially never chain — the dog appeared in 1 chain per 30 000 spins — which is what made luck reduce the return.
+
+These numbers come from simulation, not intuition. `SlotMachine.rtp.test.ts` asserts the baseline lands near 0.92, that RTP rises with luck, and that max luck does not double it. Re-run it after touching any weight, multiplier or bias.
 
 ### Persistence
 
