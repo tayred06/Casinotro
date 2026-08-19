@@ -105,11 +105,13 @@
   }
 }
 
-// Plate (visual area, takes remaining height)
+// Plate (visual area) — hauteur fixée par le ratio, pas par le texte restant :
+// sinon une description longue rabote la plaque et le bloc texte de chaque carte
+// démarre à une hauteur différente.
 .cs-plate {
   position: relative;
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  aspect-ratio: 16 / 9;
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
@@ -143,12 +145,15 @@
   }
 }
 
-// Card info (fixed-height bottom)
+// Card info — occupe le reste et cale son contenu en haut : les cartes courtes
+// s'alignent sur les longues au lieu de flotter en bas.
 .cs-card-info {
-  flex: none;
+  flex: 1;
+  min-height: 0;
   padding: 12px 12px 14px;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   gap: 6px;
 }
 
