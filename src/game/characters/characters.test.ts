@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { getCharacterPlugin, CHARACTER_IDS } from './index.ts'
+import { CHARACTERS } from '../Characters.ts'
+
+describe('cohérence CHARACTERS / registre de plugins', () => {
+  it('chaque personnage jouable a un plugin du même id', () => {
+    for (const char of CHARACTERS) {
+      expect(() => getCharacterPlugin(char.id)).not.toThrow()
+      expect(getCharacterPlugin(char.id).id).toBe(char.id)
+    }
+  })
+
+  it('aucun plugin orphelin dans CHARACTER_IDS', () => {
+    const declared = CHARACTERS.map(c => c.id).sort()
+    expect([...CHARACTER_IDS].sort()).toEqual(declared)
+  })
+})
 
 describe('getCharacterPlugin', () => {
   it('returns a plugin for each character', () => {

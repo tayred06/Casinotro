@@ -16,17 +16,18 @@ npx vitest run src/game/Economy.test.ts  # Single test file
 
 Browser roguelike slot machine. No backend — `localStorage` only.
 
-**Stack:** PixiJS v8, Vite, Vitest, TypeScript ESModules. Canvas is 1200×750, mounted via `app.canvas` (PixiJS v8 API — not `app.view`).
+**Stack:** Vite, Vitest, TypeScript ESModules, SCSS. No rendering library — the reels are plain DOM elements built by `ReelRenderer`, styled by SCSS partials. Imports carry explicit `.ts` extensions (`allowImportingTsExtensions`).
 
 **Entry point:** `src/main.ts` → `new GameLoop()`. All orchestration lives in `GameLoop`.
 
 ### Layer separation
 
 ```
-src/game/    — pure logic, no DOM, no PixiJS. Tested with Vitest.
-src/ui/      — PixiJS rendering + HTML DOM wiring. Tested manually only.
+src/game/    — pure logic, no DOM. Tested with Vitest.
+src/ui/      — DOM construction + event wiring. Tested manually only.
 src/meta/    — cross-run persistence (highscore, unlocked machines).
 src/types/   — shared TypeScript interfaces (GameSymbol, SpinResult, Modifiers, CharacterPlugin, …)
+src/styles/  — SCSS partials, all imported by main.scss (itself imported by main.ts).
 ```
 
 ### Data flow per spin
@@ -64,7 +65,7 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 
 ### Items (bonuses + consumables)
 
-`BonusSystem` manages up to 5 active `ItemInstance`s. `BONUS_POOL` in `BonusSystem.ts` defines all available items. Items with `needsTarget: 'column'` or `'symbol'` require a target set at purchase time. `getModifiers()` aggregates all active instances into a single `Modifiers` object consumed by `calculateWins`.
+`BonusSystem` manages up to 5 active `ItemInstance`s. `ITEM_POOL` in `src/game/items/index.ts` defines all available items. Items with `needsTarget: 'column'` or `'symbol'` require a target set at purchase time. `getModifiers()` aggregates all active instances into a single `Modifiers` object consumed by `calculateWins`.
 
 ### Currency
 
@@ -72,7 +73,9 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 
 ## Key constraints
 
-- PixiJS v8 only — use `app.init()` async, `app.canvas` (not `app.view`), `new Text({ text, style })` object syntax
-- Tests only cover `src/game/` — UI modules (`src/ui/`) are verified manually in browser
-- No CSS framework — styles are inline HTML or PixiJS Graphics
+- Tests only cover `src/game/` — UI modules (`src/ui/`) are verified manually in browser. Vitest runs with `environment: 'node'`, so anything touching `document` cannot be tested as-is.
+- No CSS framework and no inline `<style>` — all styling lives in `src/styles/*.scss`
+- Build DOM with `createElement` / `textContent`, never `innerHTML` — keeps the app free of injection surface
+- A character's id in `CHARACTERS` (`Characters.ts`) must match its plugin key in `characters/index.ts`; `characters.test.ts` enforces this
+- Character params are declared in `Characters.ts` under `effect.params`, but plugins currently redeclare their own local `PARAMS` — the two can drift (see `docs/AUDIT.md` §2.1)
 - All characters are the seven deadly sins plus a neutral `joueur` character

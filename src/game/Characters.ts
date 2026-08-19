@@ -257,7 +257,7 @@ export const CHARACTERS: Character[] = [
     },
   },
   {
-    id: 'character_8',
+    id: 'joueur',
     name: 'Le Joueur',
     sin: 'Spes',              // Espoir — le péché de rester en sachant
     emoji: '❓',
@@ -273,7 +273,7 @@ export const CHARACTERS: Character[] = [
       'Aucune limite, aucun conseil, aucun croupier : un objectif chiffré, affiché, et pratiquement hors d\'atteinte.',
     effect: {
       type: 'custom',
-      key: 'character_8',
+      key: 'joueur',
       params: {
         goalIsTheoreticallyReachable: true, // possible, mais il faut un alignement parfait
         betTiersNeverStop: true,            // les paliers montent à l'infini

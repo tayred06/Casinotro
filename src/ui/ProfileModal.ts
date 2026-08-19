@@ -2,15 +2,7 @@ import type { Modifiers, ItemInstance } from '../types/index.ts'
 import type { Economy } from '../game/Economy.ts'
 import type { BonusSystem } from '../game/BonusSystem.ts'
 
-interface Character {
-  id: string
-  name: string
-  sin: string
-  emoji: string
-  description: string
-  params?: Record<string, any>
-  [key: string]: any
-}
+import type { Character } from '../game/Characters.ts'
 
 interface RunState {
   level: number
@@ -72,7 +64,6 @@ export class ProfileModal {
     }
 
     for (const bonus of activeBonuses) {
-      const b = bonus as any
       const row = document.createElement('div')
       row.className = 'pm-bonus-row'
 
@@ -81,21 +72,24 @@ export class ProfileModal {
 
       const name = document.createElement('span')
       name.className = 'pm-bonus-name'
-      name.textContent = b.name
+      name.textContent = bonus.name
 
       const desc = document.createElement('span')
       desc.className = 'pm-bonus-desc'
-      desc.textContent = this.#bonusDetail(b, modifiers)
+      desc.textContent = this.#bonusDetail(bonus, modifiers)
 
       left.appendChild(name)
       left.appendChild(desc)
 
       row.appendChild(left)
 
-      if (b.remainingCharges !== null) {
+      // Les bonus permanents n'ont pas de charges : `!== null` laissait passer
+      // undefined et affichait « undefined spins ».
+      const charges = bonus.remainingCharges
+      if (charges != null) {
         const uses = document.createElement('span')
         uses.className = 'pm-bonus-uses'
-        uses.textContent = `${b.remainingCharges} spin${b.remainingCharges > 1 ? 's' : ''}`
+        uses.textContent = `${charges} spin${charges > 1 ? 's' : ''}`
         row.appendChild(uses)
       }
 
@@ -103,11 +97,11 @@ export class ProfileModal {
     }
   }
 
-  #bonusDetail(bonus: any, modifiers: Modifiers): string {
+  #bonusDetail(bonus: ItemInstance, modifiers: Modifiers): string {
     const target = bonus.target
     switch (bonus.effect) {
-      case 'column_multiplier': return target !== null ? `Colonne ${target + 1} → ×2` : bonus.description
-      case 'wild_column':       return target !== null ? `Colonne ${target + 1} Wild` : bonus.description
+      case 'column_multiplier': return target != null ? `Colonne ${(target as number) + 1} → ×2` : bonus.description
+      case 'wild_column':       return target != null ? `Colonne ${(target as number) + 1} Wild` : bonus.description
       case 'symbol_multiplier': {
         const mult = modifiers.symbolMultipliers[target] ?? 2
         return target ? `${target} → ×${mult}` : bonus.description
@@ -128,7 +122,9 @@ export class ProfileModal {
     const container = document.getElementById('pm-effect-rows')!
     container.textContent = ''
 
-    const params = character.params
+    // Les paramètres vivent sous effect.params — `character.params` n'existe
+    // pas, donc cette section était systématiquement masquée.
+    const params = character.effect?.params
     if (!params || !Object.keys(params).length) {
       section.style.display = 'none'
       return

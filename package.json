@@ -8,9 +8,6 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {
-    "pixi.js": "^8.0.0"
-  },
   "devDependencies": {
     "sass": "^1.102.0",
     "typescript": "^7.0.2",

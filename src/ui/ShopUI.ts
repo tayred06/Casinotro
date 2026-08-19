@@ -210,18 +210,19 @@ export class ShopUI {
     active.forEach(bonus => {
       const tag = document.createElement('span')
       tag.className   = 'bonus-tag'
-      const b = bonus as any
-      const label = b.target !== null ? `${b.name} [${b.target}]` : b.name
-      const uses  = b.remainingUses !== null ? ` (${b.remainingUses})` : ''
+      // target et remainingCharges sont optionnels : comparer à null seul
+      // laissait passer undefined et affichait « (undefined) » sur chaque bonus.
+      const label = bonus.target != null ? `${bonus.name} [${bonus.target}]` : bonus.name
+      const uses  = bonus.remainingCharges != null ? ` (${bonus.remainingCharges})` : ''
       tag.textContent = label + uses
-      tag.title       = `Vendre pour ⛧${Math.floor(b.price * 0.5)}`
+      tag.title       = `Vendre pour ⛧${Math.floor(bonus.price * 0.5)}`
       tag.addEventListener('click', () => {
-        const refund = this.#bonusSystem.removeBonus(b.instanceId)
+        const refund = this.#bonusSystem.removeBonus(bonus.instanceId)
         if (this.#onBonusSold) {
           this.#onBonusSold(bonus, refund)
         } else {
           this.#economy.addMoney(refund)
-          this.addLog(`Vendu : ${b.name} +⛧${refund}`, true)
+          this.addLog(`Vendu : ${bonus.name} +⛧${refund}`, true)
         }
         this.#renderBonuses()
         this.#renderItems()
