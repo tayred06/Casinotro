@@ -26,7 +26,7 @@ Browser roguelike slot machine. No backend — `localStorage` only.
 
 ```
 src/game/    — pure logic, no DOM. Tested with Vitest.
-src/ui/      — DOM construction + event wiring. Tested manually only.
+src/ui/      — DOM construction + event wiring. Tested under jsdom (see Key constraints).
 src/meta/    — cross-run persistence (highscore, unlocked machines).
 src/types/   — shared TypeScript interfaces (GameSymbol, SpinResult, Modifiers, CharacterPlugin, …)
 src/styles/  — SCSS partials, all imported by main.scss (itself imported by main.ts).
@@ -58,7 +58,9 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 
 `RunState` tracks `stage` (1→2→3), `stageGoals` (500⛧ / 2000⛧ / 10000⛧), and `betOptions`. Advancing a stage scales bet options by the last bet in the current set.
 
-`Economy.rtpNudge` nudges the luck factor toward 92% RTP once ≥50⛧ wagered — implemented as a weight adjustment in symbol selection, invisible to players.
+`Economy.rtpNudge` raises the luck factor when measured RTP sits below the 92% target, once ≥50⛧ has been wagered.
+
+**Known balance defect** — raising luck currently *lowers* the return, so this loop corrects in the wrong direction. `WIN_MULTIPLIERS` keys off match count only, never the symbol, so boosting rare symbols just flattens the weight distribution and produces fewer same-symbol chains. Measured over 20k spins: luck=0 → RTP 0.470, luck=2 → RTP 0.164. This affects `luck_boost`, `lucky_streak` and Luxuria's `rareMultiplier` too. `SlotMachine.rtp.test.ts` pins the current behaviour and will fail once the balance is fixed — see `docs/AUDIT.md`.
 
 ### Persistence
 
@@ -80,5 +82,6 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 - No CSS framework and no inline `<style>` — all styling lives in `src/styles/*.scss`
 - Build DOM with `createElement` / `textContent`, never `innerHTML` — keeps the app free of injection surface
 - A character's id in `CHARACTERS` (`Characters.ts`) must match its plugin key in `characters/index.ts`; `characters.test.ts` enforces this
-- Character params are declared in `Characters.ts` under `effect.params`, but plugins currently redeclare their own local `PARAMS` — the two can drift (see `docs/AUDIT.md` §2.1)
+- Character params live in the plugin module (`LUXURIA_PARAMS`, `GULA_PARAMS`, `AVARITIA_PARAMS`, `IRA_PARAMS`) and `Characters.ts` references those exports. Never restate the values in `Characters.ts`, and never import `Characters.ts` from a plugin — params flow one way to avoid a cycle
+- `Math.random` is not called directly in `src/game/`: the random-consuming functions take an optional trailing `rng`, which is what makes the RTP tests deterministic
 - All characters are the seven deadly sins plus a neutral `joueur` character

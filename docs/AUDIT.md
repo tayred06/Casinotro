@@ -6,6 +6,10 @@ Date : 2026-08-18 · Branche : `feat/architecture-rework`
 
 Périmètre : `src/game`, `src/ui`, `src/meta`, `src/types`, `index.html`, configuration.
 
+> **Suivi.** Tout le §7 a été traité sur la branche `fix/blocking-bugs`, sauf §2.5
+> (découpage de `GameLoop`) et le rééquilibrage du RTP découvert en cours de route
+> (voir §8). État actuel : `tsc --noEmit` propre en `strict`, 131 tests, CI en place.
+
 ---
 
 ## 1. Bugs fonctionnels confirmés
@@ -213,3 +217,39 @@ Après le rework, le document affirme encore : rendu PixiJS, canvas 1200×750, `
 13. `BET_OPTIONS` en état d'instance (§2.3)
 14. RNG injectable et tests de RTP (§2.6)
 15. Free spins passés par le même chemin que les spins normaux (§1.8)
+
+
+---
+
+## 8. Découvert pendant les correctifs — non corrigé
+
+### 8.1 — La chance fait baisser le retour (équilibrage)
+
+Mesurable seulement depuis l'injection du RNG (§2.6). Sur 20 000 spins, graine 99 :
+
+| luck | RTP | taux de gain |
+|---|---|---|
+| 0 | 0,470 | 10,24 % |
+| 0,5 | 0,290 | 8,00 % |
+| 2 | 0,164 | 6,42 % |
+
+`WIN_MULTIPLIERS` ne dépend que du **nombre** de symboles alignés, jamais du symbole :
+une ligne de 🐕 (poids 4) paie exactement comme une ligne de 🍋 (poids 30). Augmenter
+la chance ne fait donc qu'aplatir la distribution des poids, ce qui produit moins de
+chaînes d'un même symbole.
+
+Conséquences :
+- `luck_boost`, `lucky_streak` et le `rareMultiplier` de Luxuria pénalisent l'acheteur ;
+- `Economy.rtpNudge` corrige à l'envers : RTP bas → il monte la chance → RTP plus bas ;
+- le RTP de base (0,47) étant très loin de la cible 0,92, le nudge sature à +0,5 en
+  permanence : le jeu tourne en continu autour de 0,29.
+
+Pistes : faire dépendre le paiement du symbole (les rares paient plus), ou revoir le
+sens de `LUCK_BIAS`. C'est une décision de game design, d'où l'absence de correctif.
+Le comportement mesuré est verrouillé dans `SlotMachine.rtp.test.ts`.
+
+### 8.2 — Personnages déclarés mais non implémentés
+
+`invidia`, `acedia` et `superbia` ont un plugin réduit à un dialogue, mais gardent dans
+`Characters.ts` des `effect.params` détaillés décrivant une mécanique inexistante. Le
+panneau de profil les affiche au joueur comme si elles étaient actives.
