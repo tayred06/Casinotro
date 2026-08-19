@@ -96,6 +96,7 @@ export const CHARACTERS: Character[] = [
         playerControlsBet: false,   // la mise n'est pas choisie par le joueur
         devourResetsEscalation: true, // consommer un bonus remet la mise à son plancher
         devourRefundPercent: 0,     // 0 = pas de cash rendu, seulement le reset
+        starterItemId: 'luck_boost', // bonus offert au début du run (à dévorer)
       },
     },
   },

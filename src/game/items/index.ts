@@ -71,6 +71,8 @@ export const ITEM_POOL: ItemDef[] = [
   },
 ]
 
+export const getItem = (id: string): ItemDef | undefined => ITEM_POOL.find(i => i.id === id)
+
 export function getItemsByLevel(maxLevel: 1 | 2 | 3): ItemDef[] {
   return ITEM_POOL.filter(i => i.level <= maxLevel)
 }

@@ -172,6 +172,8 @@ export interface CharacterPlugin {
   transformGrid?(ctx: GameContext, grid: GameSymbol[][]): GameSymbol[][]
   /** Usure par case, de 0 (intacte) à 1 (morte). Indexé [colonne][ligne]. */
   getCellStates?(ctx: GameContext): number[][]
+  /** Mise imposée par le personnage : le joueur ne choisit plus ses paliers. */
+  getForcedBet?(ctx: GameContext): { amount: Souls; nextIncrement: number | null } | null
   getAction?(ctx: GameContext): CharacterAction | null
   onAction?(ctx: GameContext, actionId: string): Promise<CharacterActionResult> | CharacterActionResult
   serialize?(): any

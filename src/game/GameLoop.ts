@@ -1,6 +1,6 @@
 import type { CharacterPlugin, GameContext, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
 import { Economy } from './Economy.ts'
-import { BonusSystem } from './BonusSystem.ts'
+import { BonusSystem, SLOTS_PER_QUOTA } from './BonusSystem.ts'
 import { RunState } from './RunState.ts'
 import { Progression } from '../meta/Progression.ts'
 import { spin, calculateWins } from './SlotMachine.ts'
@@ -17,6 +17,8 @@ import { PaytableModal } from '../ui/PaytableModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
 import { EndScreen } from '../ui/EndScreen.ts'
 import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId } from './Characters.ts'
+import type { Character } from './Characters.ts'
+import { getItem } from './items/index.ts'
 
 const SAVE_KEY = 'casinotro_v3'
 /** Coût du premier renouvellement de boutique, remis à zéro à chaque partie. */
@@ -66,7 +68,10 @@ export class GameLoop {
     return {
       addLog: (msg, muted) => this.shop.addLog(msg, muted),
       triggerDialogue: (lines) => this.dialogueUI.show(lines),
-      updateHUD: () => this.hud.update({ level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem.getModifiers()),
+      updateHUD: () => {
+        this.refreshBetChips()
+        this.hud.update({ level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem.getModifiers())
+      },
       updateShop: () => this.shop.updateDisplay(),
     }
   }
@@ -78,7 +83,11 @@ export class GameLoop {
     this.hud = new HUD(
       this.economy,
       () => this.handleSpin(),
-      (amount) => { this.economy.setBet(amount); this.uiContext.updateHUD() }
+      (amount) => {
+        if (this.plugin.getForcedBet?.(this.ctx)) return
+        this.economy.setBet(amount)
+        this.uiContext.updateHUD()
+      }
     )
     this.dialogueUI = new DialogueUI()
     this.shop = new ShopUI(
@@ -91,8 +100,24 @@ export class GameLoop {
         return null
       }
     )
+    // Sans ce branchement, plugin.onShopSell ne partait jamais : dévorer un
+    // bonus ne remettait pas la mise de Gula à son plancher.
+    this.shop.setOnBonusSold((bonus, refund) => {
+      // Gula dévore au lieu de vendre : devourRefundPercent 0 = aucun cash rendu.
+      const params = getCharacter(this.run.characterId)?.effect?.params
+      const rate = typeof params?.devourRefundPercent === 'number' ? params.devourRefundPercent : 1
+      const payout = Math.floor(refund * rate)
+      if (payout > 0) {
+        this.economy.addMoney(payout)
+        this.shop.addLog(`Vendu : ${bonus.name} +⛧${payout}`, true)
+      }
+      this.plugin.onShopSell?.(this.ctx, bonus)
+      this.uiContext.updateHUD()
+      this.save()
+    })
+
     this.characterSelect = new CharacterSelect(CHARACTERS, (c) => this.startRun(c.id), this.progression.unlockedCharacters)
-    this.endScreen = new EndScreen(() => this.restartRun())
+    this.endScreen = new EndScreen(() => this.restartRun(), () => this.continueEndless())
     this.profileModal = new ProfileModal()
     this.paytableModal = new PaytableModal()
 
@@ -135,6 +160,10 @@ export class GameLoop {
       this.plugin = getCharacterPlugin(this.run.characterId)
       this.plugin.onSetup?.(this.ctx)
       this.plugin.restore?.(save.pluginState)
+      // Une mise imposée sort des paliers : elle se relit depuis le plugin,
+      // jamais depuis economy.currentBet (setBet filtre sur betOptions).
+      const forced = this.plugin.getForcedBet?.(this.ctx)
+      if (forced) this.economy.forceSetBet(forced.amount)
       this.bonusSystem.setReelCount(this.machine.reelCount)
       this.applyMachineMeta()
 
@@ -147,7 +176,7 @@ export class GameLoop {
       this.renderer.showModifiers(this.bonusSystem.getModifiers())
       this.shop.setOffers(save.shopOffers ?? [], this.economy.getShopLevel())
       if (typeof save.rerollCost === 'number') this.shop.setRerollCost(save.rerollCost)
-      this.hud.rebuildBetChips()
+      this.refreshBetChips()
       this.uiContext.updateHUD()
       this.applyCharacterTheme()
       this.refreshAction()
@@ -164,7 +193,7 @@ export class GameLoop {
     this.bonusSystem.setReelCount(this.machine.reelCount)
     this.applyMachineMeta()
     this.economy.restart(100)
-    this.hud.rebuildBetChips()
+    this.refreshBetChips()
     this.bonusSystem.reset()
     this.renderer.hideGameOver()
     this.endScreen.hide()
@@ -174,6 +203,7 @@ export class GameLoop {
     this.clearSave()
 
     this.plugin.onSetup?.(this.ctx)
+    this.grantStarterItem(character)
     this.applyCharacterTheme()
 
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
@@ -305,22 +335,82 @@ export class GameLoop {
     }
   }
 
+  /**
+   * Bonus offert en début de run (effect.params.starterItemId). Uniquement au
+   * démarrage : la reprise de sauvegarde relit l'inventaire déjà stocké.
+   */
+  private grantStarterItem(character: Character | undefined): void {
+    const id = character?.effect?.params?.starterItemId
+    if (typeof id !== 'string') return
+    const item = getItem(id)
+    if (!item) return
+    this.bonusSystem.addBonus(item)
+    this.shop.addLog(`Entrée offerte : ${item.name}`, true)
+  }
+
+  /** Paliers de mise, sauf si le personnage impose sa mise (Gula). */
+  private refreshBetChips(): void {
+    const forced = this.plugin.getForcedBet?.(this.ctx)
+    if (forced) this.hud.showEscalatingBet(forced.amount, forced.nextIncrement)
+    else this.hud.restoreBetChips()
+  }
+
   private checkStageProgress(grid: any[][]): void {
-    if (this.economy.balance >= this.run.currentGoal && this.run.stage >= 3) {
+    if (this.economy.balance < this.run.currentGoal) return
+
+    if (this.run.isEndless) {
+      this.progression.updateHighscore(this.economy.balance)
+      this.run.advanceEndless()
+      this.economy.setBetOptions(this.run.betOptions)
+      this.grantQuotaSlots()
+      this.refreshBetChips()
+      this.shop.refresh(this.economy.getShopLevel())
+      this.shop.addLog(`Quota infini ${this.run.endlessLevel} atteint — objectif ⛧${this.run.currentGoal}.`)
+      this.uiContext.updateHUD()
+      this.save(grid)
+      return
+    }
+
+    if (this.run.stage >= 3) {
       this.progression.updateHighscore(this.economy.balance)
       this.victory()
       return
     }
-    if (this.economy.balance >= this.run.currentGoal && this.run.stage < 3) {
-      this.plugin.onStageComplete?.(this.ctx, this.run.stage)
-      this.run.advanceStage()
-      this.economy.setBetOptions(this.run.betOptions)
-      this.hud.rebuildBetChips()
-      this.shop.refresh(this.economy.getShopLevel())
-      this.shop.addLog(`Palier ${this.run.stage} atteint — boutique renouvelée !`)
-      this.uiContext.updateHUD()
-      this.save(grid)
-    }
+
+    this.plugin.onStageComplete?.(this.ctx, this.run.stage)
+    this.run.advanceStage()
+    this.economy.setBetOptions(this.run.betOptions)
+    this.grantQuotaSlots()
+    this.refreshBetChips()
+    this.shop.refresh(this.economy.getShopLevel())
+    this.shop.addLog(`Palier ${this.run.stage} atteint — boutique renouvelée !`)
+    this.uiContext.updateHUD()
+    this.save(grid)
+  }
+
+  /** Chaque quota franchi élargit l'inventaire de bonus. */
+  private grantQuotaSlots(): void {
+    this.bonusSystem.grantSlots(SLOTS_PER_QUOTA)
+    this.shop.addLog(`+${SLOTS_PER_QUOTA} emplacements de bonus (${this.bonusSystem.maxSlots} au total).`, true)
+  }
+
+  /**
+   * Poursuite après la victoire : le run continue, quota ×5 à chaque palier.
+   */
+  private continueEndless(): void {
+    this.runEnded = false
+    this.isSpinning = false
+    this.run.advanceEndless()
+    this.economy.setBetOptions(this.run.betOptions)
+    this.grantQuotaSlots()
+    this.refreshBetChips()
+    this.shop.refresh(this.economy.getShopLevel())
+    this.shop.addLog(`Mode infini — quota suivant : ⛧${this.run.currentGoal}.`)
+    this.hud.setSpinEnabled(true)
+    this.hud.setSpinLabel('SPIN')
+    this.refreshAction()
+    this.uiContext.updateHUD()
+    this.save()
   }
 
   /** Laisse le personnage réécrire la grille (slots morts d'Ira, etc.). */
@@ -413,6 +503,7 @@ export class GameLoop {
       title: 'La maison remercie',
       body: `${text} Rassure-toi : ici, la faillite n'est jamais définitive, seulement renouvelable.`,
       stats: this.endStats(),
+      canContinue: true,
     })
   }
 

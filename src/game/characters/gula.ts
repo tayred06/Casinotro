@@ -33,6 +33,10 @@ export function createGulaPlugin(): CharacterPlugin {
       ctx.economy.forceSetBet(gulaBet)
     },
 
+    getForcedBet(ctx: GameContext) {
+      return { amount: gulaBet, nextIncrement: getIncrement(ctx) }
+    },
+
     onShopSell(ctx: GameContext, item: ItemInstance): void {
       gulaBet = GULA_PARAMS.betEscalationFloor
       ctx.economy.forceSetBet(gulaBet)
@@ -41,6 +45,14 @@ export function createGulaPlugin(): CharacterPlugin {
 
     onLossCheck(ctx: GameContext): boolean {
       return ctx.economy.balance < gulaBet
+    },
+
+    serialize() {
+      return { gulaBet }
+    },
+
+    restore(data: any) {
+      if (typeof data?.gulaBet === 'number' && data.gulaBet > 0) gulaBet = data.gulaBet
     },
 
     onDialogueTrigger(_ctx: GameContext): DialogueLine[] {

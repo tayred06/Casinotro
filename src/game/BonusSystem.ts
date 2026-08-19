@@ -2,6 +2,11 @@ import type { ItemDef, ItemInstance, Modifiers, SpinResult, GameSymbol } from '.
 import { shuffleArray } from '../utils/Random.ts'
 import { getItemsByLevel } from './items/index.ts'
 
+/** Emplacements de bonus au démarrage d'un run. */
+export const DEFAULT_MAX_SLOTS = 5
+/** Emplacements gagnés à chaque quota franchi. */
+export const SLOTS_PER_QUOTA = 2
+
 export class BonusSystem {
   static #counter = 0
   /** Nombre de rouleaux de la machine courante — dimensionne les modificateurs. */
@@ -10,12 +15,17 @@ export class BonusSystem {
   #chainCounts: Record<string, number> = {}    // { [symbolId]: number } — spins consécutifs gagnants
   #chainBonuses: Record<string, number> = {}   // { [symbolId]: number } — bonus permanents acquis
   #stickyPositions: Record<string, GameSymbol> = {} // { [`${reel}-${row}`]: Symbol }
+  #maxSlots = DEFAULT_MAX_SLOTS
 
   get activeBonus(): ItemInstance[] { return [...this.#active] }
   get reelCount(): number { return this.#reelCount }
 
   setReelCount(n: number): void { this.#reelCount = n }
-  get isFull(): boolean { return this.#active.length >= 5 }
+  get isFull(): boolean { return this.#active.length >= this.#maxSlots }
+  get maxSlots(): number { return this.#maxSlots }
+
+  /** Chaque quota franchi élargit l'inventaire. */
+  grantSlots(n: number): void { this.#maxSlots += n }
 
   addBonus(bonusDef: ItemDef, target: number | string | null = null): ItemInstance {
     const instance: ItemInstance = {
@@ -171,10 +181,12 @@ export class BonusSystem {
     this.#chainCounts     = {}
     this.#chainBonuses    = {}
     this.#stickyPositions = {}
+    this.#maxSlots        = DEFAULT_MAX_SLOTS
   }
 
   serialize() {
     return {
+      maxSlots:        this.#maxSlots,
       active:          this.#active,
       chainCounts:     this.#chainCounts,
       chainBonuses:    this.#chainBonuses,
@@ -187,6 +199,7 @@ export class BonusSystem {
     this.#chainCounts     = data.chainCounts     ?? {}
     this.#chainBonuses    = data.chainBonuses    ?? {}
     this.#stickyPositions = data.stickyPositions ?? {}
+    this.#maxSlots        = data.maxSlots        ?? DEFAULT_MAX_SLOTS
     // Advance the static counter past any restored instanceIds to prevent collisions
     const maxId = this.#active.reduce((m, b) => Math.max(m, parseInt(b.instanceId) || 0), 0)
     if (maxId > BonusSystem.#counter) BonusSystem.#counter = maxId

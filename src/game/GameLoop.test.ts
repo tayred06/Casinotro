@@ -135,6 +135,90 @@ describe('GameLoop — nouvelle partie', () => {
     expect(document.getElementById('reroll-btn')!.textContent).toContain('⛧5')
   })
 
+  /**
+   * Régression : les paliers de mise restaient cliquables sur Gula, dont la
+   * mise est censée n'être qu'imposée par l'escalade.
+   */
+  it("remplace les paliers par la mise imposée sur Gula", () => {
+    const loop = new GameLoop()
+    loop.startRun('gula')
+
+    expect(document.getElementById('gula-bet-display')!.textContent).toBe('⛧1')
+    expect(betChipLabels()).not.toContain('⛧5')
+
+    loop.startRun('luxuria')
+    expect(document.getElementById('gula-bet-display')).toBeNull()
+    expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧5', '⛧10', '⛧25'])
+  })
+
+  /**
+   * Régression : setOnBonusSold n'était jamais branché, donc dévorer un bonus
+   * ne déclenchait pas onShopSell et la mise de Gula restait à son niveau.
+   */
+  it('remet la mise de Gula à 1⛧ quand on dévore un bonus', () => {
+    const loop = new GameLoop()
+    loop.startRun('gula')
+
+    const economy = (loop as any).economy
+    const bonusSystem = (loop as any).bonusSystem
+    const shop = (loop as any).shop
+
+    economy.forceSetBet(12)
+    bonusSystem.addBonus({ id: 'x', name: 'Test', price: 20, effect: 'chain', description: '' } as any)
+    ;(shop as any).updateDisplay()
+
+    const balanceBefore = economy.balance
+    document.querySelector<HTMLElement>('.bonus-tag')!.click()
+
+    expect(economy.currentBet).toBe(1)
+    expect(economy.balance).toBe(balanceBefore) // devourRefundPercent: 0
+    expect(document.getElementById('gula-bet-display')!.textContent).toBe('⛧1')
+  })
+
+  it('offre le Porte-Bonheur au démarrage de Gula', () => {
+    const loop = new GameLoop()
+    loop.startRun('gula')
+
+    const active = (loop as any).bonusSystem.activeBonus
+    expect(active.map((b: any) => b.id)).toContain('luck_boost')
+
+    loop.startRun('luxuria')
+    expect((loop as any).bonusSystem.activeBonus).toHaveLength(0)
+  })
+
+  it('ajoute 2 emplacements de bonus à chaque quota franchi', () => {
+    const loop = new GameLoop()
+    loop.startRun('luxuria')
+
+    const bonusSystem = (loop as any).bonusSystem
+    expect(bonusSystem.maxSlots).toBe(5)
+
+    ;(loop as any).economy.addMoney(600)
+    ;(loop as any).checkStageProgress([])
+
+    expect((loop as any).run.stage).toBe(2)
+    expect(bonusSystem.maxSlots).toBe(7)
+  })
+
+  it('poursuit la partie en mode infini depuis l\'écran de victoire', () => {
+    const loop = new GameLoop()
+    loop.startRun('luxuria')
+
+    const run = (loop as any).run
+    run.stage = 3
+    ;(loop as any).economy.addMoney(20000)
+    ;(loop as any).checkStageProgress([])
+
+    expect(overlayVisible('end-screen-overlay')).toBe(true)
+    document.getElementById('es-continue-btn')!.click()
+
+    expect(overlayVisible('end-screen-overlay')).toBe(false)
+    expect(run.isEndless).toBe(true)
+    expect(run.currentGoal).toBe(50000)
+    expect((loop as any).runEnded).toBe(false)
+    expect((loop as any).bonusSystem.maxSlots).toBe(7)
+  })
+
   it('applique le thème du personnage choisi', () => {
     const loop = new GameLoop()
     loop.startRun('gula')
