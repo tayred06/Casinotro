@@ -12,6 +12,7 @@ import { HUD } from '../ui/HUD.ts'
 import { ShopUI } from '../ui/ShopUI.ts'
 import { CharacterSelect } from '../ui/CharacterSelect.ts'
 import { ProfileModal } from '../ui/ProfileModal.ts'
+import { PaytableModal } from '../ui/PaytableModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
 import { CHARACTERS, getCharacter } from './Characters.ts'
 
@@ -37,6 +38,7 @@ export class GameLoop {
   private shop: ShopUI
   private characterSelect: CharacterSelect
   private profileModal: ProfileModal
+  private paytableModal: PaytableModal
   private dialogueUI: DialogueUI
 
   /** Machine de la run courante. Toute la géométrie et la paytable en découlent. */
@@ -84,11 +86,13 @@ export class GameLoop {
     )
     this.characterSelect = new CharacterSelect(CHARACTERS, (c) => this.startRun(c.id))
     this.profileModal = new ProfileModal()
+    this.paytableModal = new PaytableModal()
 
     document.getElementById('pm-close')?.addEventListener('click', () => this.profileModal.close())
     document.querySelector('.char-hud-identity')?.addEventListener('click', () => {
       this.profileModal.open(getCharacter(this.run.characterId)!, this.economy, { level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem)
     })
+    document.getElementById('machine-help-btn')?.addEventListener('click', () => this.paytableModal.open(this.machine))
     document.getElementById('new-game-btn')?.addEventListener('click', () => this.restartRun())
 
     this.actionBtn = document.getElementById('char-action-btn') as HTMLButtonElement | null
