@@ -83,7 +83,9 @@
   grid-template-columns: repeat(8, minmax(160px, 1fr));
   grid-auto-rows: auto;
   gap: 12px;
-  align-content: start;
+  // Le bloc de cartes est centré dans la hauteur restante : sans ça, tout le vide
+  // s'accumule sous les cartes.
+  align-content: center;
   align-items: stretch;
 }
 
