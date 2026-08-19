@@ -27,6 +27,11 @@
  *   { type: 'custom',           key: String, value: any }// effet spécial géré manuellement
  */
 
+import { LUXURIA_PARAMS } from './characters/luxuria.ts'
+import { GULA_PARAMS } from './characters/gula.ts'
+import { AVARITIA_PARAMS } from './characters/avaritia.ts'
+import { IRA_PARAMS } from './characters/ira.ts'
+
 export interface Character {
   id: string
   name: string
@@ -62,13 +67,7 @@ export const CHARACTERS: Character[] = [
     effect: {
       type: 'custom',
       key: 'luxuria',
-      params: {
-        rareSymbolWeightMultiplier: 2.5, // fréquence des symboles rares
-        upkeepPercent: 0.05,             // % de la cagnotte perdu à chaque spin
-        upkeepLabel: 'Entretien',        // libellé affiché (ton bureaucratique)
-        upkeepRamp: 0,                   // +X points de % tous les rampEvery spins (0 = désactivé)
-        upkeepRampEvery: 5,
-      },
+      params: LUXURIA_PARAMS,
     },
   },
   {
@@ -88,13 +87,7 @@ export const CHARACTERS: Character[] = [
     effect: {
       type: 'custom',
       key: 'gula',
-      params: {
-        betEscalationPercent: 0.12, // + % de mise à chaque spin, automatique
-        betEscalationFloor: 1,      // incrément minimum en valeur absolue
-        playerControlsBet: false,   // la mise n'est pas choisie par le joueur
-        devourResetsEscalation: true, // consommer un bonus remet la mise à son plancher
-        devourRefundPercent: 0,     // 0 = pas de cash rendu, seulement le reset
-      },
+      params: GULA_PARAMS,
     },
   },
   {
@@ -114,19 +107,7 @@ export const CHARACTERS: Character[] = [
     effect: {
       type: 'custom',
       key: 'avaritia',
-      params: {
-        winMultiplier: 2,
-        // Paliers indexés sur la progression vers `goal` (record de cagnotte)
-        shopGates: [
-          { progress: 0.0, maxTier: 0, priceMultiplier: null }, // aucun achat
-          { progress: 0.25, maxTier: 1, priceMultiplier: 2 },
-          { progress: 0.5, maxTier: 2, priceMultiplier: 1.5 },
-          { progress: 0.75, maxTier: 3, priceMultiplier: 1 },  // boutique complète
-        ],
-        // Idée gardée en réserve : les combinaisons faibles ne rapportent rien
-        despiseLowSymbols: false,
-        lowSymbolPayoutMultiplier: 0,
-      },
+      params: AVARITIA_PARAMS,
     },
   },
   {
@@ -146,20 +127,7 @@ export const CHARACTERS: Character[] = [
     effect: {
       type: 'custom',
       key: 'ira',
-      params: {
-        strikeAlwaysAvailable: true,  // bouton permanent, pas une ressource
-        strikeSpinMultiplier: 1.5,    // le free spin obtenu est "amélioré"
-        slotLives: 2,                 // intact -> fissuré -> mort
-        damageTargeting: 'random',    // slot au hasard parmi les vivants
-        shatterChanceBase: 0.10,      // proba de tuer un slot d'un coup
-        shatterChancePerStrike: 0.05, // escalade : +5 pts par frappe
-        shatterChanceMax: 1,
-        loseOnDeadColumn: true,       // une colonne entière morte = fin de partie
-        repairBonusId: 'reparation',  // restaure un slot
-        calmBonusId: 'respirer',      // fait redescendre shatterChance
-        calmReduction: 0.15,          // points de % rendus par "Respirer"
-        rareBonusGuaranteedEvery: 3,  // garanti en boutique tous les X paliers
-      },
+      params: IRA_PARAMS,
     },
   },
   {

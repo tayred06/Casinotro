@@ -5,7 +5,8 @@ import {
   CELL_INTACT, CELL_CRACKED, CELL_DEAD, REEL_COUNT, MAX_ROWS,
 } from '../SlotMachine.ts'
 
-const PARAMS = {
+/** Source unique des réglages d'Ira — référencée par CHARACTERS. */
+export const IRA_PARAMS = {
   freeSpinGlobalMultiplier: 1.5,
   freeSpinLuckBonus: 20,
   // En dessous de 3 rouleaux vivants, plus aucune combinaison n'est possible.
@@ -72,7 +73,7 @@ export function createIraPlugin(): CharacterPlugin {
 
     // La machine ne peut plus rien payer = fin de la run.
     onLossCheck(ctx: GameContext): boolean {
-      return liveReelCount(ctx.rowCounts) < PARAMS.minLiveReels
+      return liveReelCount(ctx.rowCounts) < IRA_PARAMS.minLiveReels
     },
 
     actions: [
@@ -97,8 +98,8 @@ export function createIraPlugin(): CharacterPlugin {
 
           await ctx.requestSpin({
             free: true,
-            globalMultiplier: PARAMS.freeSpinGlobalMultiplier,
-            luckBonus: PARAMS.freeSpinLuckBonus,
+            globalMultiplier: IRA_PARAMS.freeSpinGlobalMultiplier,
+            luckBonus: IRA_PARAMS.freeSpinLuckBonus,
           })
         },
       },
