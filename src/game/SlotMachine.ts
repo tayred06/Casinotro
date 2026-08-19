@@ -1,20 +1,34 @@
-import type { GameSymbol, SpinOptions, SpinResult, WinLine, Modifiers, Souls } from '../types/index.ts'
-import { randomInt } from '../utils/Random.ts'
-import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS } from './Symbols.ts'
+import type {
+  GameSymbol, MachineConfig, Modifiers, SpinOptions, SpinResult, Souls, WinLine,
+} from '../types/index.ts'
+import { random, randomInt } from '../utils/Random.ts'
+import { generateReelColumn, WILD_ID, SCATTER_ID, winSymbolsOf } from './Symbols.ts'
 
-const REEL_COUNT = 6
-const MIN_ROWS = 2
-const MAX_ROWS = 7
+/** Hauteur de chaque colonne pour ce spin. `fixedRows` prime sur la config machine. */
+function resolveRowCounts(machine: MachineConfig, fixedRows?: number): number[] {
+  const n = machine.reelCount
+  if (fixedRows) {
+    const clamped = Math.max(1, Math.round(fixedRows))
+    return Array.from({ length: n }, () => clamped)
+  }
+  const rows = machine.rows
+  if (rows.kind === 'fixed') {
+    return Array.from({ length: n }, () => rows.count)
+  }
+  const { min, max } = rows
+  return Array.from({ length: n }, () => randomInt(min, max))
+}
 
 export function spin(
+  machine: MachineConfig,
   stickyPositions: Record<string, GameSymbol> = {},
   luckFactor = 0,
   opts: SpinOptions = {}
 ): { grid: GameSymbol[][], rowCounts: number[] } {
-  const { rareMultiplier = 1 } = opts
-  const rowCounts = Array.from({ length: REEL_COUNT }, () => randomInt(MIN_ROWS, MAX_ROWS))
+  const { rareMultiplier = 1, fixedRows } = opts
+  const rowCounts = resolveRowCounts(machine, fixedRows)
   const grid = rowCounts.map((rowCount, reel) => {
-    const col = generateReelColumn(rowCount, luckFactor, rareMultiplier)
+    const col = generateReelColumn(machine.symbolPool, rowCount, luckFactor, rareMultiplier)
     for (let row = 0; row < rowCount; row++) {
       const key = `${reel}-${row}`
       if (stickyPositions[key]) col[row] = stickyPositions[key]
@@ -24,74 +38,182 @@ export function spin(
   return { grid, rowCounts }
 }
 
+// ─── Évaluation ───────────────────────────────────────────
+
+interface EvalContext {
+  machine: MachineConfig
+  grid: GameSymbol[][]
+  bet: Souls
+  columnMultipliers: number[]
+  symbolMultipliers: Record<string, number>
+  globalMultiplier: number
+  jackpotMultiplier: number
+}
+
+/** Plus haut multiplicateur de colonne parmi les rouleaux qui participent. */
+function bestColumnMultiplier(mults: number[], count: number): number {
+  let best = 1
+  for (let reel = 0; reel < count; reel++) {
+    if ((mults[reel] ?? 1) > best) best = mults[reel]
+  }
+  return best
+}
+
+function payout(
+  ctx: EvalContext,
+  symbolId: string,
+  count: number,
+  ways: number
+): { multiplier: number; win: Souls } | null {
+  const base = ctx.machine.paytable[symbolId]?.[count]
+  if (!base) return null
+
+  const colMult = bestColumnMultiplier(ctx.columnMultipliers, count)
+  const symMult = ctx.symbolMultipliers[symbolId] ?? 1
+  const jackpot = count >= ctx.machine.reelCount ? ctx.jackpotMultiplier : 1
+
+  const multiplier = base * ways * colMult * symMult * ctx.globalMultiplier * jackpot
+  return { multiplier, win: ctx.bet * multiplier }
+}
+
+/**
+ * Ways (Megaways) — le symbole compte n'importe où dans la colonne. Il faut au moins
+ * une occurrence par rouleau, en partant du rouleau 1, sans trou. Le gain est
+ * multiplié par le nombre de combinaisons distinctes, c'est-à-dire le produit des
+ * occurrences par rouleau.
+ */
+function evaluateWays(ctx: EvalContext): WinLine[] {
+  const lines: WinLine[] = []
+
+  for (const symbol of winSymbolsOf(ctx.machine.symbolPool)) {
+    const perReel: number[][] = []
+
+    for (let reel = 0; reel < ctx.machine.reelCount; reel++) {
+      const col = ctx.grid[reel] ?? []
+      const rows: number[] = []
+      for (let row = 0; row < col.length; row++) {
+        if (col[row].id === symbol.id || col[row].id === WILD_ID) rows.push(row)
+      }
+      if (rows.length === 0) break
+      perReel.push(rows)
+    }
+
+    const count = perReel.length
+    if (count < ctx.machine.minMatch) continue
+
+    const ways = perReel.reduce((product, rows) => product * rows.length, 1)
+    const pay = payout(ctx, symbol.id, count, ways)
+    if (!pay) continue
+
+    const cells: Array<[number, number]> = []
+    perReel.forEach((rows, reel) => rows.forEach(row => cells.push([reel, row])))
+
+    lines.push({
+      symbolId: symbol.id,
+      count,
+      ways,
+      multiplier: pay.multiplier,
+      win: pay.win,
+      cells,
+      reelRows: perReel.map(rows => rows[0]),
+    })
+  }
+
+  return lines
+}
+
+/**
+ * Lignes de paie — une seule case par rouleau, celle que la ligne traverse. Le symbole
+ * de référence est le premier non-wild rencontré ; une ligne entièrement wild paie le
+ * symbole le plus rare de la machine.
+ */
+function evaluateLines(ctx: EvalContext): WinLine[] {
+  const paylines = ctx.machine.paylines ?? []
+  const rarest = winSymbolsOf(ctx.machine.symbolPool)[0]
+  const lines: WinLine[] = []
+
+  paylines.forEach((payline, paylineIndex) => {
+    const cellsOnLine: GameSymbol[] = []
+    for (let reel = 0; reel < ctx.machine.reelCount; reel++) {
+      const cell = ctx.grid[reel]?.[payline[reel]]
+      if (!cell) return          // ligne hors grille : machine mal configurée
+      cellsOnLine.push(cell)
+    }
+
+    const lead = cellsOnLine.find(s => s.id !== WILD_ID && s.id !== SCATTER_ID)
+    const symbolId = lead?.id ?? rarest?.id
+    if (!symbolId) return
+
+    let count = 0
+    while (count < cellsOnLine.length) {
+      const id = cellsOnLine[count].id
+      if (id !== symbolId && id !== WILD_ID) break
+      count++
+    }
+    if (count < ctx.machine.minMatch) return
+
+    const pay = payout(ctx, symbolId, count, 1)
+    if (!pay) return
+
+    const cells: Array<[number, number]> = []
+    for (let reel = 0; reel < count; reel++) cells.push([reel, payline[reel]])
+
+    lines.push({
+      symbolId,
+      count,
+      ways: 1,
+      paylineIndex,
+      multiplier: pay.multiplier,
+      win: pay.win,
+      cells,
+      reelRows: cells.map(([, row]) => row),
+    })
+  })
+
+  return lines
+}
+
 export function calculateWins(
+  machine: MachineConfig,
   grid: GameSymbol[][],
   bet: Souls,
   modifiers: Partial<Modifiers> = {}
 ): SpinResult {
   const {
-    columnMultipliers = Array(REEL_COUNT).fill(1),
-    wildColumns = Array(REEL_COUNT).fill(false),
+    columnMultipliers = Array(machine.reelCount).fill(1),
+    wildColumns = Array(machine.reelCount).fill(false),
     symbolMultipliers = {},
-    jackpotMultiplier = 50,
+    jackpotMultiplier = 1,
     safetyNet = false,
     globalMultiplier = 1,
   } = modifiers
 
-  // Build effective grid with wild columns applied
+  // Colonnes wild : la colonne entière substitue n'importe quel symbole.
+  const wild = { id: WILD_ID, name: 'Wild', emoji: 'W', weight: 0, color: 0xFFFFFF }
   const effectiveGrid = grid.map((col, reel) =>
-    wildColumns[reel]
-      ? col.map(() => ({ id: 'wild', name: 'Wild', emoji: '🃏', weight: 0, color: 0xFFFFFF }))
-      : col
+    wildColumns[reel] ? col.map(() => wild) : col
   )
 
-  const winLines: WinLine[] = []
-
-  for (const symbol of WIN_SYMBOLS) {
-    const reelRows: number[] = []
-    for (let reel = 0; reel < REEL_COUNT; reel++) {
-      const col = effectiveGrid[reel]
-      // Require a proportional number of matching symbols per column
-      // (prevents every reel matching every symbol due to many rows)
-      const threshold = Math.max(1, Math.ceil(col.length * 0.4))
-      const matchIndices = col.reduce((acc: number[], s, i) => {
-        if (s.id === symbol.id || s.id === 'wild') acc.push(i)
-        return acc
-      }, [])
-      if (matchIndices.length < threshold) break
-      reelRows.push(matchIndices[0]) // first matching row used for visual line
-    }
-
-    const count = reelRows.length
-    if (count < 3) continue
-
-    const baseMultiplier = count === 6 ? jackpotMultiplier : WIN_MULTIPLIERS[count]
-
-    // Apply highest column multiplier among winning reels
-    let colMult = 1
-    for (let reel = 0; reel < count; reel++) {
-      if (columnMultipliers[reel] > colMult) colMult = columnMultipliers[reel]
-    }
-
-    const symMult = symbolMultipliers[symbol.id] ?? 1
-    const totalMultiplier = baseMultiplier * colMult * symMult * globalMultiplier
-    const lineWin = bet * totalMultiplier
-
-    winLines.push({ symbolId: symbol.id, count, multiplier: totalMultiplier, win: lineWin, reelRows })
+  const ctx: EvalContext = {
+    machine,
+    grid: effectiveGrid,
+    bet,
+    columnMultipliers,
+    symbolMultipliers,
+    globalMultiplier,
+    jackpotMultiplier,
   }
 
-  // Scatter check
-  const scatterCount = grid.flat().filter(s => s.id === 'scatter').length
-  const scatterTriggered = scatterCount >= 3
+  const winLines = machine.evaluator === 'lines' ? evaluateLines(ctx) : evaluateWays(ctx)
+
+  const scatterCount = grid.flat().filter(s => s.id === SCATTER_ID).length
+  const scatterTriggered = scatterCount >= machine.scatterMin
 
   let totalWin = winLines.reduce((sum, l) => sum + l.win, 0)
+  if (totalWin === 0 && safetyNet) totalWin = bet * 0.5
 
-  if (totalWin === 0 && safetyNet) {
-    totalWin = bet * 0.5
-  }
-
-  const hasLargeWin = winLines.some(l => l.count >= 4)
-  const dropBonus = hasLargeWin && Math.random() < 0.15
+  const hasLargeWin = winLines.some(l => l.count >= machine.minMatch + 1)
+  const dropBonus = hasLargeWin && random() < 0.15
 
   return { totalWin, winLines, scatterTriggered, dropBonus }
 }

@@ -131,3 +131,29 @@
   &:hover:not(:disabled) { background: #ff5570; border-color: #ff5570; }
   &:disabled { opacity: .42; cursor: not-allowed; background: var(--hot); }
 }
+
+/* ── Bouton d'action personnage (Frapper — Ira) ────────── */
+#char-action-btn {
+  margin-left: auto;
+  padding: 20px 30px;
+  border: 1px solid var(--char-edge, #96431a);
+  background: transparent;
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--char-edge, #96431a);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+
+  &:hover:not(:disabled) {
+    background: var(--char-edge, #96431a);
+    color: #fff;
+  }
+
+  &:disabled { opacity: .4; cursor: not-allowed; }
+  &.hidden { display: none; }
+
+  + #spin-btn { margin-left: 12px; }
+}

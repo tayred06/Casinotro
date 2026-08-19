@@ -4,12 +4,17 @@ import { getItemsByLevel } from './items/index.ts'
 
 export class BonusSystem {
   static #counter = 0
+  /** Nombre de rouleaux de la machine courante — dimensionne les modificateurs. */
+  #reelCount = 6
   #active: ItemInstance[] = []
   #chainCounts: Record<string, number> = {}    // { [symbolId]: number } — spins consécutifs gagnants
   #chainBonuses: Record<string, number> = {}   // { [symbolId]: number } — bonus permanents acquis
   #stickyPositions: Record<string, GameSymbol> = {} // { [`${reel}-${row}`]: Symbol }
 
   get activeBonus(): ItemInstance[] { return [...this.#active] }
+  get reelCount(): number { return this.#reelCount }
+
+  setReelCount(n: number): void { this.#reelCount = n }
   get isFull(): boolean { return this.#active.length >= 5 }
 
   addBonus(bonusDef: ItemDef, target: number | string | null = null): ItemInstance {
@@ -36,10 +41,10 @@ export class BonusSystem {
 
   getModifiers(): Modifiers {
     const modifiers: Modifiers = {
-      columnMultipliers: Array(6).fill(1),
-      wildColumns: Array(6).fill(false),
+      columnMultipliers: Array(this.#reelCount).fill(1),
+      wildColumns: Array(this.#reelCount).fill(false),
       symbolMultipliers: { ...this.#chainBonuses },
-      jackpotMultiplier: 20,
+      jackpotMultiplier: 1,
       safetyNet: false,
       globalMultiplier: 1,
       freeRerolls: 0,
@@ -64,7 +69,7 @@ export class BonusSystem {
           }
           break
         case 'jackpot_boost':
-          modifiers.jackpotMultiplier = 50
+          modifiers.jackpotMultiplier = 2.5
           break
         case 'safety_net':
           modifiers.safetyNet = true
@@ -120,12 +125,9 @@ export class BonusSystem {
     const newSticky: Record<string, GameSymbol> = {}
     if (mods.stickyEnabled && totalWin > 0) {
       for (const line of winLines) {
-        for (let reel = 0; reel < line.count; reel++) {
-          const col = grid[reel]
-          const matchRow = col.findIndex(s => s.id === line.symbolId || s.id === 'wild')
-          if (matchRow !== -1) {
-            newSticky[`${reel}-${matchRow}`] = col[matchRow]
-          }
+        for (const [reel, row] of line.cells) {
+          const symbol = grid[reel]?.[row]
+          if (symbol) newSticky[`${reel}-${row}`] = symbol
         }
       }
     }

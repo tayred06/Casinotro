@@ -1,158 +1,231 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
+import type { GameSymbol } from '../types/index.ts'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { getSymbolById } from './Symbols.ts'
+import { getMachine } from './machines/index.ts'
+import { seedRng, setRng } from '../utils/Random.ts'
 
-const lemon = getSymbolById('lemon')
-const bell  = getSymbolById('bell')
-const wild  = getSymbolById('wild')
-const scatter = getSymbolById('scatter')
-const diamond = getSymbolById('diamond')
+const megaways = getMachine('megaways')
+const rigide   = getMachine('rigide')
 
-describe('spin', () => {
-  it('retourne 6 reels', () => {
-    const { grid, rowCounts } = spin()
-    expect(grid).toHaveLength(6)
-    expect(rowCounts).toHaveLength(6)
-  })
+const sym = (id: string): GameSymbol => getSymbolById(id)!
+const lemon = sym('lemon')
+const bell = sym('bell')
+const wild = sym('wild')
+const scatter = sym('scatter')
+const ten = sym('ten')
 
-  it('chaque reel a entre 2 et 7 symboles', () => {
-    const { rowCounts } = spin()
-    for (const count of rowCounts) {
-      expect(count).toBeGreaterThanOrEqual(2)
-      expect(count).toBeLessThanOrEqual(7)
+/** Colonne de `n` fois le même symbole. */
+const col = (s: GameSymbol, n = 1): GameSymbol[] => Array.from({ length: n }, () => s)
+
+afterEach(() => setRng(null))
+
+describe('spin — géométrie', () => {
+  it('megaways : 6 rouleaux de 2 à 7 cases', () => {
+    seedRng(1)
+    for (let i = 0; i < 50; i++) {
+      const { grid, rowCounts } = spin(megaways)
+      expect(grid).toHaveLength(6)
+      expect(rowCounts).toHaveLength(6)
+      for (const n of rowCounts) {
+        expect(n).toBeGreaterThanOrEqual(2)
+        expect(n).toBeLessThanOrEqual(7)
+      }
     }
   })
 
+  it('megaways : les hauteurs varient bien d\'un rouleau à l\'autre', () => {
+    seedRng(2)
+    const seen = new Set<number>()
+    for (let i = 0; i < 100; i++) spin(megaways).rowCounts.forEach(n => seen.add(n))
+    expect(seen.size).toBeGreaterThan(1)
+  })
+
+  it('rigide : toutes les colonnes font 5 cases', () => {
+    seedRng(3)
+    for (let i = 0; i < 20; i++) {
+      expect(spin(rigide).rowCounts).toEqual([5, 5, 5, 5, 5, 5])
+    }
+  })
+
+  it('fixedRows prime sur la config de la machine', () => {
+    expect(spin(megaways, {}, 0, { fixedRows: 4 }).rowCounts).toEqual([4, 4, 4, 4, 4, 4])
+    expect(spin(rigide, {}, 0, { fixedRows: 3 }).rowCounts).toEqual([3, 3, 3, 3, 3, 3])
+  })
+
   it('applique les sticky positions', () => {
-    const stickyPositions = { '0-0': bell }
-    const { grid } = spin(stickyPositions)
+    const { grid } = spin(rigide, { '0-0': bell })
     expect(grid[0][0].id).toBe('bell')
+  })
+
+  it('est reproductible à graine égale', () => {
+    seedRng(77)
+    const a = spin(megaways).grid.map(c => c.map(s => s.id))
+    seedRng(77)
+    const b = spin(megaways).grid.map(c => c.map(s => s.id))
+    expect(a).toEqual(b)
   })
 })
 
-describe('calculateWins', () => {
-  it('détecte 3 symboles identiques consécutifs', () => {
-    const grid = [
-      [lemon],
-      [lemon],
-      [lemon],
-      [diamond],
-      [diamond],
-      [diamond],
-    ]
-    const result = calculateWins(grid, 10)
-    expect(result.winLines).toHaveLength(1)
-    expect(result.winLines[0].symbolId).toBe('lemon')
-    expect(result.winLines[0].count).toBe(3)
-    expect(result.totalWin).toBe(10 * 0.8)
-    expect(result.scatterTriggered).toBe(false)
+describe('calculateWins — ways (Megaways)', () => {
+  const pay = (id: string, n: number) => megaways.paytable[id][n]
+
+  it('paie 3 rouleaux consécutifs, une occurrence par rouleau', () => {
+    const grid = [col(lemon), col(lemon), col(lemon), col(ten), col(ten), col(ten)]
+    const r = calculateWins(megaways, grid, 10)
+    const line = r.winLines.find(l => l.symbolId === 'lemon')!
+    expect(line.count).toBe(3)
+    expect(line.ways).toBe(1)
+    expect(line.win).toBeCloseTo(10 * pay('lemon', 3))
   })
 
-  it('détecte 6 symboles identiques (jackpot)', () => {
-    const grid = Array(6).fill([lemon])
-    const result = calculateWins(grid, 5)
-    expect(result.winLines[0].count).toBe(6)
-    expect(result.totalWin).toBe(5 * 50)
+  it('multiplie par le nombre de combinaisons', () => {
+    // 2 × 1 × 3 = 6 façons
+    const grid = [col(lemon, 2), col(lemon, 1), col(lemon, 3), col(ten), col(ten), col(ten)]
+    const line = calculateWins(megaways, grid, 10).winLines.find(l => l.symbolId === 'lemon')!
+    expect(line.ways).toBe(6)
+    expect(line.win).toBeCloseTo(10 * pay('lemon', 3) * 6)
   })
 
-  it('le Wild complète une combinaison', () => {
-    const grid = [
-      [lemon],
-      [lemon],
-      [wild],   // Wild compte comme lemon
-      [bell],
-      [bell],
-      [bell],
-    ]
-    const result = calculateWins(grid, 10)
-    const lemonLine = result.winLines.find(l => l.symbolId === 'lemon')
-    expect(lemonLine).toBeDefined()
-    expect(lemonLine.count).toBe(3)
+  it('la position dans la colonne est indifférente', () => {
+    const a = [[ten, lemon], [lemon, ten], [ten, lemon], col(ten), col(ten), col(ten)]
+    const b = [[lemon, ten], [lemon, ten], [lemon, ten], col(ten), col(ten), col(ten)]
+    const winA = calculateWins(megaways, a, 10).winLines.find(l => l.symbolId === 'lemon')!.win
+    const winB = calculateWins(megaways, b, 10).winLines.find(l => l.symbolId === 'lemon')!.win
+    expect(winA).toBeCloseTo(winB)
   })
 
-  it('pas de gain si moins de 3 reels', () => {
-    const grid = [
-      [lemon],
-      [lemon],
-      [bell],
-      [bell],
-      [bell],
-      [bell],
-    ]
-    const result = calculateWins(grid, 10)
-    const lemonLine = result.winLines.find(l => l.symbolId === 'lemon')
-    expect(lemonLine).toBeUndefined()
+  it('un rouleau sans le symbole coupe la chaîne', () => {
+    const grid = [col(lemon), col(bell), col(lemon), col(lemon), col(lemon), col(lemon)]
+    const r = calculateWins(megaways, grid, 10)
+    expect(r.winLines.find(l => l.symbolId === 'lemon')).toBeUndefined()
   })
 
-  it('applique le jackpotMultiplier personnalisé', () => {
-    const grid = Array(6).fill([lemon])
-    const result = calculateWins(grid, 10, { jackpotMultiplier: 50 })
-    expect(result.totalWin).toBe(10 * 50)
+  it('ne paie pas en dessous de minMatch', () => {
+    const grid = [col(lemon), col(lemon), col(bell), col(bell), col(bell), col(bell)]
+    const r = calculateWins(megaways, grid, 10)
+    expect(r.winLines.find(l => l.symbolId === 'lemon')).toBeUndefined()
   })
 
-  it('applique le safetyNet si gain = 0', () => {
-    const grid = [
-      [lemon],
-      [bell],
-      [lemon],
-      [bell],
-      [lemon],
-      [bell],
-    ]
-    const result = calculateWins(grid, 10, { safetyNet: true })
-    expect(result.totalWin).toBe(5) // 50% de la mise
+  it('le wild complète une combinaison', () => {
+    const grid = [col(lemon), col(wild), col(lemon), col(ten), col(ten), col(ten)]
+    const line = calculateWins(megaways, grid, 10).winLines.find(l => l.symbolId === 'lemon')!
+    expect(line.count).toBe(3)
   })
 
-  it('détecte le scatter (3+ partout)', () => {
-    const grid = [
-      [scatter, bell],
-      [scatter, bell],
-      [scatter, bell],
-      [bell, bell],
-      [bell, bell],
-      [bell, bell],
-    ]
-    const result = calculateWins(grid, 10)
-    expect(result.scatterTriggered).toBe(true)
+  it('cells liste toutes les cases payées, pas une par rouleau', () => {
+    const grid = [col(lemon, 2), col(lemon, 1), col(lemon, 3), col(ten), col(ten), col(ten)]
+    const line = calculateWins(megaways, grid, 10).winLines.find(l => l.symbolId === 'lemon')!
+    expect(line.cells).toHaveLength(6)
+    expect(line.cells).toContainEqual([0, 1])
+    expect(line.cells).toContainEqual([2, 2])
+  })
+})
+
+describe('calculateWins — lines (machine figée)', () => {
+  const pay = (id: string, n: number) => rigide.paytable[id][n]
+  /** Grille 6×5 remplie de `filler`, puis on peint une ligne de paie. */
+  function gridWithLine(lineIndex: number, symbol: GameSymbol, count: number, filler = ten) {
+    const g = Array.from({ length: 6 }, () => col(filler, 5))
+    const payline = rigide.paylines![lineIndex]
+    for (let reel = 0; reel < count; reel++) g[reel][payline[reel]] = symbol
+    return g
+  }
+
+  it('paie une ligne de paie touchée', () => {
+    const g = gridWithLine(0, bell, 3, lemon)
+    const line = calculateWins(rigide, g, 10).winLines.find(l => l.symbolId === 'bell')!
+    expect(line.count).toBe(3)
+    expect(line.ways).toBe(1)
+    expect(line.paylineIndex).toBe(0)
+    expect(line.win).toBeCloseTo(10 * pay('bell', 3))
   })
 
-  it('applique columnMultipliers', () => {
-    const grid = [
-      [lemon],
-      [lemon],
-      [lemon],
-      [diamond],
-      [diamond],
-      [diamond],
-    ]
-    const result = calculateWins(grid, 10, { columnMultipliers: [2, 1, 1, 1, 1, 1] })
-    // lemon sur 3 reels (0,1,2) → base 0.8 × bet × colMultiplier[0]=2
-    expect(result.totalWin).toBe(10 * 0.8 * 2)
+  it('ne paie pas des symboles alignés hors ligne de paie', () => {
+    // 3 cœurs en colonne 0-1-2 mais sur des lignes qu'aucune payline ne relie ainsi
+    const g = Array.from({ length: 6 }, () => col(lemon, 5))
+    g[0][4] = bell; g[1][0] = bell; g[2][4] = bell
+    const r = calculateWins(rigide, g, 10)
+    expect(r.winLines.find(l => l.symbolId === 'bell')).toBeUndefined()
   })
 
-  it('applique symbolMultipliers', () => {
-    const grid = [
-      [lemon],
-      [lemon],
-      [lemon],
-      [diamond],
-      [diamond],
-      [diamond],
-    ]
-    const result = calculateWins(grid, 10, { symbolMultipliers: { lemon: 3 } })
-    expect(result.totalWin).toBeCloseTo(10 * 0.8 * 3, 5)
+  it('le wild complète la ligne', () => {
+    const g = gridWithLine(1, bell, 3, lemon)
+    g[1][rigide.paylines![1][1]] = wild
+    const line = calculateWins(rigide, g, 10).winLines.find(l => l.symbolId === 'bell')!
+    expect(line.count).toBe(3)
   })
 
-  it('applique globalMultiplier', () => {
-    const grid = [
-      [lemon],
-      [lemon],
-      [lemon],
-      [diamond],
-      [diamond],
-      [diamond],
-    ]
-    const result = calculateWins(grid, 10, { globalMultiplier: 2 })
-    expect(result.totalWin).toBe(10 * 0.8 * 2)
+  it('compte depuis le rouleau 1 uniquement', () => {
+    const g = Array.from({ length: 6 }, () => col(lemon, 5))
+    const payline = rigide.paylines![0]
+    for (let reel = 1; reel < 4; reel++) g[reel][payline[reel]] = bell
+    const r = calculateWins(rigide, g, 10)
+    expect(r.winLines.find(l => l.symbolId === 'bell')).toBeUndefined()
+  })
+
+  it('cells suit le tracé de la ligne', () => {
+    const g = gridWithLine(5, bell, 4, lemon)
+    const line = calculateWins(rigide, g, 10).winLines.find(l => l.symbolId === 'bell')!
+    expect(line.cells).toEqual([[0, 0], [1, 1], [2, 2], [3, 3]])
+  })
+})
+
+describe('calculateWins — modificateurs', () => {
+  const full = () => Array.from({ length: 6 }, () => col(lemon))
+
+  it('columnMultipliers applique le plus haut des rouleaux gagnants', () => {
+    const grid = [col(lemon), col(lemon), col(lemon), col(ten), col(ten), col(ten)]
+    const base = calculateWins(megaways, grid, 10).winLines.find(l => l.symbolId === 'lemon')!.win
+    const boosted = calculateWins(megaways, grid, 10, {
+      columnMultipliers: [1, 3, 1, 1, 1, 1],
+    }).winLines.find(l => l.symbolId === 'lemon')!.win
+    expect(boosted).toBeCloseTo(base * 3)
+  })
+
+  it('jackpotMultiplier ne joue que sur une combinaison pleine', () => {
+    const partial = [col(lemon), col(lemon), col(lemon), col(ten), col(ten), col(ten)]
+    const noJackpot = calculateWins(megaways, partial, 10, { jackpotMultiplier: 2.5 })
+      .winLines.find(l => l.symbolId === 'lemon')!.win
+    const plain = calculateWins(megaways, partial, 10).winLines.find(l => l.symbolId === 'lemon')!.win
+    expect(noJackpot).toBeCloseTo(plain)
+
+    const withJackpot = calculateWins(megaways, full(), 10, { jackpotMultiplier: 2.5 }).totalWin
+    expect(withJackpot).toBeCloseTo(calculateWins(megaways, full(), 10).totalWin * 2.5)
+  })
+
+  it('wildColumns transforme une colonne entière', () => {
+    const grid = [col(lemon), col(bell), col(lemon), col(ten), col(ten), col(ten)]
+    const r = calculateWins(megaways, grid, 10, { wildColumns: [false, true, false, false, false, false] })
+    expect(r.winLines.find(l => l.symbolId === 'lemon')!.count).toBe(3)
+  })
+
+  it('safetyNet rembourse la moitié quand rien ne tombe', () => {
+    const grid = [col(lemon), col(bell), col(lemon), col(bell), col(lemon), col(bell)]
+    expect(calculateWins(megaways, grid, 10, { safetyNet: true }).totalWin).toBe(5)
+  })
+
+  it('globalMultiplier et symbolMultipliers se cumulent', () => {
+    const grid = [col(lemon), col(lemon), col(lemon), col(ten), col(ten), col(ten)]
+    const base = calculateWins(megaways, grid, 10).winLines.find(l => l.symbolId === 'lemon')!.win
+    const boosted = calculateWins(megaways, grid, 10, {
+      globalMultiplier: 3,
+      symbolMultipliers: { lemon: 2 },
+    }).winLines.find(l => l.symbolId === 'lemon')!.win
+    expect(boosted).toBeCloseTo(base * 6)
+  })
+})
+
+describe('calculateWins — scatter', () => {
+  it('déclenche à partir de scatterMin', () => {
+    const g2 = [col(scatter), col(scatter), col(lemon), col(lemon), col(bell), col(bell)]
+    const g3 = [col(scatter), col(scatter), col(scatter), col(lemon), col(bell), col(bell)]
+    expect(calculateWins(megaways, g2, 10).scatterTriggered).toBe(false)
+    expect(calculateWins(megaways, g3, 10).scatterTriggered).toBe(true)
+  })
+
+  it('le scatter ne forme jamais de combinaison payante', () => {
+    const grid = Array.from({ length: 6 }, () => col(scatter))
+    expect(calculateWins(megaways, grid, 10).winLines).toHaveLength(0)
   })
 })

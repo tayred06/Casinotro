@@ -229,6 +229,18 @@
   &.red   { color: var(--hot); }
 }
 
+// Bas-payants : cartes. Volontairement plus discrets que les enseignes.
+.cell-card {
+  font-family: Georgia, serif;
+  font-weight: 700;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--ink);
+  opacity: .78;
+  user-select: none;
+  transition: transform .15s;
+}
+
 .cell-seven {
   font-family: 'Silkscreen', monospace;
   font-weight: 700;
@@ -375,4 +387,75 @@
   transition: background .15s, color .15s;
 
   &:hover { background: var(--gold); color: var(--bg); }
+}
+
+/* ── Slots brisés (Ira / Le Boxeur) ───────────────────── */
+.cell.dead {
+  background:
+    repeating-linear-gradient(45deg, #170805 0 6px, #1e0b06 6px 12px);
+  border-color: rgba(150,67,26,.55);
+  box-shadow: inset 0 0 18px rgba(0,0,0,.75);
+}
+
+.cell-broken {
+  font-family: 'VT323', monospace;
+  color: rgba(150,67,26,.85);
+  text-shadow: 0 0 10px rgba(150,67,26,.45);
+  opacity: .8;
+}
+
+.cell.cracked-hard {
+  border-color: rgba(150,67,26,.75);
+  background:
+    linear-gradient(115deg, transparent 0 44%, rgba(150,67,26,.75) 44% 46%, transparent 46% 100%),
+    linear-gradient(200deg, transparent 0 58%, rgba(150,67,26,.6) 58% 59.5%, transparent 59.5% 100%),
+    linear-gradient(70deg,  transparent 0 30%, rgba(150,67,26,.5) 30% 31.2%, transparent 31.2% 100%),
+    linear-gradient(160deg, transparent 0 74%, rgba(150,67,26,.45) 74% 75%, transparent 75% 100%),
+    var(--panel2);
+
+  > * { opacity: .5; }
+}
+
+.cell.cracked {
+  border-color: rgba(150,67,26,.5);
+  background:
+    linear-gradient(115deg, transparent 0 46%, rgba(150,67,26,.5) 46% 47.5%, transparent 47.5% 100%),
+    linear-gradient(200deg, transparent 0 62%, rgba(150,67,26,.32) 62% 63%, transparent 63% 100%),
+    var(--panel2);
+
+  > * { opacity: .68; }
+}
+
+/* ── Retour visuel de la frappe (Ira) ──────────────────── */
+.machine-area {
+  &.shake      { animation: machineShake .38s ease-out; }
+  &.shake-hard { animation: machineShakeHard .58s cubic-bezier(.36,.07,.19,.97); }
+}
+
+.cell.hit       { animation: cellHit .34s ease-out; z-index: 2; }
+
+.cell.shattered {
+  animation: cellShatter .55s cubic-bezier(.36,.07,.19,.97);
+  z-index: 2;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 60%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,214,150,.95) 0%, rgba(150,67,26,.35) 55%, transparent 70%);
+    animation: impactFlash .5s ease-out forwards;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-area.shake,
+  .machine-area.shake-hard,
+  .cell.hit,
+  .cell.shattered { animation: none; }
+  .cell.shattered::after { animation: none; opacity: 0; }
 }

@@ -1,4 +1,4 @@
-import type { CharacterPlugin, GameContext, SpinResult, UIContext, Souls } from '../types/index.ts'
+import type { CharacterPlugin, GameContext, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
 import { Economy } from './Economy.ts'
 import { BonusSystem } from './BonusSystem.ts'
 import { RunState } from './RunState.ts'
@@ -6,7 +6,7 @@ import { Progression } from '../meta/Progression.ts'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { SYMBOLS } from './Symbols.ts'
 import { getCharacterPlugin } from './characters/index.ts'
-import { getMachine } from './machines/index.ts'
+import { getMachine, DEFAULT_MACHINE_ID } from './machines/index.ts'
 import { ReelRenderer } from '../ui/ReelRenderer.ts'
 import { HUD } from '../ui/HUD.ts'
 import { ShopUI } from '../ui/ShopUI.ts'
@@ -15,19 +15,21 @@ import { ProfileModal } from '../ui/ProfileModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
 import { CHARACTERS, getCharacter } from './Characters.ts'
 
-const SAVE_KEY = 'casinotro_v2'
+const SAVE_KEY = 'casinotro_v3'
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 export class GameLoop {
-  private economy = new Economy(100)
+  private progression = new Progression()
+  private economy = new Economy(100, this.progression)
   private bonusSystem = new BonusSystem()
   private run = new RunState()
-  private progression = new Progression()
   private plugin: CharacterPlugin = { id: 'joueur' }
   private isSpinning = false
+  private currentGrid: any[][] = []
+  private actionBtn: HTMLButtonElement | null = null
   private symbolMap: Record<string, any>
 
   private renderer: ReelRenderer
@@ -36,6 +38,11 @@ export class GameLoop {
   private characterSelect: CharacterSelect
   private profileModal: ProfileModal
   private dialogueUI: DialogueUI
+
+  /** Machine de la run courante. Toute la géométrie et la paytable en découlent. */
+  private get machine(): MachineConfig {
+    return getMachine(this.run.machineId)
+  }
 
   private get ctx(): GameContext {
     return {
@@ -84,6 +91,9 @@ export class GameLoop {
     })
     document.getElementById('new-game-btn')?.addEventListener('click', () => this.restartRun())
 
+    this.actionBtn = document.getElementById('char-action-btn') as HTMLButtonElement | null
+    this.actionBtn?.addEventListener('click', () => this.handleCharacterAction())
+
     this.boot()
   }
 
@@ -95,16 +105,22 @@ export class GameLoop {
       this.bonusSystem.restore(save.bonusSystem)
       this.plugin = getCharacterPlugin(this.run.characterId)
       this.plugin.onSetup?.(this.ctx)
+      this.plugin.restore?.(save.pluginState)
+      this.bonusSystem.setReelCount(this.machine.reelCount)
+      this.applyMachineMeta()
 
-      const grid = save.grid
+      const rawGrid = save.grid
         ? save.grid.map((col: string[]) => col.map((id: string) => this.symbolMap[id] ?? SYMBOLS[0]))
-        : spin({}, this.getLuckFactor(), this.plugin.getSpinOptions?.(this.ctx) ?? {}).grid
+        : spin(this.machine, {}, this.getLuckFactor(), this.plugin.getSpinOptions?.(this.ctx) ?? {}).grid
 
+      const grid = this.applyGridTransform(rawGrid)
       this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
       this.renderer.showModifiers(this.bonusSystem.getModifiers())
       this.shop.setOffers(save.shopOffers ?? [], this.economy.getShopLevel())
+      this.hud.rebuildBetChips()
       this.uiContext.updateHUD()
       this.applyCharacterTheme()
+      this.refreshAction()
       this.characterSelect.hide()
     }
   }
@@ -113,8 +129,12 @@ export class GameLoop {
     this.plugin.onTeardown?.(this.ctx)
     this.plugin = getCharacterPlugin(characterId)
 
-    this.run.reset(characterId, 'megaways')
+    const character = getCharacter(characterId)
+    this.run.reset(characterId, character?.machineId ?? DEFAULT_MACHINE_ID)
+    this.bonusSystem.setReelCount(this.machine.reelCount)
+    this.applyMachineMeta()
     this.economy.restart(100)
+    this.hud.rebuildBetChips()
     this.bonusSystem.reset()
     this.renderer.hideGameOver()
     this.renderer.clearHighlights()
@@ -125,16 +145,17 @@ export class GameLoop {
     this.applyCharacterTheme()
 
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-    const { grid } = spin({}, this.getLuckFactor(), opts)
+    const { grid: rawGrid } = spin(this.machine, {}, this.getLuckFactor(), opts)
+    const grid = this.applyGridTransform(rawGrid)
     this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
     this.renderer.showModifiers(this.bonusSystem.getModifiers())
+    this.refreshAction()
     this.shop.refresh(1)
     this.hud.setSpinEnabled(true)
     this.hud.setSpinLabel('SPIN')
     this.isSpinning = false
     this.uiContext.updateHUD()
-    const char = getCharacter(characterId)
-    this.shop.addLog(`${char?.emoji ?? ''} ${char?.name ?? characterId} — bonne chance.`, true)
+    this.shop.addLog(`${character?.emoji ?? ''} ${character?.name ?? characterId} — bonne chance.`, true)
     this.save(grid)
   }
 
@@ -149,6 +170,7 @@ export class GameLoop {
 
     this.isSpinning = true
     this.hud.setSpinEnabled(false)
+    this.setActionEnabled(false)
     this.hud.setSpinLabel('SPIN…')
     this.renderer.hideWin()
     this.renderer.clearHighlights()
@@ -166,11 +188,12 @@ export class GameLoop {
     const mods = this.bonusSystem.getModifiers()
     const stickyPositions = mods.stickyPositions ?? {}
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-    const { grid } = spin(stickyPositions, this.getLuckFactor(), opts)
+    const { grid: rawGrid } = spin(this.machine, stickyPositions, this.getLuckFactor(), opts)
+    const grid = this.applyGridTransform(rawGrid)
 
     await this.renderer.animateSpin(grid)
 
-    const result: SpinResult = calculateWins(grid, this.economy.currentBet, mods)
+    const result: SpinResult = calculateWins(this.machine, grid, this.economy.currentBet, mods)
     this.bonusSystem.processPostSpin(result, grid)
 
     await this.plugin.onAfterSpin?.(this.ctx, result)
@@ -194,7 +217,7 @@ export class GameLoop {
 
     if (result.dropBonus && !this.bonusSystem.isFull) {
       const level = this.economy.getShopLevel()
-      const offers = this.bonusSystem.getShopOffers(level as 1 | 2 | 3)
+      const offers = this.bonusSystem.getShopOffers(level)
       if (offers[0]) {
         this.bonusSystem.addBonus(offers[0], null)
         this.renderer.showWin(0, null, `🎁 ${offers[0].name}`)
@@ -221,16 +244,19 @@ export class GameLoop {
     await delay(150)
     this.hud.setSpinEnabled(true)
     this.hud.setSpinLabel('SPIN')
+    this.refreshAction()
   }
 
-  private async handleFreeSpins(count: number): Promise<void> {
+  private async handleFreeSpins(count: number, winMultiplier = 1): Promise<void> {
     for (let i = 0; i < count; i++) {
       await delay(380)
       const mods = this.bonusSystem.getModifiers()
       const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-      const { grid } = spin(mods.stickyPositions ?? {}, this.getLuckFactor(), opts)
+      const { grid: rawGrid } = spin(this.machine, mods.stickyPositions ?? {}, this.getLuckFactor(), opts)
+      const grid = this.applyGridTransform(rawGrid)
       await this.renderer.animateSpin(grid)
-      const result = calculateWins(grid, this.economy.currentBet, mods)
+      const result = calculateWins(this.machine, grid, this.economy.currentBet, mods)
+      result.totalWin *= winMultiplier
       this.bonusSystem.processPostSpin(result, grid)
       this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
       if (result.totalWin > 0) {
@@ -250,11 +276,89 @@ export class GameLoop {
       this.plugin.onStageComplete?.(this.ctx, this.run.stage)
       this.run.advanceStage()
       this.economy.setBetOptions(this.run.betOptions)
+      this.hud.rebuildBetChips()
       this.shop.refresh(this.economy.getShopLevel())
       this.shop.addLog(`Palier ${this.run.stage} atteint — boutique renouvelée !`)
       this.uiContext.updateHUD()
       this.save(grid)
     }
+  }
+
+  /** Laisse le personnage réécrire la grille (slots morts d'Ira, etc.). */
+  private applyGridTransform(grid: any[][]): any[][] {
+    const transformed = this.plugin.transformGrid?.(this.ctx, grid) ?? grid
+    this.currentGrid = transformed
+    this.renderer.setCellStates(this.plugin.getCellStates?.(this.ctx) ?? null)
+    return transformed
+  }
+
+  private refreshAction(): void {
+    if (!this.actionBtn) return
+    const action = this.plugin.getAction?.(this.ctx) ?? null
+    if (!action) {
+      this.actionBtn.classList.add('hidden')
+      return
+    }
+    this.actionBtn.classList.remove('hidden')
+    this.actionBtn.textContent = action.label
+    this.actionBtn.title = action.hint ?? ''
+    this.actionBtn.disabled = !action.enabled || this.isSpinning
+  }
+
+  private setActionEnabled(enabled: boolean): void {
+    if (this.actionBtn) this.actionBtn.disabled = !enabled
+  }
+
+  private async handleCharacterAction(): Promise<void> {
+    if (this.isSpinning || this.economy.isGameOver()) return
+    const action = this.plugin.getAction?.(this.ctx)
+    if (!action || !action.enabled) return
+
+    this.isSpinning = true
+    this.hud.setSpinEnabled(false)
+    this.setActionEnabled(false)
+    this.renderer.hideWin()
+    this.renderer.clearHighlights()
+
+    const res = await this.plugin.onAction?.(this.ctx, action.id) ?? {}
+
+    // Re-rendu immédiat : les slots brisés apparaissent avant le spin gratuit
+    this.renderer.displayGrid(this.applyGridTransform(this.currentGrid), this.bonusSystem.getModifiers())
+    if (res.impact) this.renderer.playImpact(res.impact.col, res.impact.row, res.impact.broken)
+    this.uiContext.updateHUD()
+    this.shop.updateDisplay()
+    await delay(res.impact?.broken ? 760 : 520)
+
+    if (res.gameOver || this.plugin.onLossCheck?.(this.ctx)) {
+      this.gameOver(res.gameOver ?? 'Une colonne entière est morte. La machine a gagné.')
+      return
+    }
+
+    if (res.freeSpins) {
+      this.renderer.showWin(0, null, `🥊 Spin gratuit ×${res.winMultiplier ?? 1}`)
+      await delay(900)
+      this.renderer.hideWin()
+      await this.handleFreeSpins(res.freeSpins, res.winMultiplier ?? 1)
+    }
+
+    this.progression.updateHighscore(this.economy.balance)
+    this.checkStageProgress(this.currentGrid)
+    this.uiContext.updateHUD()
+    this.shop.updateDisplay()
+
+    if (this.plugin.onLossCheck?.(this.ctx)) {
+      this.gameOver('Une colonne entière est morte. La machine a gagné.')
+      return
+    }
+    if (this.economy.isGameOver()) {
+      this.gameOver(`Palier ${this.run.stage} · objectif ${this.run.currentGoal}⛧ · solde ${this.economy.balance.toFixed(2)}⛧`)
+      return
+    }
+
+    this.save(this.currentGrid)
+    this.isSpinning = false
+    this.hud.setSpinEnabled(true)
+    this.refreshAction()
   }
 
   private gameOver(text: string): void {
@@ -268,12 +372,27 @@ export class GameLoop {
     this.renderer.hideGameOver()
     this.renderer.clearHighlights()
     this.hud.setSpinEnabled(false)
+    this.actionBtn?.classList.add('hidden')
     this.characterSelect.show()
   }
 
   private getLuckFactor(): number {
     const luckBonus = this.plugin.getLuckBonus?.(this.ctx) ?? 0
     return (this.bonusSystem.getModifiers().luck + luckBonus) / 100 + this.economy.rtpNudge
+  }
+
+  /** Libellé de la machine affiché au-dessus de la grille. */
+  private applyMachineMeta(): void {
+    const el = document.querySelector('.machine-meta')
+    if (!el) return
+    const m = this.machine
+    const geometry = m.rows.kind === 'fixed'
+      ? `${m.reelCount} × ${m.rows.count}`
+      : `${m.reelCount} × ${m.rows.min}-${m.rows.max}`
+    const mode = m.evaluator === 'lines'
+      ? `${m.paylines?.length ?? 0} lignes`
+      : 'ways'
+    el.textContent = `${mode} · ${geometry}`
   }
 
   private applyCharacterTheme(): void {
@@ -303,6 +422,7 @@ export class GameLoop {
         economy:     this.economy.serialize(),
         bonusSystem: this.bonusSystem.serialize(),
         shopOffers:  this.shop.getOffers(),
+        pluginState: this.plugin.serialize?.() ?? null,
         grid:        grid?.map(col => col.map((s: any) => s.id)),
       }))
     } catch {}

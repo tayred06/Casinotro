@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Economy, BET_OPTIONS } from './Economy.ts'
+import { Economy, DEFAULT_BET_OPTIONS } from './Economy.ts'
 
-describe('BET_OPTIONS', () => {
+describe('DEFAULT_BET_OPTIONS', () => {
   it('contient les 5 mises attendues', () => {
-    expect(BET_OPTIONS).toEqual([1, 2, 5, 10, 25])
+    expect([...DEFAULT_BET_OPTIONS]).toEqual([1, 2, 5, 10, 25])
+  })
+
+  it('est figé — aucune instance ne peut le muter', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([50, 100])
+    expect([...DEFAULT_BET_OPTIONS]).toEqual([1, 2, 5, 10, 25])
+    expect(new Economy(100).betOptions).toEqual([1, 2, 5, 10, 25])
   })
 })
 
@@ -12,14 +19,13 @@ describe('Economy', () => {
 
   beforeEach(() => {
     eco = new Economy(100)
-    eco.highscore // charger highscore (simulé)
   })
 
   it('initialise avec le solde de départ', () => {
     expect(eco.balance).toBe(100)
   })
 
-  it('setBet change la mise si elle est dans BET_OPTIONS', () => {
+  it('setBet change la mise si elle fait partie des paliers', () => {
     eco.setBet(5)
     expect(eco.currentBet).toBe(5)
   })
@@ -99,5 +105,57 @@ describe('Economy', () => {
 
   it('isGameOver retourne false si balance > 0', () => {
     expect(eco.isGameOver()).toBe(false)
+  })
+})
+
+describe('paliers de mise par instance', () => {
+  it('setBetOptions n\'affecte pas les autres instances', () => {
+    const a = new Economy(100)
+    const b = new Economy(100)
+    a.setBetOptions([100, 200, 500])
+    expect(a.betOptions).toEqual([100, 200, 500])
+    expect(b.betOptions).toEqual([1, 2, 5, 10, 25])
+  })
+
+  it('recale la mise courante si elle sort des nouveaux paliers', () => {
+    const eco = new Economy(100)
+    eco.setBet(5)
+    eco.setBetOptions([25, 50, 125])
+    expect(eco.currentBet).toBe(25)
+  })
+
+  it('minBet suit les paliers courants', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50])
+    expect(eco.minBet).toBe(25)
+    expect(eco.isGameOver()).toBe(false)
+    eco.spend(80)
+    expect(eco.isGameOver()).toBe(true)
+  })
+
+  it('serialize/restore conserve les paliers', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125])
+    eco.setBet(50)
+    const clone = new Economy(1)
+    clone.restore(eco.serialize())
+    expect(clone.betOptions).toEqual([25, 50, 125])
+    expect(clone.currentBet).toBe(50)
+  })
+})
+
+describe('highscore', () => {
+  it('délègue au store partagé plutôt qu\'à un stockage propre', () => {
+    const store = { highscore: 0, updateHighscore(v) { if (v > this.highscore) this.highscore = v } }
+    const eco = new Economy(100, store)
+    eco.addWin(500)
+    expect(store.highscore).toBe(600)
+    expect(eco.highscore).toBe(600)
+  })
+
+  it('deux économies branchées sur le même store le partagent', () => {
+    const store = { highscore: 0, updateHighscore(v) { if (v > this.highscore) this.highscore = v } }
+    new Economy(100, store).addWin(900)
+    expect(new Economy(100, store).highscore).toBe(1000)
   })
 })

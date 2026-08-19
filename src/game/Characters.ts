@@ -39,6 +39,8 @@ export interface Character {
   color?: string
   colorEdge?: string
   unlockOrder: number
+  /** Machine jouée par ce personnage. Défaut : 'megaways'. */
+  machineId?: string
   hidden?: boolean
   goal?: number
   effect: { type: string; key?: string; params?: Record<string, any>; value?: any; bonusId?: string }
@@ -140,19 +142,21 @@ export const CHARACTERS: Character[] = [
     color: '#2B0C06',
     colorEdge: '#96431a',         // braise, métal chauffé à blanc
     unlockOrder: 4,
+    machineId: 'rigide',
     goal: 10000,
     description:
-      'Il peut frapper la machine pour un spin gratuit amélioré, mais chaque coup brise un slot — et une colonne morte finit la partie.',
+      'Sa machine ne respire plus : 6 colonnes de 5 slots, figées. Il peut la frapper pour un spin gratuit amélioré, mais chaque coup brise un slot — et une colonne morte finit la partie.',
     effect: {
       type: 'custom',
       key: 'ira',
       params: {
         strikeAlwaysAvailable: true,  // bouton permanent, pas une ressource
         strikeSpinMultiplier: 1.5,    // le free spin obtenu est "amélioré"
-        slotLives: 2,                 // intact -> fissuré -> mort
+        slotLives: 3,                 // intact -> fissuré -> lézardé -> mort
         damageTargeting: 'random',    // slot au hasard parmi les vivants
+        damageAttraction: 2,          // les cases déjà abîmées attirent les coups
         shatterChanceBase: 0.10,      // proba de tuer un slot d'un coup
-        shatterChancePerStrike: 0.05, // escalade : +5 pts par frappe
+        shatterChancePerStrike: 0.03, // escalade : +3 pts par frappe
         shatterChanceMax: 1,
         loseOnDeadColumn: true,       // une colonne entière morte = fin de partie
         repairBonusId: 'reparation',  // restaure un slot

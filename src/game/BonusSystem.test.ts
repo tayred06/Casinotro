@@ -72,9 +72,9 @@ describe('BonusSystem', () => {
       expect(bs.getModifiers().safetyNet).toBe(true)
     })
 
-    it('jackpot_boost actif → jackpotMultiplier = 50', () => {
+    it('jackpot_boost actif → jackpotMultiplier = 2.5', () => {
       bs.addBonus(jackpotBoost)
-      expect(bs.getModifiers().jackpotMultiplier).toBe(50)
+      expect(bs.getModifiers().jackpotMultiplier).toBe(2.5)
     })
 
     it('column_multiplier avec target=2 → columnMultipliers[2] = 2', () => {

@@ -13,6 +13,8 @@ export interface GameSymbol {
 // ─── Spin ────────────────────────────────────────────────
 export interface SpinOptions {
   rareMultiplier?: number
+  /** Force la hauteur des colonnes, quelle que soit la machine. */
+  fixedRows?: number
 }
 
 export interface SpinResult {
@@ -24,9 +26,18 @@ export interface SpinResult {
 
 export interface WinLine {
   symbolId: string
+  /** Nombre de rouleaux consécutifs (depuis le rouleau 1) qui participent. */
   count: number
+  /** Multiplicateur total appliqué à la mise (paytable × bonus × ways). */
   multiplier: number
   win: Souls
+  /** Nombre de combinaisons payées. Toujours 1 sur une machine à lignes. */
+  ways: number
+  /** Index de la ligne de paie touchée. Absent sur une machine ways. */
+  paylineIndex?: number
+  /** Toutes les cases gagnantes, en [rouleau, ligne]. Source du surlignage. */
+  cells: Array<[number, number]>
+  /** Première case gagnante par rouleau. Conservé pour compatibilité. */
   reelRows: number[]
 }
 
@@ -67,12 +78,38 @@ export interface ItemInstance extends ItemDef {
 }
 
 // ─── Machine ─────────────────────────────────────────────
+
+/** Hauteur des colonnes : figée, ou tirée au sort à chaque spin (Megaways). */
+export type RowSpec =
+  | { kind: 'fixed'; count: number }
+  | { kind: 'variable'; min: number; max: number }
+
+/**
+ * Mode de calcul des gains — les deux mécaniques réelles de casino.
+ *  - 'ways'  : le symbole compte n'importe où dans la colonne. Gain = paytable × nombre
+ *              de combinaisons (produit des occurrences par rouleau). Modèle Megaways.
+ *  - 'lines' : lignes de paie tracées d'avance, une case par rouleau. Modèle classique.
+ */
+export type EvaluatorKind = 'ways' | 'lines'
+
+/** paytable[symbolId][nombre de rouleaux] = multiplicateur de mise. */
+export type Paytable = Record<string, Record<number, number>>
+
 export interface MachineConfig {
   id: string
   name: string
   reelCount: number
-  minRows: number
-  maxRows: number
+  rows: RowSpec
+  evaluator: EvaluatorKind
+  /** Requis si evaluator === 'lines'. paylines[i][reel] = index de ligne. */
+  paylines?: number[][]
+  /** Ids de symboles utilisés par cette machine, puisés dans SYMBOL_LIBRARY. */
+  symbolPool: string[]
+  paytable: Paytable
+  /** Nombre minimum de rouleaux consécutifs pour payer. Typiquement 3. */
+  minMatch: number
+  /** Nombre de scatters déclenchant les free spins. */
+  scatterMin: number
   rtpTarget: number
   unlockRequirement?: string
 }
@@ -98,6 +135,22 @@ export interface GameContext {
   addLog(msg: string, muted?: boolean): void
 }
 
+// ─── Action de personnage (bouton dédié dans la barre) ───
+export interface CharacterAction {
+  id: string
+  label: string
+  hint?: string
+  enabled: boolean
+}
+
+export interface CharacterActionResult {
+  /** Case touchée par l'action, pour le retour visuel. */
+  impact?: { col: number; row: number; broken: boolean }
+  freeSpins?: number
+  winMultiplier?: number
+  gameOver?: string | null
+}
+
 // ─── Plugin personnage ────────────────────────────────────
 export interface CharacterPlugin {
   id: string
@@ -113,4 +166,11 @@ export interface CharacterPlugin {
   getSpinOptions?(ctx: GameContext): SpinOptions
   getLuckBonus?(ctx: GameContext): number
   offerModifier?(offer: ItemDef): ItemDef | null
+  transformGrid?(ctx: GameContext, grid: GameSymbol[][]): GameSymbol[][]
+  /** Usure par case, de 0 (intacte) à 1 (morte). Indexé [colonne][ligne]. */
+  getCellStates?(ctx: GameContext): number[][]
+  getAction?(ctx: GameContext): CharacterAction | null
+  onAction?(ctx: GameContext, actionId: string): Promise<CharacterActionResult> | CharacterActionResult
+  serialize?(): any
+  restore?(data: any): void
 }

@@ -5,34 +5,73 @@ interface SymbolDef extends GameSymbol {
   rare?: boolean
 }
 
-const ALL_SYMBOLS: SymbolDef[] = [
-  { id: 'lemon',   name: 'Citron',  emoji: '🍋', weight: 30, color: 0xFFDD00 },
-  { id: 'grape',   name: 'Raisin',  emoji: '🍇', weight: 25, color: 0x9B30FF },
-  { id: 'bell',    name: 'Cloche',  emoji: '🔔', weight: 18, color: 0xFF8C00 },
-  { id: 'diamond', name: 'Diamant', emoji: '💎', weight: 12, color: 0x00E5FF },
-  { id: 'star',    name: 'Étoile',  emoji: '⭐', weight: 8,  color: 0xFFD700, rare: true },
-  { id: 'dog',     name: 'Chien',   emoji: '🐕', weight: 4,  color: 0xFF6B6B, rare: true },
-  { id: 'wild',    name: 'Wild',    emoji: '🃏', weight: 3,  color: 0xFFFFFF, rare: true },
-  { id: 'scatter', name: 'Scatter', emoji: '💫', weight: 2,  color: 0xFF69B4, rare: true },
+/**
+ * Bibliothèque complète. Une machine n'en utilise qu'un sous-ensemble (`symbolPool`).
+ *
+ * Répartition volontaire en trois étages, comme une vraie machine : des bas-payants
+ * très fréquents (cartes), des moyens, des hauts très rares. Sans cet étalement,
+ * un moteur "ways" paie un 6-of-a-kind un spin sur quatre.
+ */
+const SYMBOL_LIBRARY: SymbolDef[] = [
+  // ── Bas-payants (cartes) ────────────────────────────
+  { id: 'ten',     name: 'Dix',     emoji: '🔟', weight: 30, color: 0xC9D8C0 },
+  { id: 'jack',    name: 'Valet',   emoji: '🇯',  weight: 28, color: 0xC9D8C0 },
+  { id: 'queen',   name: 'Dame',    emoji: '🇶',  weight: 26, color: 0xC9D8C0 },
+  { id: 'king',    name: 'Roi',     emoji: '🇰',  weight: 24, color: 0xC9D8C0 },
+  { id: 'ace',     name: 'As',      emoji: '🇦',  weight: 22, color: 0xC9D8C0 },
+  // ── Moyens (enseignes) ──────────────────────────────
+  { id: 'lemon',   name: 'Pique',   emoji: '♠',  weight: 16, color: 0xDCF7C8 },
+  { id: 'grape',   name: 'Trèfle',  emoji: '♣',  weight: 14, color: 0xDCF7C8 },
+  { id: 'bell',    name: 'Cœur',    emoji: '♥',  weight: 11, color: 0xFF2D55 },
+  { id: 'diamond', name: 'Carreau', emoji: '♦',  weight: 8,  color: 0xFF2D55 },
+  // ── Hauts-payants ───────────────────────────────────
+  { id: 'star',    name: 'Sept',    emoji: '7',  weight: 5,  color: 0xB6F36A, rare: true },
+  { id: 'dog',     name: 'Étoile',  emoji: '★',  weight: 3,  color: 0xFFD700, rare: true },
+  // ── Spéciaux ────────────────────────────────────────
+  { id: 'wild',    name: 'Wild',    emoji: 'W',  weight: 3,  color: 0xFFFFFF, rare: true },
+  { id: 'scatter', name: 'Scatter', emoji: '⛧',  weight: 2,  color: 0xFF69B4, rare: true },
 ]
 
-export const SYMBOLS: GameSymbol[] = ALL_SYMBOLS
-export const WIN_SYMBOLS: GameSymbol[] = ALL_SYMBOLS.filter(s => s.id !== 'wild' && s.id !== 'scatter')
-export const WILD = ALL_SYMBOLS.find(s => s.id === 'wild')
-export const SCATTER = ALL_SYMBOLS.find(s => s.id === 'scatter')
+export const SYMBOLS: GameSymbol[] = SYMBOL_LIBRARY
+export const WILD_ID = 'wild'
+export const SCATTER_ID = 'scatter'
+export const WILD = SYMBOL_LIBRARY.find(s => s.id === WILD_ID)!
+export const SCATTER = SYMBOL_LIBRARY.find(s => s.id === SCATTER_ID)!
 
-// Multipliers rebalanced: 3-symbol wins are modest, jackpots are rewarding
-export const WIN_MULTIPLIERS: Record<number, number> = { 3: 0.8, 4: 3, 5: 10, 6: 50 }
+/** Symboles payants : tout sauf le wild (qui substitue) et le scatter (qui se compte à part). */
+export const WIN_SYMBOLS: GameSymbol[] =
+  SYMBOL_LIBRARY.filter(s => s.id !== WILD_ID && s.id !== SCATTER_ID)
 
 export function getSymbolById(id: string): GameSymbol | undefined {
-  return ALL_SYMBOLS.find(s => s.id === id)
+  return SYMBOL_LIBRARY.find(s => s.id === id)
 }
 
-// Bias per symbol: positive = boosted by luck, negative = reduced by luck
+/** Résout les ids d'une machine en définitions. Lève si un id est inconnu. */
+export function resolvePool(ids: string[]): SymbolDef[] {
+  return ids.map(id => {
+    const s = SYMBOL_LIBRARY.find(x => x.id === id)
+    if (!s) throw new Error(`Symbole inconnu dans le pool : ${id}`)
+    return s
+  })
+}
+
+/** Symboles payants d'un pool donné, du plus rare au plus fréquent. */
+export function winSymbolsOf(ids: string[]): GameSymbol[] {
+  return resolvePool(ids)
+    .filter(s => s.id !== WILD_ID && s.id !== SCATTER_ID)
+    .sort((a, b) => a.weight - b.weight)
+}
+
+// Biais par symbole : positif = favorisé par la chance, négatif = raréfié.
 const LUCK_BIAS: Record<string, number> = {
-  lemon:   -0.30,
-  grape:   -0.20,
-  bell:    -0.10,
+  ten:     -0.35,
+  jack:    -0.32,
+  queen:   -0.30,
+  king:    -0.28,
+  ace:     -0.25,
+  lemon:   -0.15,
+  grape:   -0.10,
+  bell:     0.10,
   diamond:  0.20,
   star:     0.40,
   dog:      0.60,
@@ -41,11 +80,12 @@ const LUCK_BIAS: Record<string, number> = {
 }
 
 export function generateReelColumn(
+  poolIds: string[],
   rowCount: number,
   luckFactor = 0,
   rareMultiplier = 1
 ): GameSymbol[] {
-  const pool = ALL_SYMBOLS.map(s => ({
+  const pool = resolvePool(poolIds).map(s => ({
     value:  s as GameSymbol,
     weight: Math.max(0.5,
       s.weight

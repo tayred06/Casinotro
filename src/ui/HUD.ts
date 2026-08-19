@@ -1,4 +1,3 @@
-import { BET_OPTIONS } from '../game/Economy.ts'
 import type { Economy } from '../game/Economy.ts'
 
 const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
@@ -44,12 +43,15 @@ export class HUD {
     this.#buildBetChips()
   }
 
+  /** Reconstruit les jetons — à appeler à chaque changement de paliers de mise. */
+  rebuildBetChips() { this.#buildBetChips() }
+
   #buildBetChips() {
     const container = document.getElementById('bet-chips')!
     container.textContent = ''
     this.#betChips = []
 
-    BET_OPTIONS.forEach(amount => {
+    this.#economy.betOptions.forEach(amount => {
       const btn = document.createElement('button')
       btn.className = 'chip'
       btn.textContent = `⛧${amount}`

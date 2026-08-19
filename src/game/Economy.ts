@@ -1,35 +1,57 @@
 import type { Souls } from '../types/index.ts'
 
-export const BET_OPTIONS: Souls[] = [1, 2, 5, 10, 25]
+/** Paliers de mise par défaut. Figé : la table courante vit dans l'instance. */
+export const DEFAULT_BET_OPTIONS: readonly Souls[] = Object.freeze([1, 2, 5, 10, 25])
 
-const HIGHSCORE_KEY = 'casinotro_highscore'
 const TARGET_RTP = 0.92
+
+/** Source unique du meilleur score. `Progression` l'implémente et le persiste. */
+export interface HighscoreStore {
+  readonly highscore: Souls
+  updateHighscore(value: Souls): void
+}
+
+/** Repli en mémoire quand aucun store n'est fourni (tests, simulations). */
+class MemoryHighscore implements HighscoreStore {
+  highscore: Souls = 0
+  updateHighscore(value: Souls): void {
+    if (value > this.highscore) this.highscore = value
+  }
+}
 
 export class Economy {
   #balance: Souls
   #currentBet: Souls
   #totalEarned: Souls
-  #highscore: Souls
   #totalWagered: Souls = 0
   #totalReturned: Souls = 0
+  #betOptions: Souls[]
+  #highscoreStore: HighscoreStore
 
-  constructor(startBalance: Souls = 100) {
+  constructor(startBalance: Souls = 100, highscoreStore: HighscoreStore = new MemoryHighscore()) {
+    this.#betOptions = [...DEFAULT_BET_OPTIONS]
     this.#balance = startBalance
-    this.#currentBet = BET_OPTIONS[0]
+    this.#currentBet = this.#betOptions[0]
     this.#totalEarned = 0
-    this.#highscore = this.#loadHighscore()
+    this.#highscoreStore = highscoreStore
   }
 
   get balance(): Souls { return this.#balance }
   get currentBet(): Souls { return this.#currentBet }
   get totalEarned(): Souls { return this.#totalEarned }
-  get highscore(): Souls { return this.#highscore }
   get totalWagered(): Souls { return this.#totalWagered }
+  get betOptions(): Souls[] { return [...this.#betOptions] }
+  get minBet(): Souls { return Math.min(...this.#betOptions) }
+  get highscore(): Souls { return this.#highscoreStore.highscore }
 
   get currentRTP(): number {
     return this.#totalWagered > 0 ? this.#totalReturned / this.#totalWagered : TARGET_RTP
   }
 
+  /**
+   * Correction douce vers le RTP cible, injectée comme biais de poids dans le tirage
+   * des symboles. Invisible pour le joueur, et sans effet avant 50⛧ misés.
+   */
   get rtpNudge(): number {
     if (this.#totalWagered < 50) return 0
     const nudge = (TARGET_RTP - this.currentRTP) * 2
@@ -37,14 +59,15 @@ export class Economy {
   }
 
   setBet(amount: Souls): void {
-    if (BET_OPTIONS.includes(amount)) this.#currentBet = amount
+    if (this.#betOptions.includes(amount)) this.#currentBet = amount
   }
 
   setBetOptions(options: Souls[]): void {
-    BET_OPTIONS.splice(0, BET_OPTIONS.length, ...options)
-    if (!options.includes(this.#currentBet)) this.#currentBet = options[0]
+    this.#betOptions = [...options]
+    if (!this.#betOptions.includes(this.#currentBet)) this.#currentBet = this.#betOptions[0]
   }
 
+  /** Mise imposée hors paliers (escalade de Gula). */
   forceSetBet(amount: Souls): void {
     if (amount > 0) this.#currentBet = amount
   }
@@ -60,17 +83,14 @@ export class Economy {
     this.#balance += amount
     this.#totalEarned += amount
     this.#totalReturned += amount
-    if (this.#balance > this.#highscore) {
-      this.#highscore = this.#balance
-      this.#saveHighscore()
-    }
+    this.#highscoreStore.updateHighscore(this.#balance)
   }
 
   addMoney(amount: Souls): void {
     this.#balance += amount
   }
 
-  getShopLevel(): number {
+  getShopLevel(): 1 | 2 | 3 {
     if (this.#totalEarned >= 2000) return 3
     if (this.#totalEarned >= 500) return 2
     return 1
@@ -87,46 +107,36 @@ export class Economy {
   }
 
   isGameOver(): boolean {
-    return this.#balance < Math.min(...BET_OPTIONS)
+    return this.#balance < this.minBet
   }
-
-  #saveHighscore(): void {
-    try { localStorage.setItem(HIGHSCORE_KEY, String(this.#highscore)) } catch {}
-  }
-
-  #loadHighscore(): Souls {
-    try { return Number(localStorage.getItem(HIGHSCORE_KEY)) || 0 } catch { return 0 }
-  }
-
-  saveHighscore(): void { this.#saveHighscore() }
-  loadHighscore(): void { this.#highscore = this.#loadHighscore() }
 
   debugSetEarned(amount: Souls): void { this.#totalEarned = amount }
 
   restart(startBalance: Souls = 100): void {
+    this.#betOptions     = [...DEFAULT_BET_OPTIONS]
     this.#balance        = startBalance
-    this.#currentBet     = BET_OPTIONS[0]
+    this.#currentBet     = this.#betOptions[0]
     this.#totalEarned    = 0
     this.#totalWagered   = 0
     this.#totalReturned  = 0
   }
 
-  serialize(): Record<string, Souls> {
+  serialize() {
     return {
       balance:       this.#balance,
       currentBet:    this.#currentBet,
       totalEarned:   this.#totalEarned,
-      highscore:     this.#highscore,
       totalWagered:  this.#totalWagered,
       totalReturned: this.#totalReturned,
+      betOptions:    [...this.#betOptions],
     }
   }
 
-  restore(data: Record<string, Souls>): void {
+  restore(data: ReturnType<Economy['serialize']>): void {
+    this.#betOptions     = data.betOptions?.length ? [...data.betOptions] : [...DEFAULT_BET_OPTIONS]
     this.#balance        = data.balance       ?? 100
-    this.#currentBet     = BET_OPTIONS.includes(data.currentBet) ? data.currentBet : BET_OPTIONS[0]
+    this.#currentBet     = this.#betOptions.includes(data.currentBet) ? data.currentBet : this.#betOptions[0]
     this.#totalEarned    = data.totalEarned   ?? 0
-    this.#highscore      = data.highscore     ?? this.#loadHighscore()
     this.#totalWagered   = data.totalWagered  ?? 0
     this.#totalReturned  = data.totalReturned ?? 0
   }

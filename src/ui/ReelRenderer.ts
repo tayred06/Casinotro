@@ -2,31 +2,43 @@ import type { WinLine, Modifiers, GameSymbol } from '../types/index.ts'
 
 // Maps existing symbol IDs → V2 card-suit visuals
 const VISUAL: Record<string, { text: string; cls: string }> = {
-  lemon:   { text: '♠', cls: 'cell-suit black' },
-  grape:   { text: '♣', cls: 'cell-suit black' },
-  bell:    { text: '♥', cls: 'cell-suit red'   },
-  diamond: { text: '♦', cls: 'cell-suit red'   },
+  ten:     { text: '10', cls: 'cell-card'        },
+  jack:    { text: 'J',  cls: 'cell-card'        },
+  queen:   { text: 'Q',  cls: 'cell-card'        },
+  king:    { text: 'K',  cls: 'cell-card'        },
+  ace:     { text: 'A',  cls: 'cell-card'        },
+  lemon:   { text: '♠',  cls: 'cell-suit black'  },
+  grape:   { text: '♣',  cls: 'cell-suit black'  },
+  bell:    { text: '♥',  cls: 'cell-suit red'    },
+  diamond: { text: '♦',  cls: 'cell-suit red'    },
   star:    { text: '7',  cls: 'cell-seven'       },
   dog:     { text: '★',  cls: 'cell-suit black'  },
   wild:    { text: 'W',  cls: 'cell-wild'        },
-  scatter: { text: '$',  cls: 'cell-scatter'     },
+  scatter: { text: '⛧',  cls: 'cell-scatter'     },
+  broken:  { text: '✖',  cls: 'cell-broken'      },
 }
 
 // Base symbols shown during spin animation (no scatter/wild — they'd look odd mid-blur)
-const SPIN_VISUALS = ['lemon', 'grape', 'bell', 'diamond', 'star', 'dog'].map(id => VISUAL[id])
+const SPIN_VISUALS = ['ten', 'jack', 'queen', 'king', 'ace', 'lemon', 'grape', 'bell', 'diamond', 'star', 'dog']
+  .map(id => VISUAL[id])
 
 // Human-readable label for each symbol (shown in badges)
-const SYM_LABEL: Record<string, string> = {
-  lemon: '♠', grape: '♣', bell: '♥', diamond: '♦', star: '7', dog: '★',
-}
+const SYM_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(VISUAL).map(([id, v]) => [id, v.text])
+)
 
 const WIN_COLOR: Record<string, string> = {
+  ten:     '#c9d8c0',
+  jack:    '#c9d8c0',
+  queen:   '#c9d8c0',
+  king:    '#c9d8c0',
+  ace:     '#c9d8c0',
   lemon:   '#dcf7c8',
   grape:   '#dcf7c8',
   bell:    '#ff2d55',
   diamond: '#ff2d55',
   star:    '#b6f36a',
-  dog:     '#dcf7c8',
+  dog:     '#ffd700',
   wild:    '#77a06a',
   scatter: '#b6f36a',
 }
@@ -45,6 +57,8 @@ export class ReelRenderer {
   #selectionHint: HTMLElement
   #selectionCancel: HTMLElement
   #currentGrid: GameSymbol[][] | null = null
+  #cellStates: number[][] | null = null
+  #lastModifiers: Partial<Modifiers> = {}
   #spinTicker: ReturnType<typeof setInterval> | null = null
   #spinTimeouts: ReturnType<typeof setTimeout>[] = []
 
@@ -66,7 +80,35 @@ export class ReelRenderer {
     this.#restartBtn.addEventListener('click', onRestart)
   }
 
+  /**
+   * Coup de poing : secousse de la machine + impact sur la case touchée.
+   * Doit être appelé après le re-rendu de la grille (les cellules sont recréées).
+   */
+  playImpact(col: number, row: number, broken: boolean) {
+    const area = document.getElementById('machine-area')
+    if (area) {
+      area.classList.remove('shake', 'shake-hard')
+      void area.offsetWidth   // relance l'animation même sur deux frappes d'affilée
+      area.classList.add(broken ? 'shake-hard' : 'shake')
+      setTimeout(() => area.classList.remove('shake', 'shake-hard'), 620)
+    }
+
+    const cell = this.#container.children[col]?.children[row] as HTMLElement | undefined
+    if (!cell) return
+    cell.classList.remove('hit', 'shattered')
+    void cell.offsetWidth
+    cell.classList.add(broken ? 'shattered' : 'hit')
+    setTimeout(() => cell.classList.remove('hit', 'shattered'), 620)
+  }
+
+  /** Usure par case (Ira) : 0 intacte → 1 morte. */
+  setCellStates(states: number[][] | null) {
+    this.#cellStates = states
+    if (this.#currentGrid) this.#buildCells(this.#currentGrid, this.#lastModifiers)
+  }
+
   displayGrid(grid: GameSymbol[][], modifiers: Partial<Modifiers> = {}) {
+    this.#lastModifiers = modifiers
     this.#currentGrid = grid
     this.#buildCells(grid, modifiers)
     this.#scaleFonts()
@@ -80,10 +122,13 @@ export class ReelRenderer {
       const reel = document.createElement('div')
       reel.className = 'reel'
 
-      col.forEach(symbol => {
+      col.forEach((symbol, rowIdx) => {
         const cell = document.createElement('div')
         cell.className = 'cell'
         if (wildColumns[reelIdx]) cell.classList.add('wild-col')
+        const wear = this.#cellStates?.[reelIdx]?.[rowIdx] ?? 0
+        if (symbol.id === 'broken' || wear >= 1) cell.classList.add('dead')
+        else if (wear > 0) cell.classList.add(wear >= 0.6 ? 'cracked-hard' : 'cracked')
         cell.appendChild(this.#makeSymbol(symbol))
         reel.appendChild(cell)
       })
@@ -209,8 +254,9 @@ export class ReelRenderer {
 
     winLines.forEach(line => {
       const color = WIN_COLOR[line.symbolId] ?? '#b6f36a'
-      for (let r = 0; r < line.count; r++) {
-        const cell = reelEls[r]?.querySelectorAll('.cell')[line.reelRows[r]] as HTMLElement | undefined
+      // `cells` liste toutes les cases payées, pas seulement la première par rouleau.
+      for (const [reel, row] of line.cells) {
+        const cell = reelEls[reel]?.querySelectorAll('.cell')[row] as HTMLElement | undefined
         if (!cell) continue
         cell.classList.add('win')
         cell.style.setProperty('--win-color', color)

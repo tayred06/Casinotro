@@ -51,7 +51,7 @@ export const ITEM_POOL: ItemDef[] = [
   // ── Niveau 3 ─────────────────────────────────────────
   {
     id: 'jackpot_boost', name: 'Jackpot Amplifié', kind: 'bonus',
-    description: 'Le multiplicateur ×6 passe de ×20 à ×50', level: 3, price: 80,
+    description: 'Les combinaisons pleines (6 rouleaux) paient ×2,5', level: 3, price: 80,
     effect: 'jackpot_boost', needsTarget: null,
   },
   {
