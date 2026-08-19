@@ -1,7 +1,7 @@
 import type { CharacterPlugin, GameContext, SpinResult, UIContext, Souls, SpinRequest, Modifiers } from '../types/index.ts'
 import { Economy } from './Economy.ts'
 import { BonusSystem } from './BonusSystem.ts'
-import { RunState } from './RunState.ts'
+import { RunState, START_BALANCE } from './RunState.ts'
 import { Progression } from '../meta/Progression.ts'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { SYMBOLS } from './Symbols.ts'
@@ -21,7 +21,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export class GameLoop {
-  private economy = new Economy(100)
+  private economy = new Economy(START_BALANCE)
   private bonusSystem = new BonusSystem()
   private run = new RunState()
   private progression = new Progression()
@@ -64,6 +64,7 @@ export class GameLoop {
     this.renderer = new ReelRenderer(() => this.restartRun())
     this.hud = new HUD(
       this.economy,
+      this.progression,
       () => this.handleSpin(),
       (amount) => { this.economy.setBet(amount); this.uiContext.updateHUD() }
     )
@@ -96,7 +97,7 @@ export class GameLoop {
 
     document.getElementById('pm-close')?.addEventListener('click', () => this.profileModal.close())
     document.querySelector('.char-hud-identity')?.addEventListener('click', () => {
-      this.profileModal.open(getCharacter(this.run.characterId)!, this.economy, { level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem)
+      this.profileModal.open(getCharacter(this.run.characterId)!, this.economy, { level: this.run.stage, goal: this.run.currentGoal }, this.bonusSystem, this.progression.highscore)
     })
     document.getElementById('new-game-btn')?.addEventListener('click', () => this.restartRun())
 
@@ -124,6 +125,9 @@ export class GameLoop {
       this.lastRowCounts = grid.map((c: any[]) => c.length)
       this.renderer.displayGrid(grid, this.getModifiers())
       this.renderer.showModifiers(this.bonusSystem.getModifiers())
+      // Sans ça, le coût de reroll retombait à 5⛧ à chaque rechargement :
+      // renouveler la boutique à volonté ne coûtait plus rien.
+      this.shop.setRerollCost(save.rerollCost ?? 5)
       this.shop.setOffers(save.shopOffers ?? [], this.economy.getShopLevel())
       this.uiContext.updateHUD()
       this.applyCharacterTheme()
@@ -152,7 +156,7 @@ export class GameLoop {
     this.run.reset(characterId, 'megaways')
     // Avant restart() : BET_OPTIONS peut encore porter les paliers du run précédent.
     this.applyBetOptions()
-    this.economy.restart(100)
+    this.economy.restart(START_BALANCE)
     this.bonusSystem.reset()
     this.gameEnded = false
     this.renderer.hideGameOver()
@@ -169,6 +173,7 @@ export class GameLoop {
     this.lastRowCounts = grid.map(c => c.length)
     this.renderer.displayGrid(grid, this.getModifiers())
     this.renderer.showModifiers(this.bonusSystem.getModifiers())
+    this.shop.setRerollCost(5)
     this.shop.refresh(1)
     this.hud.setSpinEnabled(true)
     this.hud.setSpinLabel('SPIN')
@@ -423,6 +428,7 @@ export class GameLoop {
         economy:     this.economy.serialize(),
         bonusSystem: this.bonusSystem.serialize(),
         shopOffers:  this.shop.getOffers(),
+        rerollCost:  this.shop.getRerollCost(),
         grid:        grid?.map(col => col.map((s: any) => s.id)),
       }))
     } catch {}

@@ -1,5 +1,8 @@
 import type { Souls } from '../types/index.ts'
 
+/** Solde de départ d'un run. */
+export const START_BALANCE: Souls = 100
+
 export const STAGE_GOALS: [Souls, Souls, Souls] = [500, 2000, 10000]
 export const INITIAL_BET_OPTIONS: Souls[] = [1, 2, 5, 10, 25]
 

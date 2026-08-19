@@ -3,14 +3,12 @@ import type { Souls } from '../types/index.ts'
 /** Paliers de mise par défaut. Gelé : chaque Economy en garde sa propre copie. */
 export const BET_OPTIONS: readonly Souls[] = Object.freeze([1, 2, 5, 10, 25])
 
-const HIGHSCORE_KEY = 'casinotro_highscore'
 const TARGET_RTP = 0.92
 
 export class Economy {
   #balance: Souls
   #currentBet: Souls
   #totalEarned: Souls
-  #highscore: Souls
   #totalWagered: Souls = 0
   #totalReturned: Souls = 0
   #betOptions: Souls[] = [...BET_OPTIONS]
@@ -19,14 +17,12 @@ export class Economy {
     this.#balance = startBalance
     this.#currentBet = this.#betOptions[0]
     this.#totalEarned = 0
-    this.#highscore = this.#loadHighscore()
   }
 
   get balance(): Souls { return this.#balance }
   get currentBet(): Souls { return this.#currentBet }
   get betOptions(): Souls[] { return [...this.#betOptions] }
   get totalEarned(): Souls { return this.#totalEarned }
-  get highscore(): Souls { return this.#highscore }
   get totalWagered(): Souls { return this.#totalWagered }
 
   get currentRTP(): number {
@@ -64,10 +60,6 @@ export class Economy {
     this.#balance += amount
     this.#totalEarned += amount
     this.#totalReturned += amount
-    if (this.#balance > this.#highscore) {
-      this.#highscore = this.#balance
-      this.#saveHighscore()
-    }
   }
 
   addMoney(amount: Souls): void {
@@ -94,17 +86,6 @@ export class Economy {
     return this.#balance < Math.min(...this.#betOptions)
   }
 
-  #saveHighscore(): void {
-    try { localStorage.setItem(HIGHSCORE_KEY, String(this.#highscore)) } catch {}
-  }
-
-  #loadHighscore(): Souls {
-    try { return Number(localStorage.getItem(HIGHSCORE_KEY)) || 0 } catch { return 0 }
-  }
-
-  saveHighscore(): void { this.#saveHighscore() }
-  loadHighscore(): void { this.#highscore = this.#loadHighscore() }
-
   debugSetEarned(amount: Souls): void { this.#totalEarned = amount }
 
   restart(startBalance: Souls = 100): void {
@@ -121,7 +102,6 @@ export class Economy {
       balance:       this.#balance,
       currentBet:    this.#currentBet,
       totalEarned:   this.#totalEarned,
-      highscore:     this.#highscore,
       totalWagered:  this.#totalWagered,
       totalReturned: this.#totalReturned,
     }
@@ -131,7 +111,6 @@ export class Economy {
     this.#balance        = data.balance       ?? 100
     this.#currentBet     = this.#betOptions.includes(data.currentBet) ? data.currentBet : this.#betOptions[0]
     this.#totalEarned    = data.totalEarned   ?? 0
-    this.#highscore      = data.highscore     ?? this.#loadHighscore()
     this.#totalWagered   = data.totalWagered  ?? 0
     this.#totalReturned  = data.totalReturned ?? 0
   }

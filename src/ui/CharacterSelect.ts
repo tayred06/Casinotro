@@ -1,4 +1,7 @@
 import type { Character } from '../game/Characters.ts'
+import { START_BALANCE, STAGE_GOALS } from '../game/RunState.ts'
+
+const fmtSouls = (n: number) => `${n.toLocaleString('fr-FR')} ⛧`
 
 export class CharacterSelect {
   #onSelect: (char: Character) => void
@@ -119,8 +122,9 @@ export class CharacterSelect {
     // Update bottom bar
     this.#barName.textContent  = char.name
     this.#barSin.textContent   = char.sin
-    this.#barStart.textContent = '1 000 ⛧'
-    this.#barQuota.textContent = '3 000 ⛧'
+    // Étaient codés en dur à 1 000 / 3 000 ⛧ ; le run démarre à 100 pour 500.
+    this.#barStart.textContent = fmtSouls(START_BALANCE)
+    this.#barQuota.textContent = fmtSouls(STAGE_GOALS[0])
     this.#confirmBtn.disabled  = false
   }
 

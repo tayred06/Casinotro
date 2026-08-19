@@ -23,7 +23,7 @@ export class ProfileModal {
     })
   }
 
-  open(character: Character, economy: Economy, runState: RunState, bonusSystem: BonusSystem) {
+  open(character: Character, economy: Economy, runState: RunState, bonusSystem: BonusSystem, highscore: number) {
     const modifiers   = bonusSystem.getModifiers()
     const activeBonuses = bonusSystem.activeBonus
     const pct = Math.min(100, Math.round((economy.balance / runState.goal) * 100))
@@ -37,7 +37,7 @@ export class ProfileModal {
     document.getElementById('pm-goal')!.textContent    = `⛧${runState.goal.toLocaleString('fr-FR')}`
     document.getElementById('pm-progress')!.textContent = `${pct}%`
     document.getElementById('pm-balance')!.textContent = `⛧${economy.balance.toFixed(2)}`
-    document.getElementById('pm-best')!.textContent    = `⛧${economy.highscore.toFixed(2)}`
+    document.getElementById('pm-best')!.textContent    = `⛧${highscore.toFixed(2)}`
     document.getElementById('pm-bet')!.textContent     = `⛧${economy.currentBet}`
     document.getElementById('pm-luck')!.textContent    = modifiers.luck > 0 ? `+${modifiers.luck}` : String(modifiers.luck)
 

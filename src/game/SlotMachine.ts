@@ -2,10 +2,15 @@ import type { GameSymbol, SpinOptions, SpinResult, WinLine, Modifiers, Souls } f
 import { randomInt } from '../utils/Random.ts'
 import type { Rng } from '../utils/Random.ts'
 import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS } from './Symbols.ts'
+import { getMachine } from './machines/index.ts'
 
-const REEL_COUNT = 6
-const MIN_ROWS = 2
-const MAX_ROWS = 7
+// Les dimensions viennent de la config machine plutôt que d'être redéclarées ici.
+// (Le moteur ne gère encore qu'une machine : passer la config en paramètre de
+// spin() reste à faire pour en supporter plusieurs — voir docs/AUDIT.md §2.2.)
+const MACHINE = getMachine('megaways')
+const REEL_COUNT = MACHINE.reelCount
+const MIN_ROWS = MACHINE.minRows
+const MAX_ROWS = MACHINE.maxRows
 
 // États de dégât d'une case (Ira)
 export const CELL_INTACT = 0

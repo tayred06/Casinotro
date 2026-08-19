@@ -1,4 +1,5 @@
 import type { Economy } from '../game/Economy.ts'
+import type { Progression } from '../meta/Progression.ts'
 import type { CharacterAction } from '../types/index.ts'
 
 const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
@@ -10,6 +11,7 @@ interface RunState {
 
 export class HUD {
   #economy: Economy
+  #progression: Progression
   #onSpin: () => void
   #onBetChange: (amount: number) => void
 
@@ -26,8 +28,14 @@ export class HUD {
   #actionBtns: Array<{ btn: HTMLButtonElement; action: CharacterAction }> = []
   #betChips: Array<{ btn: HTMLButtonElement; amount: number }> = []
 
-  constructor(economy: Economy, onSpin: () => void, onBetChange: (amount: number) => void) {
+  constructor(
+    economy: Economy,
+    progression: Progression,
+    onSpin: () => void,
+    onBetChange: (amount: number) => void
+  ) {
     this.#economy     = economy
+    this.#progression = progression
     this.#onSpin      = onSpin
     this.#onBetChange = onBetChange
 
@@ -75,7 +83,7 @@ export class HUD {
 
   update(runState: RunState | null = null, luck: number = 0) {
     this.#balanceDisplay.textContent  = `⛧${this.#economy.balance.toFixed(2)}`
-    this.#highscoreDisplay.textContent = `⛧${this.#economy.highscore.toFixed(2)}`
+    this.#highscoreDisplay.textContent = `⛧${this.#progression.highscore.toFixed(2)}`
     this.#luckDisplay.textContent = luck > 0 ? `+${luck}` : String(luck)
     this.#luckDisplay.style.color = luck > 0 ? '#b6f36a' : ''
     this.#updateChipState()

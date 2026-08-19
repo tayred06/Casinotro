@@ -1,4 +1,5 @@
 import type { WinLine, Modifiers, GameSymbol } from '../types/index.ts'
+import { getMachine } from '../game/machines/index.ts'
 
 // Maps existing symbol IDs → V2 card-suit visuals
 const VISUAL: Record<string, { text: string; cls: string }> = {
@@ -64,6 +65,15 @@ export class ReelRenderer {
     this.#selectionHint   = document.getElementById('selection-hint')!
     this.#selectionCancel = document.getElementById('selection-cancel')!
     this.#restartBtn.addEventListener('click', onRestart)
+    this.#showMachineMeta()
+  }
+
+  /** Légende de la machine — décrite par sa config, plus en dur dans le HTML. */
+  #showMachineMeta(machineId = 'megaways') {
+    const el = document.getElementById('machine-meta')
+    if (!el) return
+    const m = getMachine(machineId)
+    el.textContent = `${m.reelCount} rouleaux · ${m.minRows}-${m.maxRows} lignes`
   }
 
   displayGrid(grid: GameSymbol[][], modifiers: Partial<Modifiers> = {}) {

@@ -42,7 +42,6 @@ describe('Economy', () => {
 
   beforeEach(() => {
     eco = new Economy(100)
-    eco.highscore // charger highscore (simulé)
   })
 
   it('initialise avec le solde de départ', () => {
@@ -83,11 +82,6 @@ describe('Economy', () => {
     eco.addWin(30)
     eco.addWin(20)
     expect(eco.totalEarned).toBe(50)
-  })
-
-  it('addWin met à jour highscore si balance dépasse le précédent', () => {
-    eco.addWin(500)
-    expect(eco.highscore).toBe(600)
   })
 
   it('addMoney ajoute au solde directement', () => {
