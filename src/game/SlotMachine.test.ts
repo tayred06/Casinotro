@@ -46,7 +46,7 @@ describe('calculateWins', () => {
     expect(result.winLines).toHaveLength(1)
     expect(result.winLines[0].symbolId).toBe('lemon')
     expect(result.winLines[0].count).toBe(3)
-    expect(result.totalWin).toBe(10 * 0.7)
+    expect(result.totalWin).toBe(10 * 0.85)
     expect(result.scatterTriggered).toBe(false)
   })
 
@@ -54,8 +54,8 @@ describe('calculateWins', () => {
     const grid = Array(6).fill([lemon])
     const result = calculateWins(grid, 5)
     expect(result.winLines[0].count).toBe(6)
-    // jackpot par défaut = WIN_MULTIPLIERS[6] = 28, valeur citron = 1
-    expect(result.totalWin).toBe(5 * 28)
+    // jackpot par défaut = WIN_MULTIPLIERS[6] = 35, valeur citron = 1
+    expect(result.totalWin).toBe(5 * 35)
   })
 
   it('le Wild complète une combinaison', () => {
@@ -149,6 +149,16 @@ describe('calculateWins', () => {
       expect(line!.count).toBe(6)
     })
 
+    it('une chaîne premium de 6 plafonne au palier 5', () => {
+      const grid = Array.from({ length: 6 }, () => [star, lemon, lemon, lemon])
+      const line = calculateWins(grid, 10).winLines.find(l => l.symbolId === 'star')!
+
+      expect(line.count).toBe(6)
+      // palier 5 (11.8), pas le jackpot : sans ce plafond, tout bonus de rareté
+      // devenait explosif — Luxuria multipliait le RTP par 7.
+      expect(line.win).toBeCloseTo(10 * 11.8 * 2, 5)
+    })
+
     it('un symbole courant reste soumis au seuil proportionnel', () => {
       // une seule cloche sur 4 rangées : sous le seuil de 40 %
       const grid = Array.from({ length: 6 }, () => [bell, lemon, lemon, lemon])
@@ -168,8 +178,8 @@ describe('calculateWins', () => {
       [diamond],
     ]
     const result = calculateWins(grid, 10, { columnMultipliers: [2, 1, 1, 1, 1, 1] })
-    // lemon sur 3 reels (0,1,2) → base 0.7 × valeur citron 1 × bet × colMultiplier[0]=2
-    expect(result.totalWin).toBe(10 * 0.7 * 2)
+    // lemon sur 3 reels (0,1,2) → base 0.85 × valeur citron 1 × bet × colMultiplier[0]=2
+    expect(result.totalWin).toBe(10 * 0.85 * 2)
   })
 
   it('applique symbolMultipliers', () => {
@@ -182,7 +192,7 @@ describe('calculateWins', () => {
       [diamond],
     ]
     const result = calculateWins(grid, 10, { symbolMultipliers: { lemon: 3 } })
-    expect(result.totalWin).toBeCloseTo(10 * 0.7 * 3, 5)
+    expect(result.totalWin).toBeCloseTo(10 * 0.85 * 3, 5)
   })
 
   it('applique globalMultiplier', () => {
@@ -195,6 +205,6 @@ describe('calculateWins', () => {
       [diamond],
     ]
     const result = calculateWins(grid, 10, { globalMultiplier: 2 })
-    expect(result.totalWin).toBe(10 * 0.7 * 2)
+    expect(result.totalWin).toBe(10 * 0.85 * 2)
   })
 })

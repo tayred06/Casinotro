@@ -29,10 +29,10 @@ describe('WIN_SYMBOLS', () => {
 
 describe('WIN_MULTIPLIERS', () => {
   it('a les 4 paliers définis', () => {
-    expect(WIN_MULTIPLIERS[3]).toBe(0.7)
-    expect(WIN_MULTIPLIERS[4]).toBe(2.75)
-    expect(WIN_MULTIPLIERS[5]).toBe(9.5)
-    expect(WIN_MULTIPLIERS[6]).toBe(28)
+    expect(WIN_MULTIPLIERS[3]).toBe(0.85)
+    expect(WIN_MULTIPLIERS[4]).toBe(3.4)
+    expect(WIN_MULTIPLIERS[5]).toBe(11.8)
+    expect(WIN_MULTIPLIERS[6]).toBe(35)
   })
 })
 

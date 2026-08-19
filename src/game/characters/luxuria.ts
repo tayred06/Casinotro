@@ -2,7 +2,8 @@ import type { CharacterPlugin, GameContext, SpinOptions, DialogueLine } from '..
 
 /** Source unique des réglages de Luxuria — référencée par CHARACTERS. */
 export const LUXURIA_PARAMS = {
-  rareSymbolWeightMultiplier: 2.5,
+  // 2.5 rendait le personnage cassé (RTP x7) : voir SlotMachine.rtp.test.ts.
+  rareSymbolWeightMultiplier: 1.5,
   upkeepPercent: 0.05,
   upkeepLabel: 'Entretien',
 }

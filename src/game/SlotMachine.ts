@@ -1,7 +1,7 @@
 import type { GameSymbol, SpinOptions, SpinResult, WinLine, Modifiers, Souls } from '../types/index.ts'
 import { randomInt } from '../utils/Random.ts'
 import type { Rng } from '../utils/Random.ts'
-import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS, symbolValue, isPremium } from './Symbols.ts'
+import { generateReelColumn, WIN_SYMBOLS, WIN_MULTIPLIERS, symbolValue, isPremium, PREMIUM_MAX_TIER } from './Symbols.ts'
 import { getMachine } from './machines/index.ts'
 
 // Les dimensions viennent de la config machine plutôt que d'être redéclarées ici.
@@ -115,7 +115,9 @@ export function calculateWins(
 
     if (count < 3) continue
 
-    const baseMultiplier = count === REEL_COUNT ? jackpotMultiplier : WIN_MULTIPLIERS[count]
+    // Les premium plafonnent avant le jackpot : voir PREMIUM_MAX_TIER.
+    const tier = isPremium(symbol.id) ? Math.min(count, PREMIUM_MAX_TIER) : count
+    const baseMultiplier = tier === REEL_COUNT ? jackpotMultiplier : WIN_MULTIPLIERS[tier]
 
     // Apply highest column multiplier among participating reels
     let colMult = 1

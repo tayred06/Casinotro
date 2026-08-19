@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { createRng } from '../utils/Random.ts'
+import { LUXURIA_PARAMS } from './characters/luxuria.ts'
 
 /**
  * Ces tests ne sont possibles que depuis l'injection du RNG : ils rejouent une
@@ -96,10 +97,49 @@ describe('rareMultiplier (mécanique de Luxuria)', () => {
 
   /**
    * Luxuria est décrite ainsi : « Les symboles rares apparaissent bien plus
-   * souvent. » Sous l'ancien barème, ce don la pénalisait — les symboles rares
-   * ne s'alignaient jamais et remplaçaient ceux qui le faisaient.
+   * souvent. » Sous l'ancien barème, ce don la pénalisait.
    */
   it('rendre les symboles rares plus fréquents augmente le retour', () => {
-    expect(rtpWithRare(2.5)).toBeGreaterThan(rtpWithRare(1))
+    expect(rtpWithRare(LUXURIA_PARAMS.rareSymbolWeightMultiplier))
+      .toBeGreaterThan(rtpWithRare(1))
+  })
+
+  /**
+   * Régression mesurée en partie réelle : avec rareMultiplier à 2.5, le
+   * multiplicateur s'appliquait aussi au wild — qui se substitue à TOUS les
+   * symboles — et les chaînes premium atteignaient le palier jackpot. Résultat
+   * RTP 6.57, soit 7 fois la base. Deux garde-fous ci-dessous.
+   */
+  it('le don de Luxuria reste dans une fourchette jouable', () => {
+    const lux = rtpWithRare(LUXURIA_PARAMS.rareSymbolWeightMultiplier)
+    expect(lux).toBeLessThan(rtpWithRare(1) * 2)
+  })
+
+  it('même un multiplicateur extrême ne fait pas exploser le retour', () => {
+    // Garde-fou de forme : la réponse doit rester sous-linéaire, pas ^6.
+    expect(rtpWithRare(2.5)).toBeLessThan(rtpWithRare(1) * 4)
+  })
+
+  it('le rareMultiplier ne touche pas le wild', () => {
+    // Le wild complète toutes les lignes : le booster multipliait le RTP par
+    // près de 3 à lui seul, indépendamment des symboles premium.
+    const rng = createRng(5)
+    let wilds = 0, cells = 0
+    for (let i = 0; i < 2000; i++) {
+      const { grid } = spin({}, 0, { rareMultiplier: 5 }, rng)
+      for (const col of grid) {
+        for (const s of col) { cells++; if (s.id === 'wild') wilds++ }
+      }
+    }
+    const rngBase = createRng(5)
+    let wildsBase = 0, cellsBase = 0
+    for (let i = 0; i < 2000; i++) {
+      const { grid } = spin({}, 0, { rareMultiplier: 1 }, rngBase)
+      for (const col of grid) {
+        for (const s of col) { cellsBase++; if (s.id === 'wild') wildsBase++ }
+      }
+    }
+    // La part de wilds doit rester du même ordre malgré un rareMultiplier x5.
+    expect(wilds / cells).toBeLessThan((wildsBase / cellsBase) * 1.5)
   })
 })

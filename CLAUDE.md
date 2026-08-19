@@ -64,10 +64,15 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 
 Two rules decide a win, and they are load-bearing — changing either one moves the RTP a lot:
 
-1. **Chain length** picks the tier (`WIN_MULTIPLIERS`: 3→0.7, 4→2.75, 5→9.5, 6→28).
+1. **Chain length** picks the tier (`WIN_MULTIPLIERS`: 3→0.85, 4→3.4, 5→11.8, 6→35).
 2. **Symbol rarity** scales it (`SYMBOL_VALUE`: lemon 1 … dog 2.75).
 
 A symbol counts on a reel when it fills 40% of that column, **except premium symbols** (`PREMIUM_SYMBOLS`: star, dog) which count from a single cell. Without that exception rare symbols essentially never chain — the dog appeared in 1 chain per 30 000 spins — which is what made luck reduce the return.
+
+Two guards keep that exception from exploding, both found by playtest rather than by reasoning:
+
+- Premium chains cap at `PREMIUM_MAX_TIER` (5), never reaching the jackpot tier. A premium chain's odds are `P(≥1 per column)^6`, so the jackpot tier made every rarity bonus explosive.
+- `rareMultiplier` (Luxuria) applies **only** to premium symbols, never to wild or scatter. Wild substitutes for every symbol, so boosting it made every line chain at once — worth nearly ×3 RTP on its own.
 
 These numbers come from simulation, not intuition. `SlotMachine.rtp.test.ts` asserts the baseline lands near 0.92, that RTP rises with luck, and that max luck does not double it. Re-run it after touching any weight, multiplier or bias.
 

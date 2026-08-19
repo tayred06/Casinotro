@@ -30,7 +30,7 @@ export const SCATTER = ALL_SYMBOLS.find(s => s.id === 'scatter')
  * Ne pas retoucher ces valeurs sans relancer ces tests : elles ne sont pas
  * arbitraires, elles sortent d'un calibrage.
  */
-export const WIN_MULTIPLIERS: Record<number, number> = { 3: 0.7, 4: 2.75, 5: 9.5, 6: 28 }
+export const WIN_MULTIPLIERS: Record<number, number> = { 3: 0.85, 4: 3.4, 5: 11.8, 6: 35 }
 
 /**
  * Valeur d'un symbole, croissante avec sa rareté. Multiplie le barème ci-dessus.
@@ -59,6 +59,16 @@ export const PREMIUM_SYMBOLS = new Set(['star', 'dog'])
 export function isPremium(id: string): boolean {
   return PREMIUM_SYMBOLS.has(id)
 }
+
+/**
+ * Palier maximum d'une chaîne premium.
+ *
+ * Comme un premium compte dès une case, la probabilité qu'il tienne les 6
+ * rouleaux est P(≥1 par colonne)^6 — donc extrêmement sensible au poids. Le
+ * palier jackpot rendait tout bonus de rareté explosif : Luxuria multipliait le
+ * RTP par 7. Les premium plafonnent donc au palier 5.
+ */
+export const PREMIUM_MAX_TIER = 5
 
 export function getSymbolById(id: string): GameSymbol | undefined {
   return ALL_SYMBOLS.find(s => s.id === id)
@@ -100,7 +110,10 @@ export function generateReelColumn(
     weight: Math.max(0.5,
       s.weight
       * (1 + luckFactor * (LUCK_BIAS[s.id] ?? 0))
-      * (s.rare ? rareMultiplier : 1)
+      // Uniquement les rares qui paient. Le wild se substitue à TOUS les
+      // symboles : le booster faisait chaîner toutes les lignes à la fois et
+      // multipliait le RTP par près de 3 à lui seul.
+      * (isPremium(s.id) ? rareMultiplier : 1)
     ),
   }))
   return Array.from({ length: rowCount }, () => weightedRandom(pool, rng))
