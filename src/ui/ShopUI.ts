@@ -26,7 +26,7 @@ export class ShopUI {
   #bonusSystem: BonusSystem
   #economy: Economy
   #onUpdate: () => void
-  #selectTarget: ((offer: ItemDef) => Promise<number | string>) | null
+  #selectTarget: ((offer: ItemDef) => Promise<number | string | null>) | null
   #onBonusSold: ((bonus: ItemInstance, refund: number) => void) | null = null
   #offerModifier: ((offer: ItemDef) => ItemDef | null) | null = null
   #currentOffers: ItemDef[] = []
@@ -36,7 +36,7 @@ export class ShopUI {
     bonusSystem: BonusSystem,
     economy: Economy,
     onUpdate: () => void,
-    selectTarget: ((offer: ItemDef) => Promise<number | string>) | null
+    selectTarget: ((offer: ItemDef) => Promise<number | string | null>) | null
   ) {
     this.#bonusSystem  = bonusSystem
     this.#economy      = economy

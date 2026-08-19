@@ -38,7 +38,7 @@ describe('BET_OPTIONS', () => {
 })
 
 describe('Economy', () => {
-  let eco
+  let eco: Economy
 
   beforeEach(() => {
     eco = new Economy(100)

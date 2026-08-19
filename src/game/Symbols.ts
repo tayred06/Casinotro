@@ -29,6 +29,13 @@ export function getSymbolById(id: string): GameSymbol | undefined {
   return ALL_SYMBOLS.find(s => s.id === id)
 }
 
+/** Comme getSymbolById, mais lève sur un id inconnu. Pour les fixtures et les tests. */
+export function requireSymbol(id: string): GameSymbol {
+  const symbol = getSymbolById(id)
+  if (!symbol) throw new Error(`Symbole inconnu : ${id}`)
+  return symbol
+}
+
 // Bias per symbol: positive = boosted by luck, negative = reduced by luck
 const LUCK_BIAS: Record<string, number> = {
   lemon:   -0.30,

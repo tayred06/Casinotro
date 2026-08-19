@@ -307,26 +307,53 @@ export class GameLoop {
     // Déverrouillage géré par le finally de runSpin.
   }
 
+  /**
+   * Tours gratuits déclenchés par un scatter.
+   *
+   * Volontairement séparé de resolveSpin() : passer par le chemin normal
+   * relancerait handleFreeSpins() sur un scatter obtenu pendant les tours
+   * gratuits, donc récursion. Les hooks personnage et la persistance sont en
+   * revanche identiques — leur absence gelait le ×2 d'Avaritia, l'entretien de
+   * Luxuria et l'escalade de Gula pendant 8 spins.
+   */
   private async handleFreeSpins(count: number): Promise<void> {
     for (let i = 0; i < count; i++) {
       await delay(380)
+
+      await this.plugin.onBeforeSpin?.(this.ctx)
+
       const mods = this.getModifiers()
       const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
       const { grid } = spin(mods.stickyPositions ?? {}, this.getLuckFactor(), opts)
       this.lastRowCounts = grid.map(c => c.length)
       await this.renderer.animateSpin(grid)
+
       const result = calculateWins(grid, this.economy.currentBet, mods)
       this.bonusSystem.processPostSpin(result, grid)
       this.renderer.displayGrid(grid, this.getModifiers())
+
+      await this.plugin.onAfterSpin?.(this.ctx, result)
+
       if (result.totalWin > 0) {
         this.economy.addWin(result.totalWin)
+        this.progression.updateHighscore(this.economy.balance)
         this.renderer.highlightWins(result.winLines)
         this.renderer.showWin(result.totalWin, result.winLines)
         this.uiContext.updateHUD()
+        this.shop.addLog(this.buildWinLog(result))
+        await this.plugin.onWin?.(this.ctx, result.totalWin)
         await delay(900)
         this.renderer.hideWin()
         this.renderer.clearHighlights()
       }
+
+      this.shop.updateDisplay()
+      this.checkStageProgress(grid)
+      this.save(grid)
+
+      // Une condition de défaite peut tomber pendant la série (entretien de
+      // Luxuria, mise de Gula) : inutile de dérouler les tours restants.
+      if (this.plugin.onLossCheck?.(this.ctx) || this.economy.isGameOver()) return
     }
   }
 

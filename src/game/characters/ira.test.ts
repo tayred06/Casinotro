@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { createIraPlugin } from './ira.ts'
 import { spin, calculateWins, CELL_INTACT, CELL_CRACKED, CELL_DEAD } from '../SlotMachine.ts'
-import { getSymbolById } from '../Symbols.ts'
+import { requireSymbol } from '../Symbols.ts'
 import type { GameContext, CharacterAction } from '../../types/index.ts'
 
-const lemon = getSymbolById('lemon')
+const lemon = requireSymbol('lemon')
 
 // 6 rouleaux de 2 citrons : chaîne complète
 const fullLemonGrid = () => Array.from({ length: 6 }, () => [lemon, lemon])

@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { spin, calculateWins } from './SlotMachine.ts'
-import { getSymbolById } from './Symbols.ts'
+import { requireSymbol } from './Symbols.ts'
 
-const lemon = getSymbolById('lemon')
-const bell  = getSymbolById('bell')
-const wild  = getSymbolById('wild')
-const scatter = getSymbolById('scatter')
-const diamond = getSymbolById('diamond')
+const lemon = requireSymbol('lemon')
+const bell  = requireSymbol('bell')
+const wild  = requireSymbol('wild')
+const scatter = requireSymbol('scatter')
+const diamond = requireSymbol('diamond')
 
 describe('spin', () => {
   it('retourne 6 reels', () => {
@@ -67,7 +67,7 @@ describe('calculateWins', () => {
     const result = calculateWins(grid, 10)
     const lemonLine = result.winLines.find(l => l.symbolId === 'lemon')
     expect(lemonLine).toBeDefined()
-    expect(lemonLine.count).toBe(3)
+    expect(lemonLine!.count).toBe(3)
   })
 
   it('pas de gain si moins de 3 reels', () => {

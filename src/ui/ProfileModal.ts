@@ -99,20 +99,27 @@ export class ProfileModal {
 
   #bonusDetail(bonus: ItemInstance, modifiers: Modifiers): string {
     const target = bonus.target
+    const column = typeof target === 'number' ? target : null
+    const symbol = typeof target === 'string' ? target : null
+
+    // Bonus à charges : « 3 spins restants », au singulier près.
+    const remaining = (label: string): string => {
+      const n = bonus.remainingCharges ?? 0
+      const s = n > 1 ? 's' : ''
+      return `${label} — ${n} spin${s} restant${s}`
+    }
+
     switch (bonus.effect) {
-      case 'column_multiplier': return target != null ? `Colonne ${(target as number) + 1} → ×2` : bonus.description
-      case 'wild_column':       return target != null ? `Colonne ${(target as number) + 1} Wild` : bonus.description
-      case 'symbol_multiplier': {
-        const mult = modifiers.symbolMultipliers[target] ?? 2
-        return target ? `${target} → ×${mult}` : bonus.description
-      }
-      case 'global_multiplier': return `×3 sur tous les gains — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
-      case 'lucky_streak':      return `+30 chance — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
-      case 'chain': {
-        const syms = modifiers.symbolMultipliers
-        const bonusMult = target ? (syms[target] ?? 1) : 1
-        return target ? `${target} — chaîne active (×${bonusMult.toFixed(2)})` : bonus.description
-      }
+      case 'column_multiplier': return column !== null ? `Colonne ${column + 1} → ×2` : bonus.description
+      case 'wild_column':       return column !== null ? `Colonne ${column + 1} Wild` : bonus.description
+      case 'symbol_multiplier':
+        return symbol ? `${symbol} → ×${modifiers.symbolMultipliers[symbol] ?? 2}` : bonus.description
+      case 'global_multiplier': return remaining('×3 sur tous les gains')
+      case 'lucky_streak':      return remaining('+30 chance')
+      case 'chain':
+        return symbol
+          ? `${symbol} — chaîne active (×${(modifiers.symbolMultipliers[symbol] ?? 1).toFixed(2)})`
+          : bonus.description
       default: return bonus.description
     }
   }

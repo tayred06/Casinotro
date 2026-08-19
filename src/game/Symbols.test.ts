@@ -38,7 +38,7 @@ describe('WIN_MULTIPLIERS', () => {
 
 describe('getSymbolById', () => {
   it('retrouve un symbole existant', () => {
-    expect(getSymbolById('lemon').name).toBe('Citron')
+    expect(getSymbolById('lemon')?.name).toBe('Citron')
   })
 
   it('retourne undefined pour un id inconnu', () => {
