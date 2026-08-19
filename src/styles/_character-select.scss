@@ -72,21 +72,14 @@
   color: var(--ink-dim);
 }
 
-// Les lignes se dimensionnent sur la carte la plus haute (grid-auto-rows: auto +
-// align-items: stretch), pas sur la hauteur de l'écran : les cartes restent toutes
-// à la même taille sans s'étirer jusqu'en bas.
 .cs-grid {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(8, minmax(160px, 1fr));
-  grid-auto-rows: auto;
+  grid-auto-rows: 1fr;
   gap: 12px;
-  // Le bloc de cartes est centré dans la hauteur restante : sans ça, tout le vide
-  // s'accumule sous les cartes.
-  align-content: center;
-  align-items: stretch;
+  align-content: stretch;
 }
 
 // Character card
@@ -112,13 +105,11 @@
   }
 }
 
-// Plate (visual area) — hauteur fixée par le ratio, pas par le texte restant :
-// sinon une description longue rabote la plaque et le bloc texte de chaque carte
-// démarre à une hauteur différente.
+// Plate (visual area, takes remaining height)
 .cs-plate {
   position: relative;
-  flex: none;
-  aspect-ratio: 16 / 9;
+  flex: 1;
+  min-height: 0;
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
@@ -152,15 +143,12 @@
   }
 }
 
-// Card info — occupe le reste et cale son contenu en haut : les cartes courtes
-// s'alignent sur les longues au lieu de flotter en bas.
+// Card info (fixed-height bottom)
 .cs-card-info {
-  flex: 1;
-  min-height: 0;
+  flex: none;
   padding: 12px 12px 14px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   gap: 6px;
 }
 
