@@ -72,8 +72,8 @@ describe('équilibrage — durée de run', () => {
       `${(runs.reduce((a, r) => a + r.stageReached, 0) / runs.length).toFixed(2)}`
     )
 
-    // ~4 s par spin : 300-700 spins ≈ 20-45 min.
-    expect(medianLen).toBeGreaterThan(250)
+    // ~4 s par spin : 400-800 spins ≈ 27-53 min.
+    expect(medianLen).toBeGreaterThan(400)
     expect(medianLen).toBeLessThan(800)
     // Le run doit rester perdable sans être injouable.
     expect(winRate).toBeGreaterThan(0.05)

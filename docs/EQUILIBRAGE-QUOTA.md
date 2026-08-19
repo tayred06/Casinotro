@@ -5,10 +5,10 @@ Cible : run de ~20-30 min au lieu de 5-10 min. Mesure obtenue, mise minimale san
 boutique, 200 runs simulés (`Balance.sim.test.ts`) :
 
 ```
-spins médian 389 · min 152 · max 649 · victoires 23.5% · palier moyen 2.44
+spins médian 558 · min 217 · max 874 · victoires 29.5% · palier moyen 2.52
 ```
 
-≈ 26 min à 4 s par spin, contre ~5 min avant. Les valeurs ci-dessous sont celles du code.
+≈ 37 min à 4 s par spin, contre ~5 min avant. Les valeurs ci-dessous sont celles du code.
 
 ## 1. Pourquoi le run est court aujourd'hui
 
@@ -95,13 +95,13 @@ miseMini : 1 → 3 → 8
 
 | Palier | mise mini | K | quota (gains cumulés) | spins attendus @ mise mini | fuite bankroll attendue |
 |---|---|---|---|---|---|
-| 1 | 1⛧ | 140 | 140⛧ | ~160 | ~13⛧ |
-| 2 | 3⛧ | 180 | 540⛧ | ~205 | ~50⛧ |
-| 3 | 8⛧ | 220 | 1760⛧ | ~250 | ~160⛧ |
+| 1 | 1⛧ | 180 | 180⛧ | ~205 | ~17⛧ |
+| 2 | 3⛧ | 235 | 705⛧ | ~267 | ~65⛧ |
+| 3 | 8⛧ | 290 | 2320⛧ | ~330 | ~211⛧ |
 
-Total ≈ 615 spins pour un run gagné ; médiane mesurée 342 spins, les runs perdus tirant
-la distribution vers le bas. K a été calibré par balayage sur `Balance.sim.test.ts`
-([100,130,160] → 300 spins / 29,5 % de victoires ; [140,180,220] → 342 / 21,5 %).
+Total ≈ 800 spins pour un run gagné ; médiane mesurée 558 spins, les runs perdus tirant
+la distribution vers le bas. K et les HP ont été calibrés ensemble par balayage — voir §9,
+le quota seul ne pilote pas la durée.
 `spins attendus = K / RTP`. `fuite = (1 − RTP) × spins × mise`.
 
 Mode infini : `currentGoal = K_3 × miseMini_courante × ENDLESS_GOAL_FACTOR^endlessLevel`,
@@ -266,18 +266,19 @@ disparaît pas — il déborde en **crédit boutique**, non misable.
 
 | Palier | départ (plancher) | plafond | marge en mises minimales |
 |---|---|---|---|
-| 1 | 100⛧ | 200⛧ | 200 |
-| 2 | 200⛧ | 400⛧ | 133 |
-| 3 | 400⛧ | 800⛧ | 100 |
+| 1 | 125⛧ | 250⛧ | 250 |
+| 2 | 250⛧ | 500⛧ | 167 |
+| 3 | 500⛧ | 1000⛧ | 125 |
 
 Le plancher remplace la prime de quota : « chaque palier démarre à X » se lit, un
 versement de 60 % du quota ne se lit pas. Le plafond empêche un joueur chanceux de se
 constituer un matelas qui rendrait le palier 3 formel, et la marge se resserre volontairement
 palier après palier (200 → 133 → 100 mises).
 
-Mesuré : plancher + plafond font passer la médiane de 342 à 389 spins et le taux de
-victoire de 21,5 % à 23,5 %. L'essentiel du gain vient du **plancher** ; le plafond ne mord
-que dans ~25 % des runs et sert surtout à borner la dérive haute.
+Mesuré : à quotas égaux, plancher + plafond font passer la médiane de 342 à 389 spins et
+le taux de victoire de 21,5 % à 23,5 %. L'essentiel du gain vient du **plancher** ; le
+plafond ne mord que dans ~25 % des runs et sert surtout à borner la dérive haute. Les HP
+sont aussi le vrai levier de durée du jeu (§9).
 
 ### Conséquences
 
@@ -329,11 +330,13 @@ achète des minutes en rendant le run ingagnable.
 | `[300,390,480]` | `[150,300,600]` / `[300,600,1200]` | 763 | 20,5 % |
 | `[300,390,480]` | `[200,400,800]` / `[400,800,1600]` | 1027 | 29,0 % |
 
-Candidats retenus si la durée actuelle (389 spins ≈ 26 min) se révèle trop courte en jeu :
+**Config retenue** : `K=[180,235,290]`, `HP=[125,250,500]/[250,500,1000]` — 558 spins
+(≈ 37 min), 29,5 % de victoires. Elle allonge le run *et* le rend plus juste que la
+première calibration (389 spins, 23,5 %) : la barre de vie suit l'allongement au lieu de
+le subir.
 
-- **~37 min** — `K=[180,235,290]`, `HP=[125,250,500]/[250,500,1000]` : 558 spins, 29,5 %
-  de victoires. Allonge *et* rend le run plus juste que l'actuel.
-- **~49 min** — `K=[220,290,360]`, `HP=[150,300,600]/[300,600,1200]` : 733 spins, 28,5 %.
+Palier suivant si 37 min se révèle encore court : **~49 min** avec `K=[220,290,360]` et
+`HP=[150,300,600]/[300,600,1200]` (733 spins, 28,5 %).
 
 Changer la config = trois constantes dans `RunState.ts` plus les bornes du garde-fou dans
 `Balance.sim.test.ts`.

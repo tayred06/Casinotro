@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GameLoop } from './GameLoop.ts'
-import { STAGE_QUOTA_K, ENDLESS_GOAL_FACTOR } from './RunState.ts'
+import { STAGE_QUOTA_K, ENDLESS_GOAL_FACTOR, STAGE_HP_FLOOR } from './RunState.ts'
 import { mountIndexHtml, betChipLabels } from '../test/domFixture.ts'
 
 const SAVE_KEY = 'casinotro_v3'
@@ -113,7 +113,8 @@ describe('GameLoop — nouvelle partie', () => {
     loop.startRun('luxuria')
 
     expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧3', '⛧5', '⛧10'])
-    expect(document.getElementById('balance-display')!.textContent).toBe('⛧100.00')
+    expect(document.getElementById('balance-display')!.textContent)
+      .toBe(`⛧${STAGE_HP_FLOOR[0].toFixed(2)}`)
   })
 
   /**

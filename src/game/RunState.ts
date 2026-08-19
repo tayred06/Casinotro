@@ -7,7 +7,7 @@ export const START_BALANCE: Souls = 100
  * Le quota d'un palier s'exprime en multiples de sa mise minimale : la durée d'un palier
  * (≈ K / RTP spins) reste constante quelle que soit l'échelle des nombres.
  */
-export const STAGE_QUOTA_K: [number, number, number] = [140, 180, 220]
+export const STAGE_QUOTA_K: [number, number, number] = [180, 235, 290]
 /** Mise minimale de chaque palier — escalade ×3, pas ×25. */
 export const STAGE_MIN_BETS: [Souls, Souls, Souls] = [1, 3, 8]
 /** Facteur d'escalade de la mise minimale en mode infini. */
@@ -17,8 +17,8 @@ export const ENDLESS_BET_FACTOR = 3
  * peut jamais dépasser son plafond — le trop-plein d'un gain part en crédit boutique.
  * La marge se resserre à chaque palier (200, puis 133, puis 100 mises minimales).
  */
-export const STAGE_HP_FLOOR: [Souls, Souls, Souls] = [100, 200, 400]
-export const STAGE_HP_CAP: [Souls, Souls, Souls] = [200, 400, 800]
+export const STAGE_HP_FLOOR: [Souls, Souls, Souls] = [125, 250, 500]
+export const STAGE_HP_CAP: [Souls, Souls, Souls] = [250, 500, 1000]
 /** Durcissement du quota à chaque palier du mode infini (la mise monte déjà ×3). */
 export const ENDLESS_GOAL_FACTOR = 1.5
 
