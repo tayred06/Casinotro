@@ -10,6 +10,8 @@ npm run build        # Production build
 npm test             # Vitest (run once)
 npm run test:watch   # Vitest (watch mode)
 npx vitest run src/game/Economy.test.ts  # Single test file
+npm run typecheck    # tsc --noEmit (strict)
+npm run check        # typecheck + tests + build, same as CI
 ```
 
 ## Architecture
@@ -73,7 +75,8 @@ Characters can also declare `actions: CharacterAction[]` — buttons rendered ne
 
 ## Key constraints
 
-- Tests only cover `src/game/` — UI modules (`src/ui/`) are verified manually in browser. Vitest runs with `environment: 'node'`, so anything touching `document` cannot be tested as-is.
+- Vitest defaults to `environment: 'node'`. A test needing the DOM or `localStorage` opts in with `// @vitest-environment jsdom` on its first line, and mounts the real page via `mountIndexHtml()` from `src/test/domFixture.ts` — never a hand-written DOM, so a renamed id in `index.html` fails a test instead of the app.
+- `ReelRenderer` animations are not covered: they run on real timers. Tests exercise construction, wiring and state, not the spin animation.
 - No CSS framework and no inline `<style>` — all styling lives in `src/styles/*.scss`
 - Build DOM with `createElement` / `textContent`, never `innerHTML` — keeps the app free of injection surface
 - A character's id in `CHARACTERS` (`Characters.ts`) must match its plugin key in `characters/index.ts`; `characters.test.ts` enforces this
