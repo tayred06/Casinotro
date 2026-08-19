@@ -2,6 +2,13 @@ import type { ItemDef, ItemInstance } from '../types/index.ts'
 import type { Economy } from '../game/Economy.ts'
 import type { BonusSystem } from '../game/BonusSystem.ts'
 
+const ITEM_GLYPHS: Record<string, string> = {
+  Commun: '▲',
+  Rare: '◆',
+  Épique: '✚',
+  Maudit: '◍',
+}
+
 const RARITY_CLASS: Record<number, string> = {
   1: 'commun',
   2: 'rare',
@@ -149,6 +156,11 @@ export class ShopUI {
       badge.className   = `rarity-badge rarity-${rLabel.toLowerCase()}`
       badge.textContent = rLabel
 
+      // Plaque d'icône (design : carré 34px, glyphe selon rareté)
+      const icon = document.createElement('div')
+      icon.className   = 'item-icon'
+      icon.textContent = ITEM_GLYPHS[rLabel] ?? '▲'
+
       nameRow.appendChild(name)
       nameRow.appendChild(badge)
 
@@ -179,8 +191,17 @@ export class ShopUI {
       footer.appendChild(spacer)
       footer.appendChild(btn)
 
-      item.appendChild(nameRow)
-      item.appendChild(desc)
+      const body = document.createElement('div')
+      body.className = 'item-body'
+      body.appendChild(nameRow)
+      body.appendChild(desc)
+
+      const head = document.createElement('div')
+      head.className = 'item-head'
+      head.appendChild(icon)
+      head.appendChild(body)
+
+      item.appendChild(head)
       item.appendChild(footer)
 
       container.appendChild(item)

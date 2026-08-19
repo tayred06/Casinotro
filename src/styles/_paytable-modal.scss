@@ -1,6 +1,6 @@
 // ── Bouton d'ouverture (machine-header) ──────────────────
 .machine-help-btn {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -27,8 +27,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, .82);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, .9);
 
   &.hidden { display: none; }
 }
@@ -60,7 +59,7 @@
 }
 
 .ptm-title {
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 16px;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -68,7 +67,7 @@
 }
 
 .ptm-sub {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .12em;
   color: var(--gold);
@@ -103,7 +102,7 @@
 }
 
 .ptm-h {
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 11px;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -149,7 +148,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 17px;
   background: #000;
   border: 1px solid var(--line);
@@ -165,7 +164,7 @@
 }
 
 .ptm-special-name {
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 11px;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -198,7 +197,7 @@
 }
 
 .ptm-line-lbl {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 9px;
   letter-spacing: .1em;
   color: var(--gold-dim);
@@ -233,7 +232,7 @@
   }
 
   th {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--fmono);
     font-size: 9px;
     letter-spacing: .12em;
     text-transform: uppercase;
@@ -241,7 +240,7 @@
   }
 
   td {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--fmono);
     color: var(--ink);
   }
 
@@ -254,7 +253,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Silkscreen', monospace !important;
+  font-family: var(--fdisp) !important;
   font-size: 10px;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -263,7 +262,7 @@
 
 .ptm-note {
   margin: 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .06em;
   color: var(--ink-dim);

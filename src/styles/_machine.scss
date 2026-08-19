@@ -31,17 +31,17 @@
 }
 
 .machine-name {
-  font-family: 'Silkscreen', monospace;
-  font-size: 16px;
+  font-family: var(--fdisp);
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: var(--disp-tracking);
   text-transform: uppercase;
   color: var(--ink);
   animation: sign 5.5s infinite;
 }
 
 .machine-meta {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   color: var(--gold);
   letter-spacing: .14em;
@@ -86,7 +86,7 @@
   padding: 4px 7px;
   background: rgba(182,243,106,.07);
   border: 1px solid rgba(182,243,106,.25);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 11px;
   font-weight: 500;
   color: var(--gold);
@@ -122,7 +122,7 @@
   padding: 3px 4px;
   background: rgba(182,243,106,.07);
   border: 1px solid rgba(182,243,106,.2);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   font-weight: 500;
   color: var(--gold);
@@ -205,7 +205,7 @@
 .col-badge {
   position: absolute;
   top: 4px; right: 5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   font-weight: 500;
   color: var(--gold);
@@ -231,9 +231,9 @@
 
 // Bas-payants : cartes. Volontairement plus discrets que les enseignes.
 .cell-card {
-  font-family: Georgia, serif;
+  font-family: var(--fdisp);
   font-weight: 700;
-  font-size: 34px;
+  font-size: 26px;
   line-height: 1;
   color: var(--ink);
   opacity: .78;
@@ -242,7 +242,7 @@
 }
 
 .cell-seven {
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-weight: 700;
   font-size: 44px;
   color: var(--gold);
@@ -256,7 +256,7 @@
   width: 44px;
   height: 44px;
   border: 2px dashed var(--gold);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 18px;
   color: var(--gold);
   user-select: none;
@@ -280,7 +280,7 @@
   padding: 7px 20px;
   background: var(--panel);
   border: 1px solid rgba(182,243,106,.5);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10.5px;
   letter-spacing: 2px;
   color: var(--gold);
@@ -299,7 +299,7 @@
   padding: 6px 18px;
   background: transparent;
   border: 1px solid var(--line);
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 16px;
   color: var(--ink-dim);
   cursor: pointer;
@@ -335,9 +335,9 @@
   animation: popIn .3s ease both;
 }
 
-.win-label  { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2.5px; color: var(--ink-dim); }
-.win-amount { font-family: 'Silkscreen', monospace; font-size: 36px; font-weight: 700; color: var(--gold); letter-spacing: .04em; }
-.win-detail { font-family: 'VT323', monospace; font-size: 18px; color: var(--ink-dim); }
+.win-label  { font-family: var(--fmono); font-size: 10px; letter-spacing: 2.5px; color: var(--ink-dim); }
+.win-amount { font-family: var(--fdisp); font-size: 36px; font-weight: 700; color: var(--gold); letter-spacing: .04em; }
+.win-detail { font-family: var(--fui); font-size: 18px; color: var(--ink-dim); }
 
 // Game over overlay
 .game-over-overlay {
@@ -348,15 +348,14 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  background: rgba(5,7,10,.9);
-  backdrop-filter: blur(4px);
+  background: rgba(5,7,10,.95);
   z-index: 20;
 
   &.hidden { display: none; }
 }
 
 .game-over-title {
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 26px;
   font-weight: 700;
   color: var(--hot);
@@ -365,7 +364,7 @@
 }
 
 .game-over-text {
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 18px;
   color: var(--ink-dim);
   max-width: 420px;
@@ -377,7 +376,7 @@
   padding: 12px 30px;
   border: 1px solid var(--gold);
   background: transparent;
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .06em;
@@ -398,7 +397,7 @@
 }
 
 .cell-broken {
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   color: rgba(150,67,26,.85);
   text-shadow: 0 0 10px rgba(150,67,26,.45);
   opacity: .8;

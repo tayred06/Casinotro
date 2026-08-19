@@ -301,3 +301,32 @@ export const UNLOCK_ORDER = CHARACTERS
 export const STARTING_CHARACTER_ID = 'luxuria'
 
 export const getCharacter = (id: string): Character | undefined => CHARACTERS.find((c) => c.id === id)
+
+/**
+ * Build démo : seuls les personnages dont l'`unlockOrder` est ≤ à cette valeur
+ * sont jouables. Les autres restent visibles mais verrouillés dans la sélection.
+ * Passer à `Infinity` pour ouvrir le roster complet.
+ */
+export const DEMO_MAX_UNLOCK_ORDER = 4
+
+/** Fait partie du roster de la démo (verrouillé ou non). */
+export const isInDemoRoster = (c: Character): boolean =>
+  c.unlockOrder <= DEMO_MAX_UNLOCK_ORDER
+
+/**
+ * Jouable = dans le roster démo **et** débloqué. Le déblocage se gagne :
+ * finir une run avec un personnage ouvre le suivant dans `UNLOCK_ORDER`.
+ */
+export const isCharacterPlayable = (c: Character, unlocked: ReadonlySet<string>): boolean =>
+  isInDemoRoster(c) && unlocked.has(c.id)
+
+/** Personnage suivant dans l'ordre de déblocage, borné au roster démo. */
+export const getNextCharacterId = (id: string): string | null => {
+  const roster = UNLOCK_ORDER.filter((cid) => {
+    const c = getCharacter(cid)
+    return c && isInDemoRoster(c)
+  })
+  const i = roster.indexOf(id)
+  if (i < 0 || i + 1 >= roster.length) return null
+  return roster[i + 1]
+}

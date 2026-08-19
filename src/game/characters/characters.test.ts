@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getCharacterPlugin, CHARACTER_IDS } from './index.ts'
+import { CHARACTERS } from '../Characters.ts'
 
 describe('getCharacterPlugin', () => {
   it('returns a plugin for each character', () => {
@@ -7,6 +8,14 @@ describe('getCharacterPlugin', () => {
       const plugin = getCharacterPlugin(id)
       expect(plugin.id).toBe(id)
     }
+  })
+
+  it('every declared character has a plugin under the same id', () => {
+    for (const char of CHARACTERS) {
+      const plugin = getCharacterPlugin(char.id)
+      expect(plugin.id).toBe(char.id)
+    }
+    expect([...CHARACTER_IDS].sort()).toEqual(CHARACTERS.map((c) => c.id).sort())
   })
 
   it('gula returns a new instance each time (factory)', () => {

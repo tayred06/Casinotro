@@ -31,7 +31,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-size: 110px;
   line-height: 1;
   color: var(--char-edge, #2f5136);
@@ -54,13 +54,13 @@
 }
 
 .char-hud-name {
-  font-family: 'Silkscreen', monospace;
-  font-size: 18px;
+  font-family: var(--fdisp);
+  font-size: 26px;
   font-weight: 700;
   line-height: 1;
   color: var(--ink);
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  text-transform: var(--disp-transform);
+  letter-spacing: var(--disp-tracking);
 }
 
 .char-hud-stats {
@@ -70,14 +70,14 @@
 }
 
 .char-hud-lv {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   color: var(--gold-dim);
   white-space: nowrap;
 }
 
 .char-hud-sin {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .12em;
   color: var(--hot);
@@ -85,7 +85,7 @@
 }
 
 .char-hud-link {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .1em;
   color: var(--ink-dim);
@@ -101,7 +101,7 @@
 
 .char-hud-inv-lbl {
   display: block;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .16em;
   color: var(--ink-dim);
@@ -122,7 +122,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 14px;
   color: var(--gold);
 }

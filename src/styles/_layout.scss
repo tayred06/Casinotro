@@ -1,5 +1,7 @@
 #game {
   width: 100%;
+  max-width: 2500px;
+  margin: 0 auto;
   height: 100vh;
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr) 320px;

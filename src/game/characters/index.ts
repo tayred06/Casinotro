@@ -14,7 +14,7 @@ const STATELESS: Record<string, CharacterPlugin> = {
   invidia: invidiaPlugin,
   acedia: acediaPlugin,
   superbia: superbiaPlugin,
-  joueur: joueurPlugin,
+  character_8: joueurPlugin,
 }
 
 const FACTORIES: Record<string, () => CharacterPlugin> = {
@@ -30,5 +30,5 @@ export function getCharacterPlugin(id: string): CharacterPlugin {
 }
 
 export const CHARACTER_IDS = [
-  'luxuria', 'gula', 'avaritia', 'ira', 'invidia', 'acedia', 'superbia', 'joueur'
+  'luxuria', 'gula', 'avaritia', 'ira', 'invidia', 'acedia', 'superbia', 'character_8'
 ]

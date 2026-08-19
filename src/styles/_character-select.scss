@@ -46,7 +46,7 @@
 .cs-header-left { display: flex; flex-direction: column; gap: 12px; }
 
 .cs-subtitle {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .3em;
   color: var(--hot);
@@ -54,10 +54,10 @@
 }
 
 .cs-title {
-  font-family: 'Silkscreen', monospace;
-  font-size: clamp(22px, 4vw, 52px);
-  font-weight: 700;
-  letter-spacing: .06em;
+  font-family: var(--fdisp);
+  font-size: clamp(22px, 5vw, 76px);
+  font-weight: 900;
+  letter-spacing: var(--disp-tracking);
   text-transform: uppercase;
   line-height: .9;
   color: var(--ink);
@@ -65,10 +65,10 @@
 }
 
 .cs-header-desc {
-  max-width: 380px;
-  font-family: 'VT323', monospace;
-  font-size: 16px;
-  line-height: 1.55;
+  max-width: 420px;
+  font-family: var(--fui);
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--ink-dim);
 }
 
@@ -94,6 +94,15 @@
 
   &:hover    { border-color: rgba(182,243,106,.45); }
   &.selected { border-color: var(--gold); }
+
+  // Verrouillé (build démo) : visible, non cliquable
+  &--locked {
+    cursor: not-allowed;
+    filter: grayscale(1);
+    opacity: .38;
+
+    &:hover { border-color: var(--line); }
+  }
 }
 
 // Plate (visual area, takes remaining height)
@@ -111,8 +120,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Silkscreen', monospace;
-  font-size: 88px;
+  font-family: var(--fdisp);
+  font-size: 96px;
   line-height: 1;
 }
 
@@ -120,12 +129,18 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8px;
+  font-family: var(--fmono);
+  font-size: 9px;
   letter-spacing: .14em;
   padding: 4px 7px;
   background: var(--hot);
   color: #fff;
+
+  &--locked {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted, #8a8f8c);
+  }
 }
 
 // Card info (fixed-height bottom)
@@ -138,17 +153,17 @@
 }
 
 .cs-name {
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fdisp);
   font-weight: 700;
   line-height: 1.05;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: var(--disp-tracking);
   color: var(--ink);
 }
 
-.cs-tag       { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--gold-dim); letter-spacing: .1em; }
-.cs-mech-title{ font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--hot); }
-.cs-desc      { font-family: 'VT323', monospace; font-size: 13px; line-height: 1.45; color: var(--ink-dim); }
+.cs-tag       { font-family: var(--fmono); font-size: 9px; color: var(--gold-dim); letter-spacing: .1em; }
+.cs-mech-title{ font-family: var(--fmono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--hot); }
+.cs-desc      { font-family: var(--fui); font-size: 13px; line-height: 1.5; color: var(--ink-dim); }
 
 // Bottom confirmation bar
 .cs-bar {
@@ -159,7 +174,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 30px;
-  padding: 20px 26px;
+  padding: 22px 26px;
   background: var(--panel);
   border: 1px solid var(--line);
 }
@@ -176,7 +191,7 @@
 .cs-bar-stat  { display: flex; flex-direction: column; gap: 4px; }
 
 .cs-bar-lbl {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .16em;
   text-transform: uppercase;
@@ -184,24 +199,27 @@
 }
 
 .cs-bar-name {
-  font-family: 'Silkscreen', monospace;
-  font-size: 22px;
+  font-family: var(--fdisp);
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: var(--disp-tracking);
   text-transform: uppercase;
   color: var(--ink);
   line-height: 1;
 }
 
-.cs-bar-sin  { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--hot); }
-.cs-bar-mech { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--hot); }
-.cs-bar-val  { font-family: 'JetBrains Mono', monospace; font-size: 20px; color: var(--gold); }
+.cs-bar-sin  { font-family: var(--fmono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--hot); }
+.cs-bar-mech { font-family: var(--fmono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--hot); }
+.cs-bar-val  { font-family: var(--fmono); font-size: 22px; color: var(--gold); }
+// Quota manche 1 : encre, pas or (design)
+#cs-bar-quota { color: var(--ink); }
 
 .cs-bar-actions { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
 
 .cs-confirm-btn {
-  font-family: 'VT323', monospace;
-  font-size: 18px;
+  font-family: var(--fui);
+  font-size: 15px;
+  font-weight: 800;
   letter-spacing: .18em;
   text-transform: uppercase;
   color: var(--ink);

@@ -1,7 +1,10 @@
 import type { Character } from '../game/Characters.ts'
+import { isCharacterPlayable, isInDemoRoster } from '../game/Characters.ts'
 
 export class CharacterSelect {
   #onSelect: (char: Character) => void
+  #characters: Character[] = []
+  #unlocked: ReadonlySet<string> = new Set()
   #overlay: HTMLElement
   #selected: Character | null = null
   #cards = new Map<string, HTMLElement>()
@@ -12,8 +15,10 @@ export class CharacterSelect {
   #barQuota: HTMLElement
   #confirmBtn: HTMLButtonElement
 
-  constructor(characters: Character[], onSelect: (char: Character) => void) {
+  constructor(characters: Character[], onSelect: (char: Character) => void, unlocked: ReadonlySet<string>) {
     this.#onSelect = onSelect
+    this.#characters = characters.filter(c => !c.hidden)
+    this.#unlocked = unlocked
     this.#overlay  = document.getElementById('character-select-overlay')!
 
     this.#barName    = document.getElementById('cs-bar-name')!
@@ -26,7 +31,15 @@ export class CharacterSelect {
       if (this.#selected) this.#onSelect(this.#selected)
     })
 
-    this.#renderGrid(characters.filter(c => !c.hidden))
+    this.#renderGrid(this.#characters)
+  }
+
+  /** Re-rend la grille avec la liste de débloqués à jour (après une victoire). */
+  refresh(unlocked: ReadonlySet<string>) {
+    this.#unlocked = unlocked
+    this.#selected = null
+    this.#confirmBtn.disabled = true
+    this.#renderGrid(this.#characters)
   }
 
   #renderGrid(characters: Character[]) {
@@ -45,8 +58,10 @@ export class CharacterSelect {
     const felt     = char.color    ?? '#0a0f0b'
     const feltEdge = char.colorEdge ?? '#2f5136'
 
+    const playable = isCharacterPlayable(char, this.#unlocked)
+
     const card = document.createElement('div')
-    card.className = 'cs-card'
+    card.className = playable ? 'cs-card' : 'cs-card cs-card--locked'
 
     // ── Plate (top visual area) ──────────────────────
     const plate = document.createElement('div')
@@ -60,11 +75,11 @@ export class CharacterSelect {
     sigil.style.color   = feltEdge
     sigil.style.opacity = '0.6'
 
-    // Badge — "SÉLECTIONNÉ" quand sélectionné
+    // Badge — "SÉLECTIONNÉ" quand sélectionné, "VERROUILLÉ" si indisponible
     const badge = document.createElement('div')
-    badge.className = 'cs-badge'
-    badge.style.display = 'none'
-    badge.textContent = 'SÉLECTIONNÉ'
+    badge.className = playable ? 'cs-badge' : 'cs-badge cs-badge--locked'
+    badge.style.display = playable ? 'none' : ''
+    badge.textContent = playable ? 'SÉLECTIONNÉ' : 'VERROUILLÉ'
 
     plate.appendChild(sigil)
     plate.appendChild(badge)
@@ -76,7 +91,7 @@ export class CharacterSelect {
     const nameEl = document.createElement('div')
     nameEl.className = 'cs-name'
     const nameLen = char.name.length
-    nameEl.style.fontSize = nameLen > 10 ? '12px' : nameLen > 8 ? '14px' : '17px'
+    nameEl.style.fontSize = nameLen > 10 ? '14px' : nameLen > 8 ? '17px' : '20px'
     nameEl.textContent = char.name
 
     const tagEl = document.createElement('div')
@@ -89,7 +104,11 @@ export class CharacterSelect {
 
     const descEl = document.createElement('div')
     descEl.className = 'cs-desc'
-    descEl.textContent = char.description
+    descEl.textContent = playable
+      ? char.description
+      : isInDemoRoster(char)
+        ? 'Verrouillé — termine une run avec le personnage précédent.'
+        : 'Indisponible dans cette démo.'
 
     info.appendChild(nameEl)
     info.appendChild(tagEl)
@@ -99,12 +118,15 @@ export class CharacterSelect {
     card.appendChild(plate)
     card.appendChild(info)
 
-    card.addEventListener('click', () => this.#selectCard(char, card, badge))
+    if (playable) {
+      card.addEventListener('click', () => this.#selectCard(char, card, badge))
+    }
 
     return card
   }
 
   #selectCard(char: Character, clickedCard: HTMLElement, clickedBadge: HTMLElement) {
+    if (!isCharacterPlayable(char, this.#unlocked)) return
     this.#selected = char
 
     // Update card visual states

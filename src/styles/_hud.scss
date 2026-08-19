@@ -14,7 +14,7 @@
 }
 
 .stat-card-lbl {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .16em;
   color: var(--ink-dim);
@@ -23,8 +23,8 @@
 }
 
 .stat-card-primary {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 22px;
+  font-family: var(--fmono);
+  font-size: 24px;
   color: var(--ink);
   display: block;
   margin-top: 4px;
@@ -34,7 +34,7 @@
 }
 
 .stat-card-secondary {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 13px;
   color: var(--ink-dim);
 }
@@ -67,7 +67,7 @@
 .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
 
 .ctrl-lbl {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: .16em;
   color: var(--ink-dim);
@@ -75,15 +75,15 @@
 }
 
 #balance-display {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 30px;
+  font-family: var(--fmono);
+  font-size: 32px;
   line-height: 1;
   color: var(--gold);
   white-space: nowrap;
 }
 
 #highscore-display {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 13px;
   color: var(--gold-dim);
   line-height: 1;
@@ -98,7 +98,7 @@
   min-width: 52px;
   padding: 7px 10px;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 12px;
   color: var(--ink-dim);
   background: transparent;
@@ -119,8 +119,8 @@
   padding: 20px 46px;
   border: 1px solid var(--hot);
   background: var(--hot);
-  font-family: 'VT323', monospace;
-  font-size: 20px;
+  font-family: var(--fui);
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -138,7 +138,7 @@
   padding: 20px 30px;
   border: 1px solid var(--char-edge, #96431a);
   background: transparent;
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 20px;
   font-weight: 800;
   letter-spacing: .2em;

@@ -14,13 +14,34 @@
   --ink-dim:    #77a06a;
   --hot:        #ff2d55;
   --neon:       #f2c14b;
+
+  /* Typographie — thème « arcade crasse » du Claude Design */
+  --fdisp: 'Silkscreen', monospace;
+  --fui:   'VT323', monospace;
+  --fmono: 'Space Mono', 'JetBrains Mono', monospace;
+
+  --radius:     0px;
+  --cellradius: 0px;
+
+  --disp-tracking:  .06em;
+  --disp-transform: uppercase;
 }
 
 body {
   background: var(--bg);
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   color: var(--ink);
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+
+/* Vignette globale (design : radial-gradient fixe au-dessus du décor) */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 49;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 35%, rgba(20, 0, 4, .72) 100%);
 }

@@ -25,7 +25,7 @@
 
 .shop-log-lbl {
   display: block;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 9.5px;
   letter-spacing: 1.6px;
   color: var(--ink-dim);
@@ -38,7 +38,7 @@
 .log-entry { display: flex; gap: 8px; line-height: 1.3; }
 
 .log-spin {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 9px;
   color: var(--line);
   flex-shrink: 0;
@@ -46,7 +46,7 @@
 }
 
 .log-text {
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 14px;
   color: var(--ink-dim);
 
@@ -57,24 +57,24 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
 
 .shop-title {
-  font-family: 'Silkscreen', monospace;
-  font-size: 12px;
+  font-family: var(--fdisp);
+  font-size: 22px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .08em;
+  text-transform: var(--disp-transform);
+  letter-spacing: var(--disp-tracking);
   color: var(--ink);
 }
 
 .shop-spacer { flex: 1; }
 
 .shop-level-lbl {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
   letter-spacing: 1.4px;
   color: var(--ink-dim);
@@ -85,7 +85,7 @@
   padding: 4px 10px;
   border: 1px solid var(--line);
   background: transparent;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 9.5px;
   letter-spacing: .8px;
   color: var(--ink-dim);
@@ -102,21 +102,44 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--line);
+}
+
+// Ligne haute : plaque d'icône + corps du texte (design)
+.item-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.item-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--gold-dim);
+  background: var(--panel2);
+  color: var(--gold);
+  font-family: var(--fmono);
+  font-size: 14px;
 }
 
 .item-name-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 
 .item-name {
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 18px;
   font-weight: 700;
   color: var(--ink);
 }
 
 .rarity-badge {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 9px;
   letter-spacing: 1.2px;
   padding: 2px 5px;
@@ -128,36 +151,35 @@
 .rarity-maudit { color: var(--hot);     border: 1px solid #4a1e1e; }
 
 .item-desc {
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 15px;
-  line-height: 1.3;
+  line-height: 1.45;
   color: var(--ink-dim);
 }
 
 .item-footer { display: flex; align-items: center; gap: 12px; }
 
 .item-price {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-family: var(--fmono);
+  font-size: 16px;
   color: var(--gold);
 }
 
 .item-spacer { flex: 1; }
 
 .buy-btn {
-  padding: 5px 13px;
+  padding: 9px 14px;
   cursor: pointer;
-  font-family: 'Silkscreen', monospace;
+  font-family: var(--fmono);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: .14em;
   text-transform: uppercase;
   background: transparent;
-  border: 1px solid var(--line);
-  color: var(--ink);
+  border: 1px solid var(--gold);
+  color: var(--gold);
   transition: background .15s, border-color .15s, color .15s;
 
-  &:hover:not(.cant-buy) { background: var(--panel2); border-color: var(--gold-dim); }
+  &:hover:not(.cant-buy) { background: var(--velvet); border-color: var(--gold); color: var(--ink); }
   &.cant-buy { color: var(--ink-dim); border-color: var(--line); opacity: .5; cursor: not-allowed; }
 }
 
@@ -168,7 +190,7 @@
   width: 100%;
   padding: 10px;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 11px;
   color: var(--ink-dim);
   background: transparent;
@@ -184,7 +206,7 @@
 
 .bonuses-lbl {
   display: block;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--fmono);
   font-size: 9.5px;
   letter-spacing: 1.6px;
   color: var(--ink-dim);
@@ -195,7 +217,7 @@
 
 .bonus-tag {
   padding: 4px 9px;
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 15px;
   color: var(--ink-dim);
   background: var(--panel2);
@@ -206,7 +228,7 @@
 }
 
 .no-bonus {
-  font-family: 'VT323', monospace;
+  font-family: var(--fui);
   font-size: 15px;
   color: var(--ink-dim);
   font-style: italic;

@@ -15,7 +15,8 @@ import { CharacterSelect } from '../ui/CharacterSelect.ts'
 import { ProfileModal } from '../ui/ProfileModal.ts'
 import { PaytableModal } from '../ui/PaytableModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
-import { CHARACTERS, getCharacter } from './Characters.ts'
+import { EndScreen } from '../ui/EndScreen.ts'
+import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId } from './Characters.ts'
 
 const SAVE_KEY = 'casinotro_v3'
 
@@ -28,7 +29,7 @@ export class GameLoop {
   private economy = new Economy(100, this.progression)
   private bonusSystem = new BonusSystem()
   private run = new RunState()
-  private plugin: CharacterPlugin = { id: 'joueur' }
+  private plugin: CharacterPlugin = { id: 'none' }
   private isSpinning = false
   private currentGrid: any[][] = []
   private actionBtn: HTMLButtonElement | null = null
@@ -41,6 +42,9 @@ export class GameLoop {
   private profileModal: ProfileModal
   private paytableModal: PaytableModal
   private dialogueUI: DialogueUI
+  private endScreen: EndScreen
+  /** Run terminée (victoire ou défaite) : plus aucune action de jeu n'est acceptée. */
+  private runEnded = false
 
   /** Machine de la run courante. Toute la géométrie et la paytable en découlent. */
   private get machine(): MachineConfig {
@@ -85,7 +89,8 @@ export class GameLoop {
         return null
       }
     )
-    this.characterSelect = new CharacterSelect(CHARACTERS, (c) => this.startRun(c.id))
+    this.characterSelect = new CharacterSelect(CHARACTERS, (c) => this.startRun(c.id), this.progression.unlockedCharacters)
+    this.endScreen = new EndScreen(() => this.restartRun())
     this.profileModal = new ProfileModal()
     this.paytableModal = new PaytableModal()
 
@@ -105,6 +110,12 @@ export class GameLoop {
   private boot(): void {
     const save = this.loadSave()
     if (save) {
+      // Sauvegarde d'un personnage retiré du build (démo) : on repart de la sélection.
+      const saved = getCharacter(save.run?.characterId)
+      if (!saved || !isCharacterPlayable(saved, this.progression.unlockedCharacters)) {
+        this.clearSave()
+        return
+      }
       this.run.restore(save.run)
       this.economy.restore(save.economy)
       this.bonusSystem.restore(save.bonusSystem)
@@ -142,6 +153,8 @@ export class GameLoop {
     this.hud.rebuildBetChips()
     this.bonusSystem.reset()
     this.renderer.hideGameOver()
+    this.endScreen.hide()
+    this.runEnded = false
     this.renderer.clearHighlights()
     this.characterSelect.hide()
     this.clearSave()
@@ -165,7 +178,7 @@ export class GameLoop {
   }
 
   async handleSpin(): Promise<void> {
-    if (this.isSpinning || this.economy.isGameOver()) return
+    if (this.runEnded || this.isSpinning || this.economy.isGameOver()) return
     if (!this.economy.placeBet()) {
       if (this.plugin.onLossCheck?.(this.ctx)) {
         this.gameOver('Mise impossible.')
@@ -234,6 +247,7 @@ export class GameLoop {
     this.uiContext.updateHUD()
     this.shop.updateDisplay()
     this.checkStageProgress(grid)
+    if (this.runEnded) return
 
     if (this.plugin.onLossCheck?.(this.ctx)) {
       this.gameOver('Condition de défaite du personnage.')
@@ -277,6 +291,11 @@ export class GameLoop {
   }
 
   private checkStageProgress(grid: any[][]): void {
+    if (this.economy.balance >= this.run.currentGoal && this.run.stage >= 3) {
+      this.progression.updateHighscore(this.economy.balance)
+      this.victory()
+      return
+    }
     if (this.economy.balance >= this.run.currentGoal && this.run.stage < 3) {
       this.plugin.onStageComplete?.(this.ctx, this.run.stage)
       this.run.advanceStage()
@@ -315,7 +334,7 @@ export class GameLoop {
   }
 
   private async handleCharacterAction(): Promise<void> {
-    if (this.isSpinning || this.economy.isGameOver()) return
+    if (this.runEnded || this.isSpinning || this.economy.isGameOver()) return
     const action = this.plugin.getAction?.(this.ctx)
     if (!action || !action.enabled) return
 
@@ -348,6 +367,7 @@ export class GameLoop {
 
     this.progression.updateHighscore(this.economy.balance)
     this.checkStageProgress(this.currentGrid)
+    if (this.runEnded) return
     this.uiContext.updateHUD()
     this.shop.updateDisplay()
 
@@ -368,12 +388,68 @@ export class GameLoop {
 
   private gameOver(text: string): void {
     this.clearSave()
-    this.renderer.showGameOver(text)
+    this.runEnded = true
     this.isSpinning = false
+    this.hud.setSpinEnabled(false)
+    this.actionBtn?.classList.add('hidden')
+    this.endScreen.show({
+      outcome: 'lose',
+      kicker: `Palier ${this.run.stage} — quota manqué`,
+      title: 'La maison remercie',
+      body: `${text} Rassure-toi : ici, la faillite n'est jamais définitive, seulement renouvelable.`,
+      stats: this.endStats(),
+    })
+  }
+
+  /** Objectif du dernier palier atteint : la run est gagnée. */
+  private victory(): void {
+    this.clearSave()
+    this.runEnded = true
+    this.isSpinning = false
+    this.hud.setSpinEnabled(false)
+    this.actionBtn?.classList.add('hidden')
+
+    const unlockedName = this.unlockNextCharacter()
+    const body = "Tu as payé le quota. La direction note ton zèle et augmente la mise. Le ticket de sortie coûte toujours un million, et il coûtera toujours un million."
+
+    this.endScreen.show({
+      outcome: 'win',
+      kicker: `Palier ${this.run.stage} — quota atteint`,
+      title: 'Encore un tour',
+      body: unlockedName
+        ? `${body} Un nouveau pensionnaire descend : ${unlockedName}.`
+        : body,
+      stats: this.endStats(),
+    })
+  }
+
+  /**
+   * Gagner avec un personnage ouvre le suivant dans l'ordre de déblocage.
+   * Retourne le nom du personnage nouvellement débloqué, ou null.
+   */
+  private unlockNextCharacter(): string | null {
+    const nextId = getNextCharacterId(this.run.characterId)
+    if (!nextId || !this.progression.unlockCharacter(nextId)) return null
+    this.characterSelect.refresh(this.progression.unlockedCharacters)
+    const next = getCharacter(nextId)
+    this.shop.addLog(`Personnage débloqué : ${next?.name ?? nextId}.`)
+    return next?.name ?? nextId
+  }
+
+  private endStats(): { k: string; v: string }[] {
+    const fmt = (n: Souls) => `${Math.round(n).toLocaleString('fr-FR')} \u26E7`
+    return [
+      { k: 'Cagnotte finale', v: fmt(this.economy.balance) },
+      { k: 'Paliers',         v: `${this.run.stage} / 3` },
+      { k: 'Total misé',      v: fmt(this.economy.totalWagered) },
+      { k: 'Record',          v: fmt(this.progression.highscore) },
+    ]
   }
 
   private restartRun(): void {
     this.clearSave()
+    this.runEnded = false
+    this.endScreen.hide()
     this.renderer.hideGameOver()
     this.renderer.clearHighlights()
     this.hud.setSpinEnabled(false)
