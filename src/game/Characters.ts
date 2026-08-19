@@ -314,6 +314,13 @@ export const isInDemoRoster = (c: Character): boolean =>
   c.unlockOrder <= DEMO_MAX_UNLOCK_ORDER
 
 /**
+ * Démo : tout le roster est ouvert d'entrée. Le Convive, Le Banquier et Le Boxeur
+ * ne se gagnent plus — `Progression` les considère débloqués dès la première partie.
+ */
+export const DEMO_UNLOCKED_IDS: readonly string[] =
+  CHARACTERS.filter(isInDemoRoster).map((c) => c.id)
+
+/**
  * Jouable = dans le roster démo **et** débloqué. Le déblocage se gagne :
  * finir une run avec un personnage ouvre le suivant dans `UNLOCK_ORDER`.
  */

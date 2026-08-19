@@ -279,6 +279,9 @@ export class ShopUI {
     if (!this.#economy.spend(offer.price)) return
     this.#bonusSystem.addBonus(offer, target)
     this.addLog(`Achat — ${offer.name}`, false)
+    // Un achat renouvelle les offres, gratuitement et sans toucher au coût de
+    // reroll : la boutique ne garde jamais un item déjà acheté à l'écran.
+    this.#currentOffers = this.#bonusSystem.getShopOffers(this.#economy.getShopLevel() as 1 | 2 | 3)
     this.#renderBonuses()
     this.#renderItems()
     this.#updateRerollBtn()

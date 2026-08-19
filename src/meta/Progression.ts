@@ -1,5 +1,5 @@
 import type { Souls } from '../types/index.ts'
-import { STARTING_CHARACTER_ID } from '../game/Characters.ts'
+import { DEMO_UNLOCKED_IDS } from '../game/Characters.ts'
 
 const KEY = 'casinotro_meta_v2'
 /** Ancienne clé, écrite par Economy avant que Progression devienne propriétaire. */
@@ -8,8 +8,8 @@ const LEGACY_HIGHSCORE_KEY = 'casinotro_highscore'
 export class Progression {
   highscore: Souls = 0
   unlockedMachines: Set<string> = new Set(['megaways'])
-  /** Personnages débloqués. Seul le premier l'est à la première partie. */
-  unlockedCharacters: Set<string> = new Set([STARTING_CHARACTER_ID])
+  /** Personnages débloqués. Le roster de la démo l'est d'office. */
+  unlockedCharacters: Set<string> = new Set(DEMO_UNLOCKED_IDS)
 
   constructor() { this.load() }
 
@@ -50,7 +50,9 @@ export class Progression {
         const data = JSON.parse(raw)
         this.highscore = data.highscore ?? 0
         this.unlockedMachines = new Set(data.unlockedMachines ?? ['megaways'])
-        this.unlockedCharacters = new Set(data.unlockedCharacters ?? [STARTING_CHARACTER_ID])
+        // Union avec le roster démo : une sauvegarde d'avant l'ouverture ne
+        // doit pas re-verrouiller des personnages désormais gratuits.
+        this.unlockedCharacters = new Set([...DEMO_UNLOCKED_IDS, ...(data.unlockedCharacters ?? [])])
       }
       this.#absorbLegacyHighscore()
     } catch {}
