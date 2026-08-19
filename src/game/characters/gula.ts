@@ -1,29 +1,30 @@
 import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemInstance } from '../../types/index.ts'
 
-const PARAMS = {
+/** Source unique des réglages de Gula — référencée par CHARACTERS. */
+export const GULA_PARAMS = {
   betEscalationPercent: 0.12,
   betEscalationFloor: 1,
 }
 
 export function createGulaPlugin(): CharacterPlugin {
-  let gulaBet = PARAMS.betEscalationFloor
+  let gulaBet = GULA_PARAMS.betEscalationFloor
 
   function getIncrement(ctx: GameContext): number {
     return ctx.economy.balance < 100
-      ? PARAMS.betEscalationFloor
-      : Math.round(ctx.economy.balance * PARAMS.betEscalationPercent * 100) / 100
+      ? GULA_PARAMS.betEscalationFloor
+      : Math.round(ctx.economy.balance * GULA_PARAMS.betEscalationPercent * 100) / 100
   }
 
   return {
     id: 'gula',
 
     onSetup(ctx: GameContext): void {
-      gulaBet = PARAMS.betEscalationFloor
+      gulaBet = GULA_PARAMS.betEscalationFloor
       ctx.economy.forceSetBet(gulaBet)
     },
 
     onTeardown(_ctx: GameContext): void {
-      gulaBet = PARAMS.betEscalationFloor
+      gulaBet = GULA_PARAMS.betEscalationFloor
     },
 
     onAfterSpin(ctx: GameContext, _result: SpinResult): void {
@@ -33,7 +34,7 @@ export function createGulaPlugin(): CharacterPlugin {
     },
 
     onShopSell(ctx: GameContext, item: ItemInstance): void {
-      gulaBet = PARAMS.betEscalationFloor
+      gulaBet = GULA_PARAMS.betEscalationFloor
       ctx.economy.forceSetBet(gulaBet)
       ctx.addLog(`Dévoré : ${item.name} — mise remise à ${gulaBet}⛧`, true)
     },

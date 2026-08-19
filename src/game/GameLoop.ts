@@ -19,6 +19,8 @@ import { EndScreen } from '../ui/EndScreen.ts'
 import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId } from './Characters.ts'
 
 const SAVE_KEY = 'casinotro_v3'
+/** Coût du premier renouvellement de boutique, remis à zéro à chaque partie. */
+const INITIAL_REROLL_COST = 5
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -116,9 +118,20 @@ export class GameLoop {
         this.clearSave()
         return
       }
-      this.run.restore(save.run)
-      this.economy.restore(save.economy)
-      this.bonusSystem.restore(save.bonusSystem)
+      try {
+        this.run.restore(save.run)
+        this.economy.restore(save.economy)
+        this.bonusSystem.restore(save.bonusSystem)
+      } catch {
+        // Sauvegarde malformée : on repart proprement plutôt que d'échouer
+        // dans le constructeur et de laisser un écran noir.
+        this.clearSave()
+        return
+      }
+      // Les paliers de mise appartiennent au run : sans ça, recharger la page
+      // en palier 2/3 ramenait les mises initiales.
+      this.economy.setBetOptions(this.run.betOptions)
+      if (typeof save.economy?.currentBet === 'number') this.economy.setBet(save.economy.currentBet)
       this.plugin = getCharacterPlugin(this.run.characterId)
       this.plugin.onSetup?.(this.ctx)
       this.plugin.restore?.(save.pluginState)
@@ -133,6 +146,7 @@ export class GameLoop {
       this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
       this.renderer.showModifiers(this.bonusSystem.getModifiers())
       this.shop.setOffers(save.shopOffers ?? [], this.economy.getShopLevel())
+      if (typeof save.rerollCost === 'number') this.shop.setRerollCost(save.rerollCost)
       this.hud.rebuildBetChips()
       this.uiContext.updateHUD()
       this.applyCharacterTheme()
@@ -168,6 +182,7 @@ export class GameLoop {
     this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
     this.renderer.showModifiers(this.bonusSystem.getModifiers())
     this.refreshAction()
+    this.shop.setRerollCost(INITIAL_REROLL_COST)
     this.shop.refresh(1)
     this.hud.setSpinEnabled(true)
     this.hud.setSpinLabel('SPIN')
@@ -512,6 +527,7 @@ export class GameLoop {
         economy:     this.economy.serialize(),
         bonusSystem: this.bonusSystem.serialize(),
         shopOffers:  this.shop.getOffers(),
+        rerollCost:  this.shop.getRerollCost(),
         pluginState: this.plugin.serialize?.() ?? null,
         grid:        grid?.map(col => col.map((s: any) => s.id)),
       }))

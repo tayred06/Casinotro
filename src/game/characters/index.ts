@@ -1,7 +1,7 @@
 import type { CharacterPlugin } from '../../types/index.ts'
 import { luxuriaPlugin } from './luxuria.ts'
 import { createGulaPlugin } from './gula.ts'
-import { avaritiaPlugin } from './avaritia.ts'
+import { createAvaritiaPlugin } from './avaritia.ts'
 import { createIraPlugin } from './ira.ts'
 import { invidiaPlugin } from './invidia.ts'
 import { acediaPlugin } from './acedia.ts'
@@ -10,7 +10,6 @@ import { joueurPlugin } from './joueur.ts'
 
 const STATELESS: Record<string, CharacterPlugin> = {
   luxuria: luxuriaPlugin,
-  avaritia: avaritiaPlugin,
   invidia: invidiaPlugin,
   acedia: acediaPlugin,
   superbia: superbiaPlugin,
@@ -19,6 +18,7 @@ const STATELESS: Record<string, CharacterPlugin> = {
 
 const FACTORIES: Record<string, () => CharacterPlugin> = {
   gula: createGulaPlugin,
+  avaritia: createAvaritiaPlugin,
   ira: createIraPlugin,
 }
 

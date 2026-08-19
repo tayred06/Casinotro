@@ -6,12 +6,13 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "pixi.js": "^8.0.0"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
+    "jsdom": "^30.0.1",
     "sass": "^1.102.0",
     "typescript": "^7.0.2",
     "vite": "^5.0.0",

@@ -12,10 +12,40 @@ describe('DEFAULT_BET_OPTIONS', () => {
     expect([...DEFAULT_BET_OPTIONS]).toEqual([1, 2, 5, 10, 25])
     expect(new Economy(100).betOptions).toEqual([1, 2, 5, 10, 25])
   })
+
+  it('est immuable : setBetOptions ne doit pas le réécrire', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125, 250, 625])
+    expect(DEFAULT_BET_OPTIONS).toEqual([1, 2, 5, 10, 25])
+  })
+
+  it('les paliers sont propres à chaque Economy', () => {
+    const a = new Economy(100)
+    const b = new Economy(100)
+    a.setBetOptions([25, 50, 125, 250, 625])
+    expect(b.betOptions).toEqual([1, 2, 5, 10, 25])
+    expect(a.betOptions).toEqual([25, 50, 125, 250, 625])
+  })
+
+  it('restart() ramène les paliers initiaux', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125, 250, 625])
+    eco.restart(100)
+    expect(eco.betOptions).toEqual([1, 2, 5, 10, 25])
+    expect(eco.currentBet).toBe(1)
+  })
+
+  it('isGameOver() se base sur les paliers courants', () => {
+    const eco = new Economy(100)
+    eco.setBetOptions([25, 50, 125, 250, 625])
+    expect(eco.isGameOver()).toBe(false)
+    eco.spend(80) // solde 20 < plus petite mise (25)
+    expect(eco.isGameOver()).toBe(true)
+  })
 })
 
 describe('Economy', () => {
-  let eco
+  let eco: Economy
 
   beforeEach(() => {
     eco = new Economy(100)
@@ -59,11 +89,6 @@ describe('Economy', () => {
     eco.addWin(30)
     eco.addWin(20)
     expect(eco.totalEarned).toBe(50)
-  })
-
-  it('addWin met à jour highscore si balance dépasse le précédent', () => {
-    eco.addWin(500)
-    expect(eco.highscore).toBe(600)
   })
 
   it('addMoney ajoute au solde directement', () => {
@@ -146,7 +171,7 @@ describe('paliers de mise par instance', () => {
 
 describe('highscore', () => {
   it('délègue au store partagé plutôt qu\'à un stockage propre', () => {
-    const store = { highscore: 0, updateHighscore(v) { if (v > this.highscore) this.highscore = v } }
+    const store = { highscore: 0, updateHighscore(v: number) { if (v > this.highscore) this.highscore = v } }
     const eco = new Economy(100, store)
     eco.addWin(500)
     expect(store.highscore).toBe(600)
@@ -154,7 +179,7 @@ describe('highscore', () => {
   })
 
   it('deux économies branchées sur le même store le partagent', () => {
-    const store = { highscore: 0, updateHighscore(v) { if (v > this.highscore) this.highscore = v } }
+    const store = { highscore: 0, updateHighscore(v: number) { if (v > this.highscore) this.highscore = v } }
     new Economy(100, store).addWin(900)
     expect(new Economy(100, store).highscore).toBe(1000)
   })
