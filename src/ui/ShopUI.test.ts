@@ -120,7 +120,7 @@ describe('ShopUI — vente d\'un bonus', () => {
     const sold: Array<{ name: string; refund: number }> = []
     shop.setOnBonusSold((bonus, refund) => sold.push({ name: bonus.name, refund }))
 
-    document.querySelector<HTMLElement>('#bonuses-list .bonus-tag')!.click()
+    document.querySelector<HTMLElement>('#bonuses-list .sell-btn')!.click()
 
     expect(sold).toEqual([{ name: 'Filet', refund: 15 }])
     expect(bonusSystem.activeBonus).toHaveLength(0)

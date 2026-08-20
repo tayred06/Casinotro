@@ -169,7 +169,7 @@ describe('GameLoop — nouvelle partie', () => {
     ;(shop as any).updateDisplay()
 
     const balanceBefore = economy.balance
-    document.querySelector<HTMLElement>('.bonus-tag')!.click()
+    document.querySelector<HTMLElement>('.sell-btn')!.click()
 
     expect(economy.currentBet).toBe(1)
     expect(economy.balance).toBe(balanceBefore) // devourRefundPercent: 0

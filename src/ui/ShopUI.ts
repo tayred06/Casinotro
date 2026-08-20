@@ -233,29 +233,89 @@ export class ShopUI {
     }
 
     active.forEach(bonus => {
-      const tag = document.createElement('span')
-      tag.className   = 'bonus-tag'
+      const refund = Math.floor(bonus.price * 0.5)
+
+      const card = document.createElement('div')
+      card.className = 'inv-item'
+
+      const rLabel = rarityLabel(bonus)
+
+      const icon = document.createElement('div')
+      icon.className   = 'item-icon'
+      icon.textContent = ITEM_GLYPHS[rLabel] ?? '▲'
+
+      const nameRow = document.createElement('div')
+      nameRow.className = 'item-name-row'
+
       // target et remainingCharges sont optionnels : comparer à null seul
       // laissait passer undefined et affichait « (undefined) » sur chaque bonus.
       const label = bonus.target != null ? `${bonus.name} [${bonus.target}]` : bonus.name
       const uses  = bonus.remainingCharges != null ? ` (${bonus.remainingCharges})` : ''
-      tag.textContent = label + uses
-      tag.title       = `Vendre pour ⛧${Math.floor(bonus.price * 0.5)}`
-      tag.addEventListener('click', () => {
-        const refund = this.#bonusSystem.removeBonus(bonus.instanceId)
-        if (this.#onBonusSold) {
-          this.#onBonusSold(bonus, refund)
-        } else {
-          this.#economy.addMoney(refund)
-          this.addLog(`Vendu : ${bonus.name} +⛧${refund}`, true)
-        }
-        this.#renderBonuses()
-        this.#renderItems()
-        this.#updateRerollBtn()
-        this.#onUpdate()
-      })
-      container.appendChild(tag)
+
+      const name = document.createElement('span')
+      name.className   = 'bonus-tag'
+      name.textContent = label + uses
+
+      const badge = document.createElement('span')
+      badge.className   = `rarity-badge rarity-${rLabel.toLowerCase()}`
+      badge.textContent = rLabel
+
+      nameRow.appendChild(name)
+      nameRow.appendChild(badge)
+
+      const desc = document.createElement('span')
+      desc.className   = 'item-desc'
+      desc.textContent = bonus.description
+
+      const body = document.createElement('div')
+      body.className = 'item-body'
+      body.appendChild(nameRow)
+      body.appendChild(desc)
+
+      const head = document.createElement('div')
+      head.className = 'item-head'
+      head.appendChild(icon)
+      head.appendChild(body)
+
+      const footer = document.createElement('div')
+      footer.className = 'item-footer'
+
+      const price = document.createElement('span')
+      price.className   = 'item-price'
+      price.textContent = `⛧${refund}`
+
+      const spacer = document.createElement('span')
+      spacer.className = 'item-spacer'
+
+      const btn = document.createElement('button')
+      btn.className   = 'sell-btn'
+      btn.textContent = 'Vendre'
+      btn.title       = `Vendre pour ⛧${refund}`
+      btn.addEventListener('click', () => this.#handleSell(bonus))
+
+      footer.appendChild(price)
+      footer.appendChild(spacer)
+      footer.appendChild(btn)
+
+      card.appendChild(head)
+      card.appendChild(footer)
+
+      container.appendChild(card)
     })
+  }
+
+  #handleSell(bonus: ItemInstance) {
+    const refund = this.#bonusSystem.removeBonus(bonus.instanceId)
+    if (this.#onBonusSold) {
+      this.#onBonusSold(bonus, refund)
+    } else {
+      this.#economy.addMoney(refund)
+      this.addLog(`Vendu : ${bonus.name} +⛧${refund}`, true)
+    }
+    this.#renderBonuses()
+    this.#renderItems()
+    this.#updateRerollBtn()
+    this.#onUpdate()
   }
 
   #updateRerollBtn() {

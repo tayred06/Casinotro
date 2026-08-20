@@ -213,16 +213,41 @@
   margin-bottom: 10px;
 }
 
-.bonuses-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.bonuses-list { display: flex; flex-direction: column; gap: 8px; }
 
-.bonus-tag {
-  padding: 4px 9px;
-  font-family: var(--fui);
-  font-size: 15px;
-  color: var(--ink-dim);
+// Carte d'inventaire : même anatomie qu'une offre de boutique (icône, nom,
+// rareté, description) mais en version compacte pour le panneau latéral.
+.inv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
   background: var(--panel2);
   border: 1px solid var(--line);
+
+  .item-icon { width: 26px; height: 26px; font-size: 12px; }
+  .item-desc { font-size: 12.5px; line-height: 1.4; }
+  .item-price { font-size: 13px; }
+}
+
+.bonus-tag {
+  font-family: var(--fui);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sell-btn {
+  padding: 5px 10px;
   cursor: pointer;
+  font-family: var(--fmono);
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  transition: background .15s, border-color .15s, color .15s;
 
   &:hover { border-color: var(--hot); color: var(--hot); }
 }
