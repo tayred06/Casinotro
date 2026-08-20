@@ -108,7 +108,8 @@ export const WINFX_THEMES: Readonly<Record<WinFXThemeId, WinFXTheme>> = Object.f
   },
 })
 
-export const DEFAULT_THEME: WinFXThemeId = 'occulte'
+/** Thème utilisé tant que le joueur n'en a pas choisi un autre dans /fx.html. */
+export const DEFAULT_THEME: WinFXThemeId = 'neon'
 
 const STORAGE_KEY = 'casinotro_winfx_theme'
 
