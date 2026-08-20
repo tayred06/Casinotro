@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { createAvaritiaPlugin } from './avaritia.ts'
+import { CHARACTERS } from '../Characters.ts'
+import { RunState, STAGE_QUOTA_K, STAGE_MIN_BETS } from '../RunState.ts'
+import { createAvaritiaPlugin, AVARITIA_PARAMS } from './avaritia.ts'
 import { Economy } from '../Economy.ts'
 import type { GameContext, ItemDef, SpinResult, WinLine } from '../../types/index.ts'
 
@@ -55,31 +57,56 @@ describe('Avaritia — gains', () => {
   })
 })
 
+const gateAtTier = (earned: number, level: 1 | 2 | 3) => {
+  const eco = new Economy(100)
+  eco.debugSetEarned(earned)
+  const p = createAvaritiaPlugin()
+  p.onSetup!(makeCtx(eco))
+  return p.offerModifier!(offer(level, 100))
+}
+
 describe('Avaritia — paliers de boutique', () => {
-  const gateAt = (earned: number, level: 1 | 2 | 3) => {
-    const eco = new Economy(100)
-    eco.debugSetEarned(earned)
-    const p = createAvaritiaPlugin()
-    p.onSetup!(makeCtx(eco))
-    return p.offerModifier!(offer(level, 100))
-  }
+  const gateAt = gateAtTier
 
   it('1er quart : aucun achat possible', () => {
     expect(gateAt(0, 1)).toBeNull()
-    expect(gateAt(499, 3)).toBeNull()
+    expect(gateAt(179, 3)).toBeNull()
   })
 
   it('2e quart : niveau 1 uniquement, prix x2', () => {
-    expect(gateAt(500, 1)!.price).toBe(200)
-    expect(gateAt(500, 2)).toBeNull()
+    expect(gateAt(180, 1)!.price).toBe(200)
+    expect(gateAt(180, 2)).toBeNull()
   })
 
   it('3e quart : niveaux 1-2, prix majorés', () => {
-    expect(gateAt(2000, 2)!.price).toBe(150)
-    expect(gateAt(2000, 3)).toBeNull()
+    expect(gateAt(885, 2)!.price).toBe(150)
+    expect(gateAt(885, 3)).toBeNull()
   })
 
   it('4e quart : boutique complète au prix normal', () => {
-    expect(gateAt(6000, 3)!.price).toBe(100)
+    expect(gateAt(3205, 3)!.price).toBe(100)
+  })
+})
+
+describe('Avaritia — 4e palier', () => {
+  it('joue un palier de plus que les autres personnages', () => {
+    const avaritia = CHARACTERS.find(c => c.id === 'avaritia')!
+    expect(avaritia.stages).toBe(4)
+
+    const run = new RunState()
+    run.reset('avaritia', 'megaways', avaritia.stages)
+    expect(run.maxStage).toBe(4)
+    for (let i = 0; i < 3; i++) run.advanceStage()
+    expect(run.stage).toBe(4)
+    expect(run.isFinalStage).toBe(true)
+  })
+
+  it("n'ouvre le niveau 3 de la boutique qu'au dernier palier", () => {
+    const beforeLast = AVARITIA_PARAMS.shopGates[3].minEarned
+    const threeStages = STAGE_QUOTA_K.slice(0, 3)
+      .reduce((sum, k, i) => sum + k * STAGE_MIN_BETS[i], 0)
+    expect(beforeLast).toBe(threeStages)
+    expect(gateAtTier(beforeLast - 1, 3)).toBeNull()
+    expect(gateAtTier(beforeLast, 3)!.price).toBe(100)
   })
 })

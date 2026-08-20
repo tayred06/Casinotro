@@ -1,15 +1,28 @@
 import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemDef } from '../../types/index.ts'
 import type { Economy } from '../Economy.ts'
+import { STAGE_QUOTA_K, STAGE_MIN_BETS } from '../RunState.ts'
+
+/** Gains cumulés nécessaires pour avoir franchi les `stages` premiers paliers. */
+function cumulativeQuota(stages: number): number {
+  let total = 0
+  for (let i = 0; i < stages; i++) total += STAGE_QUOTA_K[i] * STAGE_MIN_BETS[i]
+  return total
+}
 
 /** Source unique des réglages d'Avaritia — référencée par CHARACTERS. */
 export const AVARITIA_PARAMS = {
   winMultiplier: 2,
   weakLineThreshold: 2,      // count <= this = médiocre
+  /**
+   * Paliers indexés sur les gains cumulés du run, calés sur les quotas des paliers :
+   * un cran de boutique par palier franchi. Avaritia joue 4 paliers (Character.stages),
+   * donc le niveau 3 ne s'ouvre qu'à l'entrée du dernier.
+   */
   shopGates: [
-    { minEarned: 0,    maxTier: 0, priceMultiplier: null },
-    { minEarned: 500,  maxTier: 1, priceMultiplier: 2 },
-    { minEarned: 2000, maxTier: 2, priceMultiplier: 1.5 },
-    { minEarned: 6000, maxTier: 3, priceMultiplier: 1 },
+    { minEarned: 0,                    maxTier: 0, priceMultiplier: null },
+    { minEarned: cumulativeQuota(1),   maxTier: 1, priceMultiplier: 2 },
+    { minEarned: cumulativeQuota(2),   maxTier: 2, priceMultiplier: 1.5 },
+    { minEarned: cumulativeQuota(3),   maxTier: 3, priceMultiplier: 1 },
   ],
 }
 
