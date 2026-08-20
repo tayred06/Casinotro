@@ -289,11 +289,13 @@ export class GameLoop {
       this.economy.addWin(result.totalWin)
       this.progression.updateHighscore(this.economy.totalEarned)
       this.renderer.highlightWins(result.winLines)
-      this.renderer.showWin(result.totalWin, result.winLines)
+      const winFx = this.renderer.playWin(result.totalWin, this.economy.currentBet, result.winLines)
       this.uiContext.updateHUD()
       this.shop.addLog(this.buildWinLog(result))
       await this.plugin.onWin?.(this.ctx, result.totalWin)
-      await delay(1400)
+      // Les gros paliers tiennent l'écran plus longtemps que le délai de base ;
+      // le joueur peut couper court (clic / espace).
+      await Promise.all([winFx, delay(1400)])
       this.renderer.hideWin()
       this.renderer.clearHighlights()
     } else {
@@ -350,9 +352,9 @@ export class GameLoop {
       if (result.totalWin > 0) {
         this.economy.addWin(result.totalWin)
         this.renderer.highlightWins(result.winLines)
-        this.renderer.showWin(result.totalWin, result.winLines)
+        const winFx = this.renderer.playWin(result.totalWin, this.economy.currentBet, result.winLines)
         this.uiContext.updateHUD()
-        await delay(900)
+        await Promise.all([winFx, delay(900)])
         this.renderer.hideWin()
         this.renderer.clearHighlights()
       }

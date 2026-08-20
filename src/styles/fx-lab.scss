@@ -1,0 +1,131 @@
+/* Page de test des animations (/fx.html) — hors jeu, styles autonomes. */
+
+.fxlab {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.fxlab-panel {
+  padding: 18px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+
+.fxlab-title {
+  font-family: var(--fdisp);
+  font-size: 15px;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: var(--disp-tracking);
+}
+
+.fxlab-sub {
+  margin: 4px 0 16px;
+  font-size: 15px;
+  color: var(--ink-dim);
+
+  code { font-family: var(--fmono); font-size: 11px; }
+}
+
+.fxlab-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+
+  h2 {
+    margin-bottom: 8px;
+    font-family: var(--fmono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+}
+
+.fxlab-tiers { display: grid; gap: 6px; }
+
+.fxlab-btn {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: var(--fui);
+  font-size: 17px;
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+
+  &:hover { border-color: var(--gold-dim); background: var(--panel2); }
+  &.primary { border-color: var(--gold); color: var(--gold); width: 100%; }
+
+  &.tier {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-left: 3px solid var(--tier-color, var(--gold));
+
+    strong { font-family: var(--fdisp); font-size: 11px; color: var(--tier-color, var(--gold)); text-transform: uppercase; }
+    span   { font-family: var(--fmono); font-size: 11px; color: var(--ink-dim); }
+  }
+}
+
+.fxlab-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 17px;
+  color: var(--ink-dim);
+
+  input {
+    width: 130px;
+    padding: 5px 8px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--fmono);
+    font-size: 12px;
+  }
+}
+
+.fxlab-check {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 17px;
+  color: var(--ink-dim);
+  cursor: pointer;
+
+  input { margin-right: 6px; }
+}
+
+.fxlab-readout {
+  margin: 8px 0;
+  font-family: var(--fmono);
+  font-size: 11px;
+  color: var(--gold);
+}
+
+.fxlab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--fmono);
+  font-size: 10px;
+  color: var(--ink-dim);
+
+  th, td { padding: 3px 4px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink); }
+}
+
+.fxlab-hint {
+  font-size: 15px;
+  color: var(--ink-dim);
+  opacity: .8;
+}
+
+.fxlab-stage {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}

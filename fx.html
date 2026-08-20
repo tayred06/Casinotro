@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Casinotro — Labo d'animations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Silkscreen:wght@400;700&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+  <style>body { background-color: #0a0f0b; }</style>
+</head>
+<body>
+
+  <div class="fxlab">
+    <aside class="fxlab-panel">
+      <h1 class="fxlab-title">Labo d'animations</h1>
+      <p class="fxlab-sub">Effets de gain — <code>src/ui/WinFX.ts</code></p>
+
+      <section class="fxlab-section">
+        <h2>Paliers</h2>
+        <div class="fxlab-tiers" id="fx-tiers"></div>
+      </section>
+
+      <section class="fxlab-section">
+        <h2>Gain réel</h2>
+        <label class="fxlab-field">Gain <input type="number" id="fx-win" value="1200" min="0" step="10"></label>
+        <label class="fxlab-field">Mise <input type="number" id="fx-bet" value="10" min="0.01" step="1"></label>
+        <p class="fxlab-readout" id="fx-readout"></p>
+        <button class="fxlab-btn primary" id="fx-play">Jouer ce gain</button>
+      </section>
+
+      <section class="fxlab-section">
+        <h2>Options</h2>
+        <label class="fxlab-check"><input type="checkbox" id="fx-loop"> Boucler (2,5 s)</label>
+        <label class="fxlab-check"><input type="checkbox" id="fx-slow"> Ralenti ×4</label>
+        <button class="fxlab-btn" id="fx-stop">Stop / nettoyer</button>
+      </section>
+
+      <section class="fxlab-section">
+        <h2>Table des paliers</h2>
+        <table class="fxlab-table" id="fx-table"></table>
+      </section>
+
+      <p class="fxlab-hint">Pendant un hold : clic, Espace ou Échap = skip.</p>
+    </aside>
+
+    <main class="fxlab-stage">
+      <div class="machine-area" id="machine-area">
+        <div class="machine-header">
+          <span class="machine-name">Banc d'essai</span>
+          <span class="machine-meta" id="fx-status">prêt</span>
+        </div>
+        <div class="machine-reels">
+          <div class="reels-col">
+            <div class="reels" id="reels-container"></div>
+          </div>
+        </div>
+
+        <div class="win-overlay hidden" id="win-overlay">
+          <div class="win-banner">
+            <span class="win-label" id="win-label">GAIN</span>
+            <span class="win-amount" id="win-amount">+⛧0</span>
+            <span class="win-detail" id="win-detail"></span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/fx-lab.ts"></script>
+</body>
+</html>

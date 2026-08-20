@@ -1,4 +1,5 @@
 import type { WinLine, Modifiers, GameSymbol } from '../types/index.ts'
+import { WinFX } from './WinFX.ts'
 
 // Maps existing symbol IDs → V2 card-suit visuals
 const VISUAL: Record<string, { text: string; cls: string }> = {
@@ -44,6 +45,7 @@ const WIN_COLOR: Record<string, string> = {
 }
 
 export class ReelRenderer {
+  #winFX: WinFX
   #container: HTMLElement
   #colBadgesRow: HTMLElement
   #symBadges: HTMLElement
@@ -78,6 +80,15 @@ export class ReelRenderer {
     this.#selectionHint   = document.getElementById('selection-hint')!
     this.#selectionCancel = document.getElementById('selection-cancel')!
     this.#restartBtn.addEventListener('click', onRestart)
+
+    this.#winFX = new WinFX({
+      root:    document.getElementById('machine-area')!,
+      overlay: this.#winOverlay,
+      banner:  this.#winOverlay.querySelector('.win-banner'),
+      label:   this.#winLabel,
+      amount:  this.#winAmount,
+      detail:  this.#winDetail,
+    })
   }
 
   /**
@@ -275,22 +286,36 @@ export class ReelRenderer {
     })
   }
 
+  /**
+   * Séquence de gain complète : bannière + effets du palier (ratio gain/mise).
+   * Résout quand la bannière peut être masquée — immédiatement pour les petits
+   * gains, après le hold du palier (ou un skip du joueur) pour les gros.
+   */
+  playWin(amount: number, bet: number, winLines: WinLine[] | null, label: string | null = null): Promise<void> {
+    this.#winDetail.textContent = this.#winDetailText(winLines)
+    return this.#winFX.play(amount, bet, label ?? undefined)
+  }
+
+  #winDetailText(winLines: WinLine[] | null): string {
+    if (!winLines?.length) return ''
+    const best = winLines.reduce((a, b) => b.count > a.count ? b : a)
+    const v = VISUAL[best.symbolId]
+    return v ? `${best.count} × ${v.text}` : ''
+  }
+
   showWin(amount: number, winLines: WinLine[] | null, label: string | null = null) {
     this.#winLabel.textContent  = label ?? (winLines?.some(l => l.count >= 5) ? 'GROS GAIN' : 'GAIN')
     this.#winAmount.textContent = `+⛧${amount.toFixed(2)}`
 
-    if (winLines?.length) {
-      const best = winLines.reduce((a, b) => b.count > a.count ? b : a)
-      const v = VISUAL[best.symbolId]
-      this.#winDetail.textContent = v ? `${best.count} × ${v.text}` : ''
-    } else {
-      this.#winDetail.textContent = ''
-    }
-
+    this.#winDetail.textContent = this.#winDetailText(winLines)
+    this.#winFX.stop()
     this.#winOverlay.classList.remove('hidden')
   }
 
-  hideWin() { this.#winOverlay.classList.add('hidden') }
+  hideWin() {
+    this.#winFX.stop()
+    this.#winOverlay.classList.add('hidden')
+  }
 
   showGameOver(text: string) {
     this.#gameOverText.textContent = text

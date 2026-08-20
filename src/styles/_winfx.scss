@@ -1,0 +1,257 @@
+/* ══ Effets de gros gain ═══════════════════════════════════
+   Registre occulte : braises, sigil, rayons, saignement de l'écran.
+   Piloté par src/ui/WinFX.ts — la couleur du palier arrive par --wfx-color.
+   ════════════════════════════════════════════════════════ */
+
+.wfx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 11; // au-dessus des rouleaux, sous la bannière (.win-overlay = 10 + banner)
+}
+
+/* ── Flash plein cadre ─────────────────────────────────── */
+.wfx-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(70% 55% at 50% 50%, var(--wfx-color, #b6f36a) 0%, transparent 70%),
+    rgba(255, 240, 220, .35);
+  mix-blend-mode: screen;
+
+  &.active { animation: wfxFlash calc(.62s * var(--wfx-speed, 1)) ease-out both; }
+}
+
+@keyframes wfxFlash {
+  0%   { opacity: 0; }
+  8%   { opacity: var(--wfx-flash-opacity, .3); }
+  100% { opacity: 0; }
+}
+
+/* ── Rayons tournants ──────────────────────────────────── */
+.wfx-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 180%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  opacity: 0;
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--wfx-color, #b6f36a) 0deg 5deg,
+    transparent 5deg 16deg
+  );
+  mask-image: radial-gradient(closest-side, transparent 18%, #000 42%, transparent 78%);
+  mix-blend-mode: screen;
+
+  &.active { animation: wfxRays calc(2.6s * var(--wfx-speed, 1)) linear both; }
+}
+
+@keyframes wfxRays {
+  0%   { opacity: 0;    rotate: 0deg; }
+  12%  { opacity: .28;  }
+  70%  { opacity: .18;  }
+  100% { opacity: 0;    rotate: 90deg; }
+}
+
+/* ── Anneau de sigil ───────────────────────────────────── */
+.wfx-sigil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 220px;
+  translate: -50% -50%;
+  opacity: 0;
+  border: 2px solid var(--wfx-color, #b6f36a);
+  border-radius: 50%;
+  box-shadow:
+    0 0 30px var(--wfx-color, #b6f36a),
+    inset 0 0 30px var(--wfx-color, #b6f36a);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 14%;
+    border: 1px solid var(--wfx-color, #b6f36a);
+    border-radius: 50%;
+    opacity: .55;
+  }
+  &::after { inset: 30%; }
+
+  &.burst { animation: wfxSigil calc(.9s * var(--wfx-speed, 1)) cubic-bezier(.2, .8, .3, 1) both; }
+}
+
+@keyframes wfxSigil {
+  0%   { opacity: 0;   scale: .25; rotate: -40deg; }
+  25%  { opacity: .85; }
+  100% { opacity: 0;   scale: 2.6; rotate: 25deg; }
+}
+
+/* ── Braises projetées ─────────────────────────────────── */
+.wfx-parts {
+  position: absolute;
+  inset: 0;
+}
+
+.wfx-ember {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--size, 5px);
+  height: var(--size, 5px);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 10px currentColor;
+  animation: wfxEmber calc(var(--dur, 1s) * var(--wfx-speed, 1)) calc(var(--delay, 0ms) * var(--wfx-speed, 1)) cubic-bezier(.15, .7, .3, 1) both;
+}
+
+@keyframes wfxEmber {
+  0% {
+    opacity: 1;
+    translate: -50% -50%;
+    scale: 1;
+    rotate: 0deg;
+  }
+  70% { opacity: .9; }
+  100% {
+    opacity: 0;
+    /* La gravité tire les braises vers le bas en fin de course. */
+    translate: calc(-50% + var(--dx, 0px)) calc(-50% + var(--dy, 0px) + 90px);
+    scale: .3;
+    rotate: var(--rot, 180deg);
+  }
+}
+
+/* ── Pluie de ⛧ ────────────────────────────────────────── */
+.wfx-rain {
+  position: absolute;
+  left: var(--x, 50%);
+  top: -8%;
+  font-family: var(--fdisp);
+  font-size: 26px;
+  color: var(--wfx-color, #b6f36a);
+  text-shadow: 0 0 14px var(--wfx-color, #b6f36a);
+  opacity: 0;
+  animation: wfxRain calc(var(--dur, 1.4s) * var(--wfx-speed, 1)) calc(var(--delay, 0ms) * var(--wfx-speed, 1)) linear both;
+}
+
+@keyframes wfxRain {
+  0%   { opacity: 0;   translate: 0 0;      scale: var(--scale, 1); }
+  10%  { opacity: .95; }
+  85%  { opacity: .7; }
+  100% { opacity: 0;   translate: 0 120vh;  scale: var(--scale, 1); rotate: 180deg; }
+}
+
+/* ── Secousses (appliquées à la racine passée à WinFX) ─── */
+.wfx-shake-soft  { animation: wfxShakeSoft  calc(.45s * var(--wfx-speed, 1)) ease-in-out both; }
+.wfx-shake-hard  { animation: wfxShakeHard  calc(.7s * var(--wfx-speed, 1))  ease-in-out both; }
+.wfx-shake-quake { animation: wfxShakeQuake calc(.95s * var(--wfx-speed, 1)) ease-in-out both; }
+
+@keyframes wfxShakeSoft {
+  0%, 100% { translate: 0 0; }
+  25%      { translate: -3px 2px; }
+  50%      { translate: 3px -2px; }
+  75%      { translate: -2px 1px; }
+}
+
+@keyframes wfxShakeHard {
+  0%, 100% { translate: 0 0; rotate: 0deg; }
+  12%      { translate: -8px 4px;  rotate: -.4deg; }
+  28%      { translate: 7px -5px;  rotate: .4deg; }
+  44%      { translate: -6px 3px;  rotate: -.3deg; }
+  62%      { translate: 5px -3px;  rotate: .2deg; }
+  80%      { translate: -2px 1px;  rotate: 0deg; }
+}
+
+@keyframes wfxShakeQuake {
+  0%, 100% { translate: 0 0; rotate: 0deg; scale: 1; }
+  8%       { translate: -14px 7px;  rotate: -.9deg; scale: 1.012; }
+  20%      { translate: 13px -9px;  rotate: .85deg; }
+  33%      { translate: -11px 6px;  rotate: -.7deg; scale: 1.008; }
+  47%      { translate: 9px -5px;   rotate: .5deg; }
+  61%      { translate: -7px 4px;   rotate: -.35deg; }
+  75%      { translate: 5px -3px;   rotate: .2deg; }
+  90%      { translate: -2px 1px;   rotate: 0deg; }
+}
+
+/* ── Bannière : escalade par palier ────────────────────── */
+.win-banner {
+  &.wfx-enter { animation: wfxBannerIn calc(.42s * var(--wfx-speed, 1)) cubic-bezier(.2, 1.3, .4, 1) both; }
+
+  &[data-tier='nice'] {
+    border-color: #d9f36a;
+    box-shadow: 0 0 46px rgba(217, 243, 106, .26);
+  }
+
+  &[data-tier='big'] {
+    border-color: #f2c14b;
+    box-shadow: 0 0 60px rgba(242, 193, 75, .34);
+
+    .win-amount { color: #f2c14b; font-size: 46px; }
+  }
+
+  &[data-tier='mega'] {
+    border-color: #ff8a3c;
+    box-shadow: 0 0 76px rgba(255, 138, 60, .42);
+    animation: wfxBannerIn calc(.42s * var(--wfx-speed, 1)) cubic-bezier(.2, 1.3, .4, 1) both,
+               wfxBannerPulse calc(1.1s * var(--wfx-speed, 1)) ease-in-out .42s infinite;
+
+    .win-amount { color: #ff8a3c; font-size: 56px; text-shadow: 0 0 24px rgba(255, 138, 60, .6); }
+  }
+
+  &[data-tier='epic'] {
+    border-color: #ff5a2d;
+    background: linear-gradient(180deg, var(--panel), #1a0508);
+    box-shadow: 0 0 96px rgba(255, 90, 45, .5);
+    animation: wfxBannerIn calc(.42s * var(--wfx-speed, 1)) cubic-bezier(.2, 1.3, .4, 1) both,
+               wfxBannerPulse calc(.8s * var(--wfx-speed, 1)) ease-in-out .42s infinite;
+
+    .win-label  { color: #ff5a2d; letter-spacing: 5px; }
+    .win-amount { color: #ff7a3c; font-size: 66px; text-shadow: 0 0 32px rgba(255, 90, 45, .75); }
+  }
+
+  &[data-tier='legendary'] {
+    border-color: var(--hot);
+    background: linear-gradient(180deg, #1a0308, #2a0810);
+    box-shadow: 0 0 130px rgba(255, 45, 85, .6), inset 0 0 60px rgba(255, 45, 85, .2);
+    animation: wfxBannerIn calc(.5s * var(--wfx-speed, 1)) cubic-bezier(.2, 1.4, .4, 1) both,
+               wfxBannerPulse calc(.55s * var(--wfx-speed, 1)) ease-in-out .5s infinite;
+
+    .win-label  { color: var(--hot); letter-spacing: 7px; animation: wfxLabelFlicker calc(.9s * var(--wfx-speed, 1)) steps(2) infinite; }
+    .win-amount {
+      color: #fff;
+      font-size: 78px;
+      text-shadow: 0 0 12px var(--hot), 0 0 40px var(--hot), 0 0 80px rgba(255, 45, 85, .7);
+    }
+  }
+}
+
+@keyframes wfxBannerIn {
+  0%   { opacity: 0; scale: .35; rotate: -6deg; filter: blur(6px); }
+  55%  { opacity: 1; scale: 1.14; rotate: 1.5deg; filter: blur(0); }
+  100% { opacity: 1; scale: 1; rotate: 0deg; }
+}
+
+@keyframes wfxBannerPulse {
+  0%, 100% { scale: 1; }
+  50%      { scale: 1.035; }
+}
+
+@keyframes wfxLabelFlicker {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+/* Accessibilité : WinFX court-circuite déjà les effets, on neutralise ici
+   les animations infinies que le CSS lance seul. */
+@media (prefers-reduced-motion: reduce) {
+  .wfx-layer { display: none; }
+  .win-banner,
+  .win-banner.wfx-enter,
+  .wfx-shake-soft, .wfx-shake-hard, .wfx-shake-quake { animation: none !important; }
+}
