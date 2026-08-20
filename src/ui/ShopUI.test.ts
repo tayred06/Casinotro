@@ -95,7 +95,7 @@ describe('ShopUI — filtrage par le personnage', () => {
 
   it('Avaritia rouvre le niveau 1 à prix double une fois enrichie', () => {
     const economy = new Economy(1000)
-    economy.debugSetEarned(500)
+    economy.debugSetEarned(180)
     const { shop } = makeShop(economy)
     const plugin = createAvaritiaPlugin()
     plugin.onSetup!(avaritiaCtx(economy))

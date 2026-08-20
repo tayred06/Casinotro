@@ -20,8 +20,9 @@ describe('RunState', () => {
   /** Le quota est indexé sur la mise mini : la durée d'un palier ne dépend pas de l'échelle. */
   it('garde un ratio quota / mise constant entre paliers', () => {
     const run = new RunState()
+    run.maxStage = STAGE_QUOTA_K.length          // Avaritia joue le palier 4
     const ratios: number[] = []
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < STAGE_QUOTA_K.length; i++) {
       ratios.push(run.currentGoal / run.minBet)
       run.advanceStage()
     }

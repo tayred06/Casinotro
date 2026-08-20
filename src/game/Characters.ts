@@ -43,6 +43,8 @@ export interface Character {
   machineId?: string
   hidden?: boolean
   goal?: number
+  /** Nombre de paliers du run. Défaut : 3. Avaritia en joue 4. */
+  stages?: number
   effect: { type: string; key?: string; params?: Record<string, any>; value?: any; bonusId?: string }
 }
 
@@ -112,14 +114,18 @@ export const CHARACTERS: Character[] = [
     colorEdge: '#8a7420',         // or éteint sur fond de coffre-fort
     unlockOrder: 3,
     goal: 10000,
+    // Un palier de plus que les autres : le niveau 3 de la boutique ne s'ouvre
+    // qu'au 4e, une fois les trois premiers quarts franchis.
+    stages: 4,
     description:
-      'Ses gains sont doublés, mais la boutique ne s\'ouvre que par quarts, à mesure qu\'il s\'enrichit.',
+      'Ses gains sont doublés, mais la boutique ne s\'ouvre que par quarts, à mesure qu\'il s\'enrichit — et son parcours compte un palier de plus.',
     effect: {
       type: 'custom',
       key: 'avaritia',
       params: {
         winMultiplier: 2,
         // Paliers indexés sur la progression vers `goal` (record de cagnotte)
+        // Valeurs réelles : AVARITIA_PARAMS.shopGates (characters/avaritia.ts).
         shopGates: [
           { progress: 0.0, maxTier: 0, priceMultiplier: null }, // aucun achat
           { progress: 0.25, maxTier: 1, priceMultiplier: 2 },

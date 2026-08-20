@@ -108,6 +108,11 @@ export class GameLoop {
         return null
       }
     )
+    // Sans ce branchement, plugin.offerModifier ne partait jamais : la boutique
+    // d'Avaritia s'ouvrait en entier dès le premier tour.
+    this.shop.setOfferModifier((offer) =>
+      this.plugin.offerModifier ? this.plugin.offerModifier(offer) : offer
+    )
     // Sans ce branchement, plugin.onShopSell ne partait jamais : dévorer un
     // bonus ne remettait pas la mise de Gula à son plancher.
     this.shop.setOnBonusSold((bonus, refund) => {
@@ -204,7 +209,7 @@ export class GameLoop {
     this.plugin = getCharacterPlugin(characterId)
 
     const character = getCharacter(characterId)
-    this.run.reset(characterId, character?.machineId ?? DEFAULT_MACHINE_ID)
+    this.run.reset(characterId, character?.machineId ?? DEFAULT_MACHINE_ID, character?.stages)
     this.bonusSystem.setReelCount(this.machine.reelCount)
     this.applyMachineMeta()
     this.economy.restart(this.run.hpFloor)
@@ -394,7 +399,7 @@ export class GameLoop {
       return
     }
 
-    if (this.run.stage >= 3) {
+    if (this.run.isFinalStage) {
       this.progression.updateHighscore(this.economy.totalEarned)
       this.victory()
       return
@@ -592,7 +597,7 @@ export class GameLoop {
     const fmt = (n: Souls) => `${Math.round(n).toLocaleString('fr-FR')} \u26E7`
     return [
       { k: 'Cagnotte finale', v: fmt(this.economy.balance) },
-      { k: 'Paliers',         v: `${this.run.stage} / 3` },
+      { k: 'Paliers',         v: `${this.run.stage} / ${this.run.maxStage}` },
       { k: 'Total misé',      v: fmt(this.economy.totalWagered) },
       { k: 'Record',          v: fmt(this.progression.highscore) },
     ]
