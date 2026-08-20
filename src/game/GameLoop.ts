@@ -421,14 +421,14 @@ export class GameLoop {
   }
 
   /**
-   * Vitalité du palier : plancher garanti à l'entrée, plafond au-dessus duquel les gains
-   * débordent en crédit boutique. À appeler après `advanceStage()` / `advanceEndless()`.
+   * Vitalité du palier : seul le plafond monte, au-dessus duquel les gains débordent en
+   * crédit boutique. Le solde courant est conservé tel quel — franchir un palier ne
+   * ramène pas le joueur à un montant imposé. À appeler après `advanceStage()` /
+   * `advanceEndless()`.
    */
   private applyStageVitality(): void {
-    const before = this.economy.balance
-    this.economy.applyStageBounds(this.run.hpFloor, this.run.hpCap)
-    const healed = this.economy.balance - before
-    if (healed > 0) this.shop.addLog(`Vitalité restaurée à ⛧${this.economy.balance} (+${healed}).`, true)
+    this.economy.setBalanceCap(this.run.hpCap)
+    this.shop.addLog(`Vitalité maximale portée à ⛧${this.run.hpCap}.`, true)
   }
 
   /** Réindexe boutique et reroll sur la nouvelle mise minimale. */

@@ -229,12 +229,13 @@ describe('GameLoop — nouvelle partie', () => {
     // Solde presque vide mais quota rempli : le palier doit passer quand même.
     economy.spend(economy.balance - 1)
     economy.addWin(run.currentGoal)
+    const balanceBefore = economy.balance
     ;(loop as any).checkStageProgress([])
 
     expect(run.stage).toBe(2)
     expect(economy.stageEarned).toBe(0)
-    // Le plancher du palier 2 restaure la vitalité.
-    expect(economy.balance).toBe(run.hpFloor)
+    // Le solde est conservé : seul le plafond de vitalité monte.
+    expect(economy.balance).toBe(balanceBefore)
     expect(economy.maxBalance).toBe(run.hpCap)
   })
 

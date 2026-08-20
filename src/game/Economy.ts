@@ -115,6 +115,18 @@ export class Economy {
    * Bornes de vitalité du palier : plancher garanti à l'entrée, plafond pour la suite.
    * Remplace la prime de quota — le plancher est lisible, la prime ne l'était pas.
    */
+  /**
+   * Nouveau plafond de vitalité sans toucher au solde courant : monter de palier
+   * agrandit la barre de vie, il ne remet jamais le joueur à un montant imposé.
+   */
+  setBalanceCap(cap: Souls): void {
+    this.#maxBalance = cap
+    if (this.#balance > cap) {
+      this.#shopCredit += this.#balance - cap
+      this.#balance = cap
+    }
+  }
+
   applyStageBounds(floor: Souls, cap: Souls): void {
     this.#maxBalance = cap
     if (this.#balance < floor) this.#balance = floor

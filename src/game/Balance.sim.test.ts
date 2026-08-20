@@ -44,7 +44,7 @@ function simulateRun(): RunOutcome {
       economy.resetStageEarned()
       if (run.stage >= 3) return { spins, won: true, stageReached: 3 }
       run.advanceStage()
-      economy.applyStageBounds(run.hpFloor, run.hpCap)
+      economy.setBalanceCap(run.hpCap)
       economy.setBetOptions(run.betOptions)
     }
   }
@@ -72,8 +72,9 @@ describe('équilibrage — durée de run', () => {
       `${(runs.reduce((a, r) => a + r.stageReached, 0) / runs.length).toFixed(2)}`
     )
 
-    // ~4 s par spin : 400-800 spins ≈ 27-53 min.
-    expect(medianLen).toBeGreaterThan(400)
+    // ~4 s par spin : 250-800 spins ≈ 17-53 min. Borne basse abaissée depuis que
+    // franchir un palier ne restaure plus la vitalité (seul le plafond monte).
+    expect(medianLen).toBeGreaterThan(250)
     expect(medianLen).toBeLessThan(800)
     // Le run doit rester perdable sans être injouable.
     expect(winRate).toBeGreaterThan(0.05)
