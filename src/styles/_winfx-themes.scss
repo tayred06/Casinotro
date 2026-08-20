@@ -1,0 +1,147 @@
+/* ══ Thèmes d'effets de gain ═══════════════════════════════
+   Le palier décide de l'intensité, le thème décide de l'allure.
+   Piloté par src/ui/winfx-themes.ts via [data-fx-theme].
+   ════════════════════════════════════════════════════════ */
+
+/* ── Formes de particules ──────────────────────────────── */
+
+/* Braise : point incandescent qui retombe. */
+.wfx-part-ember {
+  width: var(--size, 5px);
+  height: var(--size, 5px);
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* Jeton : glyphe qui tourne sur lui-même, plus lourd qu'une braise. */
+.wfx-part-coin {
+  width: auto;
+  height: auto;
+  font-family: var(--fdisp);
+  font-size: calc(var(--size, 5px) * 3.2);
+  text-shadow: 0 0 12px currentColor;
+}
+
+/* Éclat : bloc carré, sans lueur — registre numérique. */
+.wfx-part-shard {
+  width: calc(var(--size, 5px) * 2.2);
+  height: var(--size, 5px);
+  border-radius: 0;
+  box-shadow: 2px 0 0 rgba(255, 62, 165, .8), -2px 0 0 rgba(53, 255, 208, .8);
+}
+
+/* ── Néon ──────────────────────────────────────────────── */
+.wfx-layer[data-fx-theme='neon'] {
+  .wfx-sigil {
+    border-width: 4px;
+    border-radius: 50%;
+    box-shadow:
+      0 0 18px var(--wfx-color, #7ef0ff),
+      0 0 60px var(--wfx-color, #7ef0ff),
+      inset 0 0 22px var(--wfx-color, #7ef0ff);
+
+    &::before { inset: 8%; opacity: .35; }
+    &::after  { display: none; }
+  }
+
+  .wfx-rays {
+    background: repeating-conic-gradient(
+      from 0deg,
+      var(--wfx-color, #7ef0ff) 0deg 2deg,
+      transparent 2deg 20deg
+    );
+  }
+
+  .wfx-flash { background: radial-gradient(60% 50% at 50% 50%, var(--wfx-color, #7ef0ff) 0%, transparent 72%); }
+}
+
+.win-banner[data-fx-theme='neon'] {
+  background: #07101c;
+  border-width: 2px;
+  border-radius: 6px;
+
+  .win-amount { -webkit-text-stroke: 1px rgba(255, 255, 255, .35); }
+}
+
+/* ── Glitch ────────────────────────────────────────────── */
+.wfx-layer[data-fx-theme='glitch'] {
+  /* Scanlines permanentes + bandes qui sautent pendant le flash. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, .35) 0 1px,
+      transparent 1px 3px
+    );
+    opacity: 0;
+    mix-blend-mode: multiply;
+  }
+
+  &[data-tier='mega']::before,
+  &[data-tier='epic']::before,
+  &[data-tier='legendary']::before {
+    opacity: .8;
+    animation: wfxScan calc(1.2s * var(--wfx-speed, 1)) linear infinite;
+  }
+
+  .wfx-flash {
+    background: linear-gradient(90deg, rgba(255, 62, 165, .8), rgba(53, 255, 208, .8));
+    mix-blend-mode: difference;
+  }
+
+  .wfx-rain { font-family: var(--fmono); letter-spacing: -2px; }
+}
+
+@keyframes wfxScan {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 12px; }
+}
+
+.win-banner[data-fx-theme='glitch'] {
+  background: #05070a;
+  border-style: dashed;
+
+  .win-amount {
+    font-family: var(--fmono);
+    text-shadow: 3px 0 0 #ff3ea5, -3px 0 0 #35ffd0;
+    animation: wfxGlitchShift calc(.28s * var(--wfx-speed, 1)) steps(2) infinite;
+  }
+
+  .win-label { font-family: var(--fmono); }
+}
+
+@keyframes wfxGlitchShift {
+  0%, 100% { translate: 0 0;    clip-path: inset(0 0 0 0); }
+  25%      { translate: -3px 0; clip-path: inset(18% 0 42% 0); }
+  50%      { translate: 3px 0;  clip-path: inset(55% 0 12% 0); }
+  75%      { translate: -1px 0; clip-path: inset(0 0 0 0); }
+}
+
+/* ── Sobre ─────────────────────────────────────────────── */
+.wfx-layer[data-fx-theme='sobre'] {
+  .wfx-flash { background: rgba(255, 255, 255, .5); mix-blend-mode: normal; }
+}
+
+.win-banner[data-fx-theme='sobre'] {
+  border-width: 1px;
+  box-shadow: none !important;
+  animation-duration: calc(.24s * var(--wfx-speed, 1)) !important;
+
+  /* Pas de pulse continu : le palier se lit à la couleur et à la taille. */
+  &[data-tier='mega'],
+  &[data-tier='epic'],
+  &[data-tier='legendary'] {
+    animation: wfxBannerIn calc(.24s * var(--wfx-speed, 1)) ease-out both;
+
+    .win-label { animation: none; }
+  }
+
+  .win-amount { text-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .win-banner[data-fx-theme] .win-amount,
+  .wfx-layer[data-fx-theme='glitch']::before { animation: none !important; }
+}

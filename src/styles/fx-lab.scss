@@ -129,3 +129,25 @@
   place-items: center;
   overflow: hidden;
 }
+
+.fxlab-themes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.fxlab-btn.theme {
+  font-family: var(--fdisp);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--disp-tracking);
+
+  &.active { border-color: var(--gold); color: var(--gold); background: var(--panel2); }
+}
+
+.fxlab-theme-desc {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--ink-dim);
+}

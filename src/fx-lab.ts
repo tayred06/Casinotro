@@ -5,6 +5,7 @@
 import './styles/main.scss'
 import './styles/fx-lab.scss'
 import { WinFX, TIER_FX } from './ui/WinFX.ts'
+import { WINFX_THEMES, loadThemeId, saveThemeId, type WinFXThemeId } from './ui/winfx-themes.ts'
 import { WIN_TIERS, getWinTier, getTierDef, type WinTierId } from './game/WinTier.ts'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -53,6 +54,8 @@ function buildGrid() {
 
 buildGrid()
 
+let themeId: WinFXThemeId = loadThemeId()
+
 const fx = new WinFX({
   root:    stage,
   overlay,
@@ -60,6 +63,7 @@ const fx = new WinFX({
   label:   $('win-label'),
   amount:  $('win-amount'),
   detail:  $('win-detail'),
+  theme:   themeId,
 })
 
 // ── Lecture ────────────────────────────────────────────────
@@ -105,7 +109,7 @@ for (const def of [...WIN_TIERS].reverse()) {
   const btn = document.createElement('button')
   btn.className = 'fxlab-btn tier'
   btn.dataset.tier = def.id
-  btn.style.setProperty('--tier-color', TIER_FX[def.id].color)
+  btn.style.setProperty('--tier-color', WINFX_THEMES[themeId].colors[def.id])
   btn.innerHTML = `<strong>${def.id}</strong><span>×${def.minRatio}+</span>`
   btn.addEventListener('click', () => {
     const bet = Math.max(0.01, Number(betInput.value) || 1)
@@ -119,13 +123,48 @@ for (const def of [...WIN_TIERS].reverse()) {
 }
 
 const table = $('fx-table')
-table.innerHTML =
+function refreshTable() {
+  table.innerHTML =
   '<tr><th>palier</th><th>×mise</th><th>hold</th><th>braises</th><th>shake</th></tr>' +
   [...WIN_TIERS].reverse().map(def => {
     const f = TIER_FX[def.id]
-    return `<tr><td style="color:${f.color}">${def.id}</td><td>×${def.minRatio}</td>` +
-           `<td>${f.holdMs} ms</td><td>${f.embers}</td><td>${f.shake}</td></tr>`
+    const theme = WINFX_THEMES[themeId]
+    const parts = Math.round(f.embers * theme.particleScale)
+    return `<tr><td style="color:${theme.colors[def.id]}">${def.id}</td><td>×${def.minRatio}</td>` +
+           `<td>${f.holdMs} ms</td><td>${parts}</td><td>${f.shake}</td></tr>`
   }).join('')
+
+  tiersBox.querySelectorAll<HTMLElement>('.fxlab-btn.tier').forEach(btn => {
+    const id = btn.dataset.tier as WinTierId
+    btn.style.setProperty('--tier-color', WINFX_THEMES[themeId].colors[id])
+  })
+}
+refreshTable()
+
+const themesBox = $('fx-themes')
+const themeDesc = $('fx-theme-desc')
+
+function selectTheme(id: WinFXThemeId, replay = true) {
+  themeId = id
+  fx.setTheme(id)
+  saveThemeId(id)
+  themeDesc.textContent = WINFX_THEMES[id].description
+  themesBox.querySelectorAll<HTMLElement>('.fxlab-btn.theme')
+    .forEach(b => b.classList.toggle('active', b.dataset.theme === id))
+  refreshTable()
+  // Le thème choisi est aussi celui que la vraie machine utilisera.
+  if (replay) playCurrent()
+}
+
+for (const theme of Object.values(WINFX_THEMES)) {
+  const btn = document.createElement('button')
+  btn.className = 'fxlab-btn theme'
+  btn.dataset.theme = theme.id
+  btn.textContent = theme.label
+  btn.addEventListener('click', () => selectTheme(theme.id))
+  themesBox.appendChild(btn)
+}
+selectTheme(themeId, false)
 
 $('fx-play').addEventListener('click', playCurrent)
 $('fx-stop').addEventListener('click', () => {

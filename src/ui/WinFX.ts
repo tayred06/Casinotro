@@ -1,4 +1,5 @@
 import { getWinTier, getTierDef, tierRank, type WinTierId } from '../game/WinTier.ts'
+import { WINFX_THEMES, loadThemeId, type WinFXThemeId, type WinFXTheme } from './winfx-themes.ts'
 
 /**
  * Effets visuels de gain — DOM + CSS uniquement, aucune dépendance PixiJS.
@@ -23,6 +24,8 @@ export interface WinFXTargets {
   label?: HTMLElement | null
   amount?: HTMLElement | null
   detail?: HTMLElement | null
+  /** Thème d'effets. Par défaut : celui choisi dans le labo, sinon `occulte`. */
+  theme?: WinFXThemeId
 }
 
 type ShakeKind = 'none' | 'soft' | 'hard' | 'quake'
@@ -37,7 +40,7 @@ interface TierFx {
   holdMs: number
   /** Durée du compteur qui roule. */
   countMs: number
-  /** Nombre de braises projetées. */
+  /** Nombre de particules projetées (mis à l'échelle par le thème). */
   embers: number
   shake: ShakeKind
   /** Opacité du flash plein écran (0 = pas de flash). */
@@ -46,36 +49,34 @@ interface TierFx {
   rays: boolean
   /** Anneau de sigil qui se dilate. */
   sigil: boolean
-  /** Pluie de ⛧ sur toute la machine. */
+  /** Pluie de symboles sur toute la machine. */
   rain: boolean
-  /** Couleur dominante du palier. */
-  color: string
 }
 
 export const TIER_FX: Readonly<Record<WinTierId, TierFx>> = Object.freeze({
   none: {
     holdMs: 0, countMs: 260, embers: 0, shake: 'none',
-    flash: 0, rays: false, sigil: false, rain: false, color: '#b6f36a',
+    flash: 0, rays: false, sigil: false, rain: false,
   },
   nice: {
     holdMs: 0, countMs: 420, embers: 10, shake: 'none',
-    flash: 0, rays: false, sigil: true, rain: false, color: '#d9f36a',
+    flash: 0, rays: false, sigil: true, rain: false,
   },
   big: {
     holdMs: 300, countMs: 700, embers: 22, shake: 'soft',
-    flash: .18, rays: false, sigil: true, rain: false, color: '#f2c14b',
+    flash: .18, rays: false, sigil: true, rain: false,
   },
   mega: {
     holdMs: 450, countMs: 1000, embers: 40, shake: 'hard',
-    flash: .3, rays: true, sigil: true, rain: false, color: '#ff8a3c',
+    flash: .3, rays: true, sigil: true, rain: false,
   },
   epic: {
     holdMs: 600, countMs: 1500, embers: 64, shake: 'hard',
-    flash: .45, rays: true, sigil: true, rain: true, color: '#ff5a2d',
+    flash: .45, rays: true, sigil: true, rain: true,
   },
   legendary: {
     holdMs: 800, countMs: 2200, embers: 96, shake: 'quake',
-    flash: .62, rays: true, sigil: true, rain: true, color: '#ff2d55',
+    flash: .62, rays: true, sigil: true, rain: true,
   },
 })
 
@@ -109,12 +110,14 @@ export class WinFX {
   #timers: number[] = []
   #frame = 0
   #countEnd: (() => void) | null = null
+  #themeId: WinFXThemeId
   #resolve: (() => void) | null = null
   #onKey: ((e: KeyboardEvent) => void) | null = null
   #onClick: (() => void) | null = null
 
   constructor(targets: WinFXTargets) {
     this.#targets = targets
+    this.#themeId = targets.theme ?? loadThemeId()
 
     this.#layer = document.createElement('div')
     this.#layer.className = 'wfx-layer'
@@ -133,6 +136,19 @@ export class WinFX {
     this.#continue = this.#layer.querySelector('.wfx-continue')!
 
     targets.root.appendChild(this.#layer)
+    this.setTheme(this.#themeId)
+  }
+
+  get themeId(): WinFXThemeId { return this.#themeId }
+
+  get theme(): WinFXTheme { return WINFX_THEMES[this.#themeId] }
+
+  /** Change de thème à chaud (la page de test s'en sert pour comparer). */
+  setTheme(id: WinFXThemeId) {
+    this.#themeId = id
+    this.#layer.dataset.fxTheme = id
+    this.#targets.banner?.setAttribute('data-fx-theme', id)
+    this.#targets.root.dataset.fxTheme = id
   }
 
   /** Palier d'un gain — exposé pour que l'appelant décide sans recalculer. */
@@ -154,21 +170,30 @@ export class WinFX {
     this.stop()
 
     const fx = TIER_FX[tier]
+    const theme = this.theme
     const reduced = prefersReducedMotion()
     const root = this.#targets.root
+    const color = theme.colors[tier]
 
-    root.style.setProperty('--wfx-color', fx.color)
+    root.style.setProperty('--wfx-color', color)
     this.#layer.dataset.tier = tier
+    this.#targets.banner?.setAttribute('data-tier', tier)
 
     this.#applyBanner(tier, amount, label, reduced ? 0 : fx.countMs * speedFactor())
 
     if (!reduced) {
-      if (fx.flash) this.#playFlash(fx.flash)
-      if (fx.rays)  this.#toggle(this.#rays, 'active')
-      if (fx.sigil) this.#pulse(this.#sigil, 'burst', 900)
-      if (fx.embers) this.#spawnEmbers(fx.embers, fx.color)
-      if (fx.rain) this.#spawnRain(tierRank(tier) >= 5 ? 26 : 16)
-      if (fx.shake !== 'none') this.#shake(SHAKE_CLASS[fx.shake])
+      const flash = fx.flash * theme.flash
+      const particles = Math.round(fx.embers * theme.particleScale)
+
+      if (flash > 0) this.#playFlash(flash)
+      if (fx.rays && theme.rays) this.#toggle(this.#rays, 'active')
+      if (fx.sigil && theme.sigil) this.#pulse(this.#sigil, 'burst', 900)
+      if (particles > 0 && theme.particle !== 'none') this.#spawnParticles(particles, color, theme)
+      if (fx.rain && theme.rainGlyph) this.#spawnRain(tierRank(tier) >= 5 ? 26 : 16, theme.rainGlyph)
+      if (fx.shake !== 'none' && theme.shake > 0) {
+        root.style.setProperty('--wfx-shake', String(theme.shake))
+        this.#shake(SHAKE_CLASS[fx.shake])
+      }
     }
 
     const speed = speedFactor()
@@ -261,11 +286,12 @@ export class WinFX {
     this.#after(900, () => root.classList.remove(cls))
   }
 
-  #spawnEmbers(count: number, color: string) {
+  #spawnParticles(count: number, color: string, theme: WinFXTheme) {
     const frag = document.createDocumentFragment()
     for (let i = 0; i < count; i++) {
       const p = document.createElement('span')
-      p.className = 'wfx-ember'
+      p.className = `wfx-part wfx-part-${theme.particle}`
+      if (theme.particleGlyph) p.textContent = theme.particleGlyph
       // Éventail centré vers le haut, avec assez de dispersion pour ne pas
       // lire comme une grille.
       const angle = (-90 + (Math.random() - .5) * 150) * Math.PI / 180
@@ -276,18 +302,20 @@ export class WinFX {
       p.style.setProperty('--size', `${3 + Math.random() * 6}px`)
       p.style.setProperty('--delay', `${Math.random() * 240}ms`)
       p.style.setProperty('--dur', `${700 + Math.random() * 900}ms`)
-      p.style.background = color
+      // Les particules à glyphe se colorent par le texte, les autres par le fond.
+      if (theme.particleGlyph) p.style.color = color
+      else p.style.background = color
       frag.appendChild(p)
     }
     this.#parts.appendChild(frag)
   }
 
-  #spawnRain(count: number) {
+  #spawnRain(count: number, glyph: string) {
     const frag = document.createDocumentFragment()
     for (let i = 0; i < count; i++) {
       const s = document.createElement('span')
       s.className = 'wfx-rain'
-      s.textContent = '⛧'
+      s.textContent = glyph
       s.style.setProperty('--x', `${Math.random() * 100}%`)
       s.style.setProperty('--delay', `${Math.random() * 900}ms`)
       s.style.setProperty('--dur', `${1100 + Math.random() * 900}ms`)
