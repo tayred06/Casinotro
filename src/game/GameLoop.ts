@@ -212,8 +212,9 @@ export class GameLoop {
     this.run.reset(characterId, character?.machineId ?? DEFAULT_MACHINE_ID, character?.stages)
     this.bonusSystem.setReelCount(this.machine.reelCount)
     this.applyMachineMeta()
-    this.economy.restart(this.run.hpFloor)
-    this.economy.applyStageBounds(this.run.hpFloor, this.run.hpCap)
+    const startBalance = character?.startBalance ?? this.run.hpFloor
+    this.economy.restart(startBalance)
+    this.economy.applyStageBounds(Math.min(this.run.hpFloor, startBalance), this.run.hpCap)
     this.economy.setBetOptions(this.run.betOptions)
     this.bonusSystem.setPriceScale(this.run.minBet)
     this.refreshBetChips()

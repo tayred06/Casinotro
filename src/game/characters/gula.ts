@@ -2,7 +2,7 @@ import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemInstan
 
 /** Source unique des réglages de Gula — référencée par CHARACTERS. */
 export const GULA_PARAMS = {
-  betEscalationPercent: 0.12,
+  betEscalationPercent: 0.05,
   betEscalationFloor: 1,
 }
 

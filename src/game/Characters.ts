@@ -45,6 +45,8 @@ export interface Character {
   goal?: number
   /** Nombre de paliers du run. Défaut : 3. Avaritia en joue 4. */
   stages?: number
+  /** Solde de départ du run. Défaut : plancher de vitalité du palier 1. */
+  startBalance?: number
   effect: { type: string; key?: string; params?: Record<string, any>; value?: any; bonusId?: string }
 }
 
@@ -87,13 +89,14 @@ export const CHARACTERS: Character[] = [
     colorEdge: '#8a5a24',         // brun brûlé, graisse et cuivre terni
     unlockOrder: 2,
     goal: 10000,
+    startBalance: 100,
     description:
       'Sa mise grimpe seule à chaque spin ; il doit dévorer ses propres bonus pour la faire retomber.',
     effect: {
       type: 'custom',
       key: 'gula',
       params: {
-        betEscalationPercent: 0.12, // + % de mise à chaque spin, automatique
+        betEscalationPercent: 0.05, // + % de mise à chaque spin, automatique
         betEscalationFloor: 1,      // incrément minimum en valeur absolue
         playerControlsBet: false,   // la mise n'est pas choisie par le joueur
         devourResetsEscalation: true, // consommer un bonus remet la mise à son plancher
