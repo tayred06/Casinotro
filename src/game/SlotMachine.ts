@@ -67,6 +67,18 @@ function bestColumnMultiplier(mults: number[], count: number): number {
   return best
 }
 
+/** Plafond du cumul des multiplicateurs d'items. */
+export const MULT_CAP = 6
+
+/**
+ * Les multiplicateurs d'items s'additionnent au lieu de se multiplier, et le total est
+ * plafonné : en multiplicatif, quatre items donnaient ×30 sur une seule combinaison.
+ */
+export function combineMultipliers(mults: number[]): number {
+  const total = mults.reduce((acc, m) => acc + (m - 1), 1)
+  return Math.min(MULT_CAP, total)
+}
+
 function payout(
   ctx: EvalContext,
   symbolId: string,
@@ -80,7 +92,7 @@ function payout(
   const symMult = ctx.symbolMultipliers[symbolId] ?? 1
   const jackpot = count >= ctx.machine.reelCount ? ctx.jackpotMultiplier : 1
 
-  const multiplier = base * ways * colMult * symMult * ctx.globalMultiplier * jackpot
+  const multiplier = base * ways * combineMultipliers([colMult, symMult, ctx.globalMultiplier, jackpot])
   return { multiplier, win: ctx.bet * multiplier }
 }
 
@@ -181,6 +193,12 @@ function evaluateLines(ctx: EvalContext): WinLine[] {
   return lines
 }
 
+/**
+ * Remboursement du Filet de Sécurité sur un spin mort. 46% des spins sont morts : à 50%
+ * l'item seul faisait passer le RTP de 0.88 à 1.11, soit un joueur en avantage.
+ */
+export const SAFETY_NET_REFUND = 0.15
+
 export function calculateWins(
   machine: MachineConfig,
   grid: GameSymbol[][],
@@ -218,7 +236,7 @@ export function calculateWins(
   const scatterTriggered = scatterCount >= machine.scatterMin
 
   let totalWin = winLines.reduce((sum, l) => sum + l.win, 0)
-  if (totalWin === 0 && safetyNet) totalWin = bet * 0.5
+  if (totalWin === 0 && safetyNet) totalWin = bet * SAFETY_NET_REFUND
 
   const hasLargeWin = winLines.some(l => l.count >= machine.minMatch + 1)
   const dropBonus = hasLargeWin && random() < 0.15

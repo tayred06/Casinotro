@@ -157,3 +157,79 @@
 
   + #spin-btn { margin-left: 12px; }
 }
+
+
+/* ── Barre de vitalité ─────────────────────────────────
+   Le solde EST la barre de vie : chaque spin entame, un gain soigne, et le
+   trop-plein au-dessus du plafond du palier part en crédit boutique. */
+.vitality-group {
+  min-width: 190px;
+}
+
+.hp-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.hp-bar {
+  position: relative;
+  height: 10px;
+  background: #140a0a;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6ad46a, #b6f36a);
+  transition: width .25s ease, background .25s ease;
+}
+
+.hp-bar.low .hp-fill  { background: linear-gradient(90deg, #d4a13a, #f3d06a); }
+.hp-bar.crit .hp-fill { background: linear-gradient(90deg, #d43a3a, #f36a6a); }
+.hp-bar.crit          { animation: hp-pulse 1s ease-in-out infinite; }
+
+/* Repère du point de départ du palier : montre qu'on démarre à mi-barre
+   et qu'il reste autant à gagner au-dessus. */
+.hp-start {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 0;
+  border-left: 1px dashed var(--ink-dim);
+  pointer-events: none;
+}
+
+.hp-nums {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--fmono);
+  white-space: nowrap;
+}
+
+.hp-max {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.hp-credit {
+  font-size: 11px;
+  color: #f3d06a;
+  margin-left: auto;
+}
+
+.hp-credit.bump { animation: hp-bump .4s ease; }
+
+@keyframes hp-pulse {
+  0%, 100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 6px rgba(212, 58, 58, .8); }
+}
+
+@keyframes hp-bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}

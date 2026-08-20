@@ -44,6 +44,71 @@ describe('DEFAULT_BET_OPTIONS', () => {
   })
 })
 
+describe('Economy — jauge de quota', () => {
+  it('stageEarned cumule les gains et se remet à zéro au palier', () => {
+    const e = new Economy(100)
+    e.addWin(30)
+    e.addWin(12)
+    expect(e.stageEarned).toBe(42)
+    expect(e.totalEarned).toBe(42)
+    e.resetStageEarned()
+    expect(e.stageEarned).toBe(0)
+    expect(e.totalEarned).toBe(42)
+  })
+
+  it('addMoney (prime de quota) ne remplit pas la jauge', () => {
+    const e = new Economy(100)
+    e.addMoney(500)
+    expect(e.stageEarned).toBe(0)
+  })
+
+  it('survit au round-trip serialize / restore', () => {
+    const e = new Economy(100)
+    e.addWin(77)
+    const e2 = new Economy(0)
+    e2.restore(e.serialize())
+    expect(e2.stageEarned).toBe(77)
+  })
+
+  it('plafonne la vitalité et fait déborder le surplus en crédit', () => {
+    const e = new Economy(100)
+    e.applyStageBounds(100, 200)
+    e.addWin(150)
+    expect(e.balance).toBe(200)
+    expect(e.shopCredit).toBe(50)
+    expect(e.spendable).toBe(250)
+  })
+
+  it('dépense le crédit avant la vitalité', () => {
+    const e = new Economy(100)
+    e.applyStageBounds(100, 200)
+    e.addWin(150)          // 200 HP + 50 crédit
+    expect(e.spend(30)).toBe(true)
+    expect(e.shopCredit).toBe(20)
+    expect(e.balance).toBe(200)
+    expect(e.spend(70)).toBe(true)   // 20 de crédit + 50 de vitalité
+    expect(e.shopCredit).toBe(0)
+    expect(e.balance).toBe(150)
+    expect(e.spend(1000)).toBe(false)
+  })
+
+  it('applyStageBounds soigne jusqu\'au plancher du palier', () => {
+    const e = new Economy(100)
+    e.applyStageBounds(100, 200)
+    e.spend(80)
+    expect(e.balance).toBe(20)
+    e.applyStageBounds(200, 400)
+    expect(e.balance).toBe(200)
+    expect(e.maxBalance).toBe(400)
+  })
+
+  it('le niveau de boutique suit le palier quand il est fourni', () => {
+    const e = new Economy(100)
+    expect(e.getShopLevel(1)).toBe(1)
+    expect(e.getShopLevel(3)).toBe(3)
+  })
+})
+
 describe('Economy', () => {
   let eco: Economy
 
@@ -174,13 +239,14 @@ describe('highscore', () => {
     const store = { highscore: 0, updateHighscore(v: number) { if (v > this.highscore) this.highscore = v } }
     const eco = new Economy(100, store)
     eco.addWin(500)
-    expect(store.highscore).toBe(600)
-    expect(eco.highscore).toBe(600)
+    // Le record suit les gains cumulés, pas le solde (qui est plafonné).
+    expect(store.highscore).toBe(500)
+    expect(eco.highscore).toBe(500)
   })
 
   it('deux économies branchées sur le même store le partagent', () => {
     const store = { highscore: 0, updateHighscore(v: number) { if (v > this.highscore) this.highscore = v } }
     new Economy(100, store).addWin(900)
-    expect(new Economy(100, store).highscore).toBe(1000)
+    expect(new Economy(100, store).highscore).toBe(900)
   })
 })

@@ -38,6 +38,8 @@ export class ShopUI {
   #offerModifier: ((offer: ItemDef) => ItemDef | null) | null = null
   #currentOffers: ItemDef[] = []
   #rerollCost: number = 5
+  /** Niveau courant de la boutique — il vient du palier, plus des gains cumulés. */
+  #level: 1 | 2 | 3 = 1
 
   constructor(
     bonusSystem: BonusSystem,
@@ -59,7 +61,8 @@ export class ShopUI {
 
   // Regenerate offers + redraw everything (call on level-up, restart, restore)
   refresh(level: number = 1) {
-    this.#currentOffers = this.#bonusSystem.getShopOffers(level as 1 | 2 | 3)
+    this.#level = level as 1 | 2 | 3
+    this.#currentOffers = this.#bonusSystem.getShopOffers(this.#level)
     this.#renderItems()
     this.#renderBonuses()
     this.#updateRerollBtn()
@@ -83,6 +86,7 @@ export class ShopUI {
   getRerollCost(): number            { return this.#rerollCost }
   setRerollCost(c: number)           { this.#rerollCost = c; this.#updateRerollBtn() }
   setOffers(offers: ItemDef[], level: number = 1) {
+    this.#level = level as 1 | 2 | 3
     this.#currentOffers = offers
     this.#renderItems()
     this.#renderBonuses()
@@ -281,7 +285,7 @@ export class ShopUI {
     this.addLog(`Achat — ${offer.name}`, false)
     // Un achat renouvelle les offres, gratuitement et sans toucher au coût de
     // reroll : la boutique ne garde jamais un item déjà acheté à l'écran.
-    this.#currentOffers = this.#bonusSystem.getShopOffers(this.#economy.getShopLevel() as 1 | 2 | 3)
+    this.#currentOffers = this.#bonusSystem.getShopOffers(this.#level)
     this.#renderBonuses()
     this.#renderItems()
     this.#updateRerollBtn()
@@ -296,8 +300,7 @@ export class ShopUI {
       if (!this.#economy.spend(this.#rerollCost)) return
       this.#rerollCost += 5
     }
-    const level = this.#economy.getShopLevel()
-    this.#currentOffers = this.#bonusSystem.getShopOffers(level as 1 | 2 | 3)
+    this.#currentOffers = this.#bonusSystem.getShopOffers(this.#level)
     this.#renderItems()
     this.#updateRerollBtn()
     this.#onUpdate()
