@@ -3,6 +3,10 @@ import { getWinTier, getTierDef, tierRank, type WinTierId } from '../game/WinTie
 /**
  * Effets visuels de gain — DOM + CSS uniquement, aucune dépendance PixiJS.
  *
+ * Les paliers marquants ne se referment jamais tout seuls : la bannière reste à
+ * l'écran jusqu'à un clic (ou Espace / Entrée / Échap). Seuls les petits gains
+ * s'effacent automatiquement à la fin du compteur.
+ *
  * `WinFX` possède ses propres calques (flash, rayons, sigil, particules) qu'il
  * injecte dans l'élément racine fourni, et pilote en plus la bannière existante
  * si on la lui passe. La séquence est skippable : `play()` résout au clic, à la
@@ -24,7 +28,12 @@ export interface WinFXTargets {
 type ShakeKind = 'none' | 'soft' | 'hard' | 'quake'
 
 interface TierFx {
-  /** Durée pendant laquelle la bannière reste affichée avant résolution. */
+  /**
+   * `0` = la bannière disparaît seule à la fin du compteur.
+   * `> 0` = elle attend un clic du joueur, et cette valeur est le délai de
+   * garde pendant lequel les clics sont ignorés (évite qu'un clic de spin
+   * encore en cours ne coupe la séquence dès son apparition).
+   */
   holdMs: number
   /** Durée du compteur qui roule. */
   countMs: number
@@ -53,19 +62,19 @@ export const TIER_FX: Readonly<Record<WinTierId, TierFx>> = Object.freeze({
     flash: 0, rays: false, sigil: true, rain: false, color: '#d9f36a',
   },
   big: {
-    holdMs: 700, countMs: 700, embers: 22, shake: 'soft',
+    holdMs: 300, countMs: 700, embers: 22, shake: 'soft',
     flash: .18, rays: false, sigil: true, rain: false, color: '#f2c14b',
   },
   mega: {
-    holdMs: 1300, countMs: 1000, embers: 40, shake: 'hard',
+    holdMs: 450, countMs: 1000, embers: 40, shake: 'hard',
     flash: .3, rays: true, sigil: true, rain: false, color: '#ff8a3c',
   },
   epic: {
-    holdMs: 2100, countMs: 1500, embers: 64, shake: 'hard',
+    holdMs: 600, countMs: 1500, embers: 64, shake: 'hard',
     flash: .45, rays: true, sigil: true, rain: true, color: '#ff5a2d',
   },
   legendary: {
-    holdMs: 3000, countMs: 2200, embers: 96, shake: 'quake',
+    holdMs: 800, countMs: 2200, embers: 96, shake: 'quake',
     flash: .62, rays: true, sigil: true, rain: true, color: '#ff2d55',
   },
 })
@@ -95,6 +104,7 @@ export class WinFX {
   #rays: HTMLElement
   #sigil: HTMLElement
   #parts: HTMLElement
+  #continue: HTMLElement
 
   #timers: number[] = []
   #frame = 0
@@ -113,12 +123,14 @@ export class WinFX {
       '<div class="wfx-flash"></div>' +
       '<div class="wfx-rays"></div>' +
       '<div class="wfx-sigil"></div>' +
-      '<div class="wfx-parts"></div>'
+      '<div class="wfx-parts"></div>' +
+      '<div class="wfx-continue">clic pour continuer</div>'
 
     this.#flash = this.#layer.querySelector('.wfx-flash')!
     this.#rays  = this.#layer.querySelector('.wfx-rays')!
     this.#sigil = this.#layer.querySelector('.wfx-sigil')!
     this.#parts = this.#layer.querySelector('.wfx-parts')!
+    this.#continue = this.#layer.querySelector('.wfx-continue')!
 
     targets.root.appendChild(this.#layer)
   }
@@ -130,8 +142,8 @@ export class WinFX {
 
   /**
    * Joue la séquence complète. Résout quand la bannière peut disparaître :
-   * immédiatement après le compteur pour les petits gains, après `holdMs` (ou
-   * un skip du joueur) pour les gros.
+   * à la fin du compteur pour les petits gains, au clic du joueur pour les
+   * paliers à hold (aucun minuteur ne les referme).
    */
   play(win: number, bet: number, label?: string): Promise<void> {
     return this.playTier(getWinTier(win, bet), win, label)
@@ -160,13 +172,19 @@ export class WinFX {
     }
 
     const speed = speedFactor()
-    const hold = reduced ? 0 : fx.holdMs * speed
-    const total = (reduced ? 0 : fx.countMs * speed) + hold
+    const waitsForClick = !reduced && fx.holdMs > 0
 
     return new Promise<void>(resolve => {
       this.#resolve = resolve
-      if (hold > 0) this.#armSkip()
-      this.#after(total, () => this.#finish())
+      if (waitsForClick) {
+        // Aucun minuteur de fermeture : seul le joueur referme la bannière.
+        this.#after(fx.holdMs * speed, () => {
+          this.#armSkip()
+          this.#showContinueHint()
+        })
+      } else {
+        this.#after(reduced ? 0 : fx.countMs * speed, () => this.#finish())
+      }
     })
   }
 
@@ -182,6 +200,7 @@ export class WinFX {
     this.#sigil.classList.remove('burst')
     this.#flash.style.removeProperty('--wfx-flash-opacity')
     this.#flash.classList.remove('active')
+    this.#continue.classList.remove('visible')
     this.#countEnd = null
     for (const cls of Object.values(SHAKE_CLASS)) {
       if (cls) this.#targets.root.classList.remove(cls)
@@ -278,6 +297,8 @@ export class WinFX {
     this.#parts.appendChild(frag)
   }
 
+  #showContinueHint() { this.#continue.classList.add('visible') }
+
   #toggle(el: HTMLElement, cls: string) { el.classList.add(cls) }
 
   #pulse(el: HTMLElement, cls: string, ms: number) {
@@ -322,6 +343,7 @@ export class WinFX {
     this.#resolve = null
     this.#clearTimers()
     this.#disarmSkip()
+    this.#continue.classList.remove('visible')
     // Le montant final doit rester lisible même si le joueur a coupé court.
     this.#countEnd?.()
     this.#countEnd = null

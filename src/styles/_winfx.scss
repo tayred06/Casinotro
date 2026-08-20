@@ -250,8 +250,39 @@
 /* Accessibilité : WinFX court-circuite déjà les effets, on neutralise ici
    les animations infinies que le CSS lance seul. */
 @media (prefers-reduced-motion: reduce) {
-  .wfx-layer { display: none; }
+  .wfx-layer > :not(.wfx-continue) { display: none; }
   .win-banner,
   .win-banner.wfx-enter,
   .wfx-shake-soft, .wfx-shake-hard, .wfx-shake-quake { animation: none !important; }
+}
+
+/* ── Invite « clic pour continuer » ────────────────────────
+   Apparaît après le délai de garde du palier : à partir de là, la bannière
+   attend le joueur et rien ne la referme toute seule. */
+.wfx-continue {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  translate: -50% 0;
+  padding: 6px 14px;
+  font-family: var(--fmono);
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border: 1px solid var(--line);
+  background: rgba(5, 7, 10, .7);
+  opacity: 0;
+  z-index: 2;
+
+  &.visible { animation: wfxContinueIn calc(1.6s * var(--wfx-speed, 1)) ease-in-out infinite; }
+}
+
+@keyframes wfxContinueIn {
+  0%, 100% { opacity: .35; }
+  50%      { opacity: .9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wfx-continue.visible { animation: none !important; opacity: .8; }
 }
