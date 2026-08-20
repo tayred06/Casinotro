@@ -1,6 +1,9 @@
 import type { ItemDef, ItemInstance, Modifiers, SpinResult, GameSymbol } from '../types/index.ts'
-import { shuffleArray } from '../utils/Random.ts'
+import { shuffleArray, random } from '../utils/Random.ts'
 import { getItemsByLevel } from './items/index.ts'
+
+/** Probabilité qu'une case gagnante reste figée au spin suivant. */
+export const STICKY_CHANCE = 0.35
 
 /** Emplacements de bonus au démarrage d'un run. */
 export const DEFAULT_MAX_SLOTS = 5
@@ -152,13 +155,18 @@ export class BonusSystem {
       }
     }
 
-    // Sticky positions
+    // Sticky positions. Deux garde-fous contre l'auto-entretien : une case déjà
+    // collée ne peut pas se recoller (elle a gagné parce qu'elle était figée), et
+    // chaque case gagnante ne colle qu'avec une probabilité STICKY_CHANCE.
+    const previousSticky = this.#stickyPositions
     const newSticky: Record<string, GameSymbol> = {}
     if (mods.stickyEnabled && totalWin > 0) {
       for (const line of winLines) {
         for (const [reel, row] of line.cells) {
+          const key = `${reel}-${row}`
+          if (previousSticky[key] || newSticky[key]) continue
           const symbol = grid[reel]?.[row]
-          if (symbol) newSticky[`${reel}-${row}`] = symbol
+          if (symbol && random() < STICKY_CHANCE) newSticky[key] = symbol
         }
       }
     }

@@ -45,7 +45,7 @@ export const ITEM_POOL: ItemDef[] = [
   },
   {
     id: 'sticky', name: 'Symbole Collant', kind: 'bonus',
-    description: 'Les symboles gagnants restent en place 1 spin', level: 2, price: 45,
+    description: '35% de chance qu\'un symbole gagnant reste en place 1 spin', level: 2, price: 45,
     effect: 'sticky', needsTarget: null,
   },
   {

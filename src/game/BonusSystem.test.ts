@@ -1,5 +1,6 @@
 // src/game/BonusSystem.test.ts
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { setRng } from '../utils/Random.ts'
 import { BonusSystem } from './BonusSystem.ts'
 import { ITEM_POOL } from './items/index.ts'
 
@@ -91,5 +92,49 @@ describe('BonusSystem', () => {
       bs.addBonus(freeReroll)
       expect(bs.getModifiers().freeRerolls).toBe(1)
     })
+  })
+})
+
+describe('BonusSystem — Symbole Collant', () => {
+  const stickyDef = BONUS_POOL.find(b => b.effect === 'sticky')!
+
+  const winResult = (cells: Array<[number, number]>) => ({
+    totalWin: 10,
+    winLines: [{ symbolId: 'cherry', cells }],
+  }) as any
+
+  const grid = [['cherry', 'cherry'], ['cherry', 'cherry']] as any
+
+  afterEach(() => setRng(null))
+
+  it('une case collée ne peut pas se recoller au spin suivant', () => {
+    const bs = new BonusSystem()
+    bs.addBonus(stickyDef, null)
+    setRng(() => 0) // toutes les cases éligibles collent
+
+    const first = bs.processPostSpin(winResult([[0, 0], [1, 1]]), grid)
+    expect(Object.keys(first.stickyPositions).sort()).toEqual(['0-0', '1-1'])
+
+    // Même combinaison gagnante : les cases figées ne se reconduisent pas.
+    const second = bs.processPostSpin(winResult([[0, 0], [1, 1]]), grid)
+    expect(second.stickyPositions).toEqual({})
+  })
+
+  it('ne colle rien quand le tirage dépasse STICKY_CHANCE', () => {
+    const bs = new BonusSystem()
+    bs.addBonus(stickyDef, null)
+    setRng(() => 0.99)
+
+    const res = bs.processPostSpin(winResult([[0, 0], [1, 1]]), grid)
+    expect(res.stickyPositions).toEqual({})
+  })
+
+  it('sans gain, rien ne colle', () => {
+    const bs = new BonusSystem()
+    bs.addBonus(stickyDef, null)
+    setRng(() => 0)
+
+    const res = bs.processPostSpin({ totalWin: 0, winLines: [] } as any, grid)
+    expect(res.stickyPositions).toEqual({})
   })
 })
