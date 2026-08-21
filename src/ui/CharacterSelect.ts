@@ -1,5 +1,5 @@
 import type { Character } from '../game/Characters.ts'
-import { isCharacterPlayable, isInDemoRoster } from '../game/Characters.ts'
+import { isCharacterPlayable, isInDemoRoster, DEBUG_CHARACTER_ID, isDebugEnvironment } from '../game/Characters.ts'
 
 export class CharacterSelect {
   #onSelect: (char: Character) => void
@@ -17,7 +17,9 @@ export class CharacterSelect {
 
   constructor(characters: Character[], onSelect: (char: Character) => void, unlocked: ReadonlySet<string>) {
     this.#onSelect = onSelect
-    this.#characters = characters.filter(c => !c.hidden)
+    // Le personnage de debug n'apparaît qu'en local : ailleurs, pas même une carte verrouillée.
+    this.#characters = characters.filter(c =>
+      !c.hidden && (c.id !== DEBUG_CHARACTER_ID || isDebugEnvironment()))
     this.#unlocked = unlocked
     this.#overlay  = document.getElementById('character-select-overlay')!
 

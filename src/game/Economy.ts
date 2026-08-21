@@ -171,6 +171,19 @@ export class Economy {
 
   debugSetEarned(amount: Souls): void { this.#totalEarned = amount }
 
+  /** Debug : impose le solde, en relevant le plafond de vitalité si besoin. */
+  debugSetBalance(amount: Souls): void {
+    const value = Math.max(0, amount)
+    if (value > this.#maxBalance) this.#maxBalance = value
+    this.#balance = value
+  }
+
+  /** Debug : impose le crédit boutique. */
+  debugSetShopCredit(amount: Souls): void { this.#shopCredit = Math.max(0, amount) }
+
+  /** Debug : remet la jauge de quota du palier à la valeur voulue. */
+  debugSetStageEarned(amount: Souls): void { this.#stageEarned = Math.max(0, amount) }
+
   restart(startBalance: Souls = 100): void {
     this.#betOptions     = [...DEFAULT_BET_OPTIONS]
     this.#maxBalance     = Infinity

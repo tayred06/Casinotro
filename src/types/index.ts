@@ -154,9 +154,24 @@ export interface CharacterActionResult {
   gameOver?: string | null
 }
 
+// ─── Personnage de debug ─────────────────────────────────
+/** État du bac à sable : lu par GameLoop, écrit par le panneau de debug. */
+export interface DebugState {
+  /** Aucune défaite : quota manqué, solde à zéro et onLossCheck sont ignorés. */
+  godMode: boolean
+  /** Multiplicateur appliqué à chaque gain de spin. */
+  winMultiplier: number
+  /** Convoitise forcée (0-100), ou null pour laisser les items décider. */
+  rarityOverride: number | null
+  /** Régularité forcée (0-100), ou null. */
+  cohesionOverride: number | null
+}
+
 // ─── Plugin personnage ────────────────────────────────────
 export interface CharacterPlugin {
   id: string
+  /** Présent uniquement sur le personnage de debug. */
+  debugState?: DebugState
   onSetup?(ctx: GameContext): void
   onTeardown?(ctx: GameContext): void
   onBeforeSpin?(ctx: GameContext): void
