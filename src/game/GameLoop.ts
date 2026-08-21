@@ -1,4 +1,4 @@
-import type { CharacterPlugin, GameContext, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
+import type { CharacterPlugin, DebugState, GameContext, ItemDef, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
 import { Economy } from './Economy.ts'
 import { BonusSystem, SLOTS_PER_QUOTA } from './BonusSystem.ts'
 import { RunState } from './RunState.ts'
@@ -16,7 +16,9 @@ import { ProfileModal } from '../ui/ProfileModal.ts'
 import { PaytableModal } from '../ui/PaytableModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
 import { EndScreen } from '../ui/EndScreen.ts'
-import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId } from './Characters.ts'
+import type { DebugApi, DebugPanel } from '../ui/DebugPanel.ts'
+import { ITEM_POOL } from './items/index.ts'
+import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId, isDebugEnvironment } from './Characters.ts'
 import type { Character } from './Characters.ts'
 import { getItem } from './items/index.ts'
 
@@ -49,6 +51,14 @@ export class GameLoop {
   private endScreen: EndScreen
   /** Run terminée (victoire ou défaite) : plus aucune action de jeu n'est acceptée. */
   private runEnded = false
+  /** Panneau de debug — instancié à la première run du personnage de test. */
+  private debugPanel: DebugPanel | null = null
+
+  /** Non nul uniquement pendant une run du personnage de debug. */
+  private get debugState(): DebugState | null { return this.plugin.debugState ?? null }
+
+  /** Mode dieu : aucune défaite n'est appliquée. */
+  private get godMode(): boolean { return this.debugState?.godMode === true }
 
   /** Machine de la run courante. Toute la géométrie et la paytable en découlent. */
   private get machine(): MachineConfig {
@@ -201,6 +211,7 @@ export class GameLoop {
       this.applyCharacterTheme()
       this.refreshAction()
       this.characterSelect.hide()
+      void this.syncDebugPanel()
     }
   }
 
@@ -243,16 +254,25 @@ export class GameLoop {
     this.isSpinning = false
     this.uiContext.updateHUD()
     this.shop.addLog(`${character?.emoji ?? ''} ${character?.name ?? characterId} — bonne chance.`, true)
+    void this.syncDebugPanel()
     this.save(grid)
   }
 
   async handleSpin(): Promise<void> {
-    if (this.runEnded || this.isSpinning || this.economy.isGameOver()) return
+    if (this.runEnded || this.isSpinning) return
+    if (!this.godMode && this.economy.isGameOver()) return
     if (!this.economy.placeBet()) {
-      if (this.plugin.onLossCheck?.(this.ctx)) {
-        this.gameOver('Mise impossible.')
+      // Bac à sable : on recharge le solde au lieu de bloquer le spin.
+      if (this.godMode) {
+        this.economy.debugSetBalance(this.economy.currentBet * 20)
+        this.shop.addLog('🛠 Solde rechargé (mode test).', true)
+        if (!this.economy.placeBet()) return
+      } else {
+        if (this.plugin.onLossCheck?.(this.ctx)) {
+          this.gameOver('Mise impossible.')
+        }
+        return
       }
-      return
     }
 
     this.isSpinning = true
@@ -324,7 +344,7 @@ export class GameLoop {
       this.gameOver('Condition de défaite du personnage.')
       return
     }
-    if (this.economy.isGameOver()) {
+    if (!this.godMode && this.economy.isGameOver()) {
       this.gameOver(`Palier ${this.run.stage} · objectif ${this.run.currentGoal}⛧ · solde ${this.economy.balance.toFixed(2)}⛧`)
       return
     }
@@ -534,7 +554,7 @@ export class GameLoop {
       this.gameOver('Une colonne entière est morte. La machine a gagné.')
       return
     }
-    if (this.economy.isGameOver()) {
+    if (!this.godMode && this.economy.isGameOver()) {
       this.gameOver(`Palier ${this.run.stage} · objectif ${this.run.currentGoal}⛧ · solde ${this.economy.balance.toFixed(2)}⛧`)
       return
     }
@@ -545,7 +565,15 @@ export class GameLoop {
     this.refreshAction()
   }
 
-  private gameOver(text: string): void {
+  private gameOver(text: string, force = false): void {
+    if (this.godMode && !force) {
+      this.shop.addLog(`🛠 Défaite ignorée (mode test) — ${text}`, true)
+      this.isSpinning = false
+      this.hud.setSpinEnabled(true)
+      this.hud.setSpinLabel('SPIN')
+      this.refreshAction()
+      return
+    }
     this.clearSave()
     this.runEnded = true
     this.isSpinning = false
@@ -607,6 +635,7 @@ export class GameLoop {
   }
 
   private restartRun(): void {
+    this.debugPanel?.hide()
     this.clearSave()
     this.runEnded = false
     this.endScreen.hide()
@@ -624,9 +653,10 @@ export class GameLoop {
   private getLuckProfile(): LuckProfile {
     const mods = this.bonusSystem.getModifiers()
     const rarityBonus = this.plugin.getLuckBonus?.(this.ctx) ?? 0
+    const dbg = this.debugState
     return {
-      rarity:   (mods.rarity + rarityBonus) / 100,
-      cohesion: mods.cohesion / 100,
+      rarity:   (dbg?.rarityOverride ?? (mods.rarity + rarityBonus)) / 100,
+      cohesion: (dbg?.cohesionOverride ?? mods.cohesion) / 100,
       nudge:    this.economy.rtpNudge,
     }
   }
@@ -663,6 +693,89 @@ export class GameLoop {
     if (!result.winLines.length) return 'Aucune combinaison.'
     const best = result.winLines.reduce((a, b) => b.count > a.count ? b : a)
     return `${best.count} × ${best.symbolId} — +${result.totalWin.toFixed(2)}⛧`
+  }
+
+  // ── Personnage de debug ───────────────────────────────
+  /** Affiche le panneau de debug si la run courante est celle du bac à sable. */
+  private async syncDebugPanel(): Promise<void> {
+    // Double verrou : le panneau n'existe qu'en local, même si le plugin est chargé.
+    // Import dynamique — en build de prod le chunk n'est jamais téléchargé.
+    if (!this.debugState || !isDebugEnvironment()) { this.debugPanel?.hide(); return }
+    if (!this.debugPanel) {
+      const { DebugPanel } = await import('../ui/DebugPanel.ts')
+      this.debugPanel = new DebugPanel(this.buildDebugApi())
+    }
+    this.debugPanel.show()
+  }
+
+  private buildDebugApi(): DebugApi {
+    const self = this
+    return {
+      get state(): DebugState {
+        // Le plugin est recréé à chaque run : on relit toujours l'état courant.
+        return self.debugState ?? { godMode: false, winMultiplier: 1, rarityOverride: null, cohesionOverride: null }
+      },
+      getBalance: () => self.economy.balance,
+      setBalance: (v) => self.economy.debugSetBalance(v),
+      addMoney: (v) => self.economy.addMoney(v),
+      setShopCredit: (v) => self.economy.debugSetShopCredit(v),
+      liftBalanceCap: () => self.economy.setBalanceCap(Number.MAX_SAFE_INTEGER),
+      getBet: () => self.economy.currentBet,
+      setBet: (v) => { self.economy.forceSetBet(Math.max(0, v)) },
+      addItem: (def: ItemDef, target) => {
+        if (self.bonusSystem.isFull) self.bonusSystem.grantSlots(1)
+        self.bonusSystem.addBonus(def, target)
+      },
+      addEveryItem: () => {
+        self.bonusSystem.grantSlots(ITEM_POOL.length)
+        for (const def of ITEM_POOL) {
+          const target = def.needsTarget === 'column' ? 0
+            : def.needsTarget === 'symbol' ? SYMBOLS[0].id
+            : null
+          self.bonusSystem.addBonus(def, target)
+        }
+      },
+      clearItems: () => {
+        for (const item of self.bonusSystem.activeBonus) self.bonusSystem.removeBonus(item.instanceId)
+      },
+      grantSlots: (n) => self.bonusSystem.grantSlots(n),
+      slotsInfo: () => ({ used: self.bonusSystem.activeBonus.length, max: self.bonusSystem.maxSlots }),
+      reelCount: () => self.machine.reelCount,
+      stageInfo: () => ({ stage: self.run.stage, goal: self.run.currentGoal, earned: self.economy.stageEarned }),
+      completeQuota: () => {
+        self.economy.debugSetStageEarned(self.run.currentGoal)
+        self.checkStageProgress(self.currentGrid)
+      },
+      freeSpins: (n) => {
+        if (self.isSpinning || self.runEnded) return
+        self.isSpinning = true
+        self.hud.setSpinEnabled(false)
+        void self.handleFreeSpins(n).then(() => {
+          self.isSpinning = false
+          self.hud.setSpinEnabled(true)
+          self.uiContext.updateHUD()
+          self.debugPanel?.refresh()
+        })
+      },
+      forceWin: (mult) => {
+        const win = self.economy.currentBet * Math.max(1, mult)
+        self.economy.addWin(win)
+        self.shop.addLog(`🛠 Gain forcé +${win.toFixed(2)}⛧`)
+      },
+      triggerVictory: () => self.victory(),
+      triggerGameOver: () => self.gameOver('Défaite forcée (debug).', true),
+      unlockAllCharacters: () => {
+        for (const c of CHARACTERS) self.progression.unlockCharacter(c.id)
+        self.characterSelect.refresh(self.progression.unlockedCharacters)
+      },
+      wipeSave: () => self.clearSave(),
+      refresh: () => {
+        self.uiContext.updateHUD()
+        self.shop.updateDisplay()
+        self.renderer.showModifiers(self.bonusSystem.getModifiers())
+        self.save(self.currentGrid)
+      },
+    }
   }
 
   private save(grid?: any[][]): void {

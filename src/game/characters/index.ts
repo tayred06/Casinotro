@@ -7,6 +7,7 @@ import { invidiaPlugin } from './invidia.ts'
 import { acediaPlugin } from './acedia.ts'
 import { superbiaPlugin } from './superbia.ts'
 import { joueurPlugin } from './joueur.ts'
+import { createDebugPlugin } from './debug.ts'
 
 const STATELESS: Record<string, CharacterPlugin> = {
   luxuria: luxuriaPlugin,
@@ -20,6 +21,7 @@ const FACTORIES: Record<string, () => CharacterPlugin> = {
   gula: createGulaPlugin,
   avaritia: createAvaritiaPlugin,
   ira: createIraPlugin,
+  debug: createDebugPlugin,
 }
 
 export function getCharacterPlugin(id: string): CharacterPlugin {
@@ -30,5 +32,5 @@ export function getCharacterPlugin(id: string): CharacterPlugin {
 }
 
 export const CHARACTER_IDS = [
-  'luxuria', 'gula', 'avaritia', 'ira', 'invidia', 'acedia', 'superbia', 'character_8'
+  'luxuria', 'gula', 'avaritia', 'ira', 'invidia', 'acedia', 'superbia', 'character_8', 'debug'
 ]

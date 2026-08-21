@@ -299,6 +299,26 @@ export const CHARACTERS: Character[] = [
       },
     },
   },
+  {
+    id: 'debug',
+    name: 'Le Testeur',
+    sin: 'Machina',           // pas un péché : un outil
+    emoji: '🛠',
+    mechTitle: 'Bac à sable',
+    sigil: '⚙',
+    tag: 'Debug',
+    color: '#101418',
+    colorEdge: '#5a6b7a',
+    unlockOrder: 0,           // toujours dans le roster démo, jamais verrouillé
+    startBalance: 100000,
+    description:
+      'Personnage de test : solde, bonus, paliers et chance modifiables à volonté, aucune défaite possible.',
+    effect: {
+      type: 'custom',
+      key: 'debug',
+      params: { godMode: true, unlimitedItems: true },
+    },
+  },
 ]
 
 /** Ordre de déblocage : du péché le plus léger au plus grave. */
@@ -319,9 +339,27 @@ export const getCharacter = (id: string): Character | undefined => CHARACTERS.fi
  */
 export const DEMO_MAX_UNLOCK_ORDER = 4
 
+/**
+ * Le personnage de debug n'existe qu'en local : serveur de dev Vite, ou build servi
+ * depuis localhost. Sur un site déployé il disparaît de la sélection et n'est pas
+ * jouable, même si une sauvegarde le mentionne.
+ */
+export const DEBUG_CHARACTER_ID = 'debug'
+
+export const isDebugEnvironment = (): boolean => {
+  try {
+    if (import.meta.env?.DEV) return true
+  } catch {}
+  const host = typeof location !== 'undefined' ? location.hostname : ''
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]'
+    || host.endsWith('.localhost') || host === ''
+}
+
 /** Fait partie du roster de la démo (verrouillé ou non). */
-export const isInDemoRoster = (c: Character): boolean =>
-  c.unlockOrder <= DEMO_MAX_UNLOCK_ORDER
+export const isInDemoRoster = (c: Character): boolean => {
+  if (c.id === DEBUG_CHARACTER_ID) return isDebugEnvironment()
+  return c.unlockOrder <= DEMO_MAX_UNLOCK_ORDER
+}
 
 /**
  * Démo : tout le roster est ouvert d'entrée. Le Convive, Le Banquier et Le Boxeur
