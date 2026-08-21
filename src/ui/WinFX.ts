@@ -1,5 +1,6 @@
 import { getWinTier, getTierDef, tierRank, type WinTierId } from '../game/WinTier.ts'
 import { WINFX_THEMES, loadThemeId, type WinFXThemeId, type WinFXTheme } from './winfx-themes.ts'
+import { soulsGain } from '../utils/format.ts'
 
 /**
  * Effets visuels de gain — DOM + CSS uniquement, aucune dépendance PixiJS.
@@ -257,7 +258,7 @@ export class WinFX {
   }
 
   #countUp(el: HTMLElement, target: number, durationMs: number) {
-    const fmt = (v: number) => `+⛧${v.toFixed(2)}`
+    const fmt = (v: number) => soulsGain(v)
     this.#countEnd = () => { el.textContent = fmt(target) }
     if (durationMs <= 0) { this.#countEnd(); return }
 

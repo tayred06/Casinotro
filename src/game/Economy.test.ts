@@ -72,33 +72,33 @@ describe('Economy — jauge de quota', () => {
 
   it('plafonne la vitalité et fait déborder le surplus en crédit', () => {
     const e = new Economy(100)
-    e.applyStageBounds(100, 200)
+    e.setBalanceCap(200)
     e.addWin(150)
     expect(e.balance).toBe(200)
-    expect(e.shopCredit).toBe(50)
-    expect(e.spendable).toBe(250)
+    expect(e.shopCredit).toBe(5)     // 10 % du surplus de 50
+    expect(e.spendable).toBe(205)
   })
 
   it('dépense le crédit avant la vitalité', () => {
     const e = new Economy(100)
-    e.applyStageBounds(100, 200)
-    e.addWin(150)          // 200 HP + 50 crédit
-    expect(e.spend(30)).toBe(true)
-    expect(e.shopCredit).toBe(20)
+    e.setBalanceCap(200)
+    e.addWin(150)          // 200 HP + 5 crédit
+    expect(e.spend(3)).toBe(true)
+    expect(e.shopCredit).toBe(2)
     expect(e.balance).toBe(200)
-    expect(e.spend(70)).toBe(true)   // 20 de crédit + 50 de vitalité
+    expect(e.spend(70)).toBe(true)   // 2 de crédit + 68 de vitalité
     expect(e.shopCredit).toBe(0)
-    expect(e.balance).toBe(150)
+    expect(e.balance).toBe(132)
     expect(e.spend(1000)).toBe(false)
   })
 
-  it('applyStageBounds soigne jusqu\'au plancher du palier', () => {
+  it('setBalanceCap agrandit la barre sans soigner', () => {
     const e = new Economy(100)
-    e.applyStageBounds(100, 200)
+    e.setBalanceCap(200)
     e.spend(80)
     expect(e.balance).toBe(20)
-    e.applyStageBounds(200, 400)
-    expect(e.balance).toBe(200)
+    e.setBalanceCap(400)
+    expect(e.balance).toBe(20)
     expect(e.maxBalance).toBe(400)
   })
 

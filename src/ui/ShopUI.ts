@@ -1,6 +1,7 @@
 import type { ItemDef, ItemInstance } from '../types/index.ts'
 import type { Economy } from '../game/Economy.ts'
 import type { BonusSystem } from '../game/BonusSystem.ts'
+import { souls, soulsGain } from '../utils/format.ts'
 
 const ITEM_GLYPHS: Record<string, string> = {
   Commun: '▲',
@@ -181,7 +182,7 @@ export class ShopUI {
 
       const price = document.createElement('span')
       price.className   = 'item-price'
-      price.textContent = `⛧${offer.price}`
+      price.textContent = souls(offer.price)
 
       const spacer = document.createElement('span')
       spacer.className = 'item-spacer'
@@ -282,7 +283,7 @@ export class ShopUI {
 
       const price = document.createElement('span')
       price.className   = 'item-price'
-      price.textContent = `⛧${refund}`
+      price.textContent = souls(refund)
 
       const spacer = document.createElement('span')
       spacer.className = 'item-spacer'
@@ -290,7 +291,7 @@ export class ShopUI {
       const btn = document.createElement('button')
       btn.className   = 'sell-btn'
       btn.textContent = 'Vendre'
-      btn.title       = `Vendre pour ⛧${refund}`
+      btn.title       = `Vendre pour ${souls(refund)}`
       btn.addEventListener('click', () => this.#handleSell(bonus))
 
       footer.appendChild(price)
@@ -310,7 +311,7 @@ export class ShopUI {
       this.#onBonusSold(bonus, refund)
     } else {
       this.#economy.addMoney(refund)
-      this.addLog(`Vendu : ${bonus.name} +⛧${refund}`, true)
+      this.addLog(`Vendu : ${bonus.name} ${soulsGain(refund)}`, true)
     }
     this.#renderBonuses()
     this.#renderItems()
@@ -321,7 +322,7 @@ export class ShopUI {
   #updateRerollBtn() {
     const btn  = document.getElementById('reroll-btn')!
     const free = this.#bonusSystem.getModifiers().freeRerolls > 0
-    const cost = free ? 'GRATUIT' : `⛧${this.#rerollCost}`
+    const cost = free ? 'GRATUIT' : souls(this.#rerollCost)
     ;(btn as HTMLButtonElement).textContent = `Renouveler les offres — ${cost}`
     ;(btn as HTMLButtonElement).disabled    = !free && !this.#economy.canAfford(this.#rerollCost)
   }

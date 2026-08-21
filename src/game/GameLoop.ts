@@ -1,7 +1,7 @@
 import type { CharacterPlugin, DebugState, GameContext, ItemDef, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
 import { Economy } from './Economy.ts'
 import { BonusSystem, SLOTS_PER_QUOTA } from './BonusSystem.ts'
-import { RunState } from './RunState.ts'
+import { RunState, START_BALANCE } from './RunState.ts'
 import { Progression } from '../meta/Progression.ts'
 import { spin, calculateWins } from './SlotMachine.ts'
 import { SYMBOLS } from './Symbols.ts'
@@ -21,6 +21,7 @@ import { ITEM_POOL } from './items/index.ts'
 import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId, isDebugEnvironment } from './Characters.ts'
 import type { Character } from './Characters.ts'
 import { getItem } from './items/index.ts'
+import { souls, soulsGain } from '../utils/format.ts'
 
 const SAVE_KEY = 'casinotro_v3'
 /** Coût du premier renouvellement de boutique, remis à zéro à chaque partie. */
@@ -85,7 +86,8 @@ export class GameLoop {
             level: this.run.stage,
             goal: this.run.currentGoal,
             progress: this.economy.stageEarned,
-            hpFloor: this.run.hpFloor,
+            endless: this.run.isEndless,
+            totalEarned: this.economy.totalEarned,
           },
           this.bonusSystem.getModifiers(),
         )
@@ -132,7 +134,7 @@ export class GameLoop {
       const payout = Math.floor(refund * rate)
       if (payout > 0) {
         this.economy.addMoney(payout)
-        this.shop.addLog(`Vendu : ${bonus.name} +⛧${payout}`, true)
+        this.shop.addLog(`Vendu : ${bonus.name} ${soulsGain(payout)}`, true)
       }
       this.plugin.onShopSell?.(this.ctx, bonus)
       this.uiContext.updateHUD()
@@ -184,7 +186,7 @@ export class GameLoop {
       // Les paliers de mise appartiennent au run : sans ça, recharger la page
       // en palier 2/3 ramenait les mises initiales.
       this.economy.setBetOptions(this.run.betOptions)
-      this.economy.applyStageBounds(0, this.run.hpCap)
+      this.economy.setBalanceCap(this.run.hpCap)
       this.bonusSystem.setPriceScale(this.run.minBet)
       if (typeof save.economy?.currentBet === 'number') this.economy.setBet(save.economy.currentBet)
       this.plugin = getCharacterPlugin(this.run.characterId)
@@ -223,9 +225,9 @@ export class GameLoop {
     this.run.reset(characterId, character?.machineId ?? DEFAULT_MACHINE_ID, character?.stages)
     this.bonusSystem.setReelCount(this.machine.reelCount)
     this.applyMachineMeta()
-    const startBalance = character?.startBalance ?? this.run.hpFloor
+    const startBalance = character?.startBalance ?? START_BALANCE
     this.economy.restart(startBalance)
-    this.economy.applyStageBounds(Math.min(this.run.hpFloor, startBalance), this.run.hpCap)
+    this.economy.setBalanceCap(this.run.hpCap)
     this.economy.setBetOptions(this.run.betOptions)
     this.bonusSystem.setPriceScale(this.run.minBet)
     this.refreshBetChips()
@@ -345,7 +347,7 @@ export class GameLoop {
       return
     }
     if (!this.godMode && this.economy.isGameOver()) {
-      this.gameOver(`Palier ${this.run.stage} · objectif ${this.run.currentGoal}⛧ · solde ${this.economy.balance.toFixed(2)}⛧`)
+      this.gameOver(`Palier ${this.run.stage} · objectif ${souls(this.run.currentGoal)} · solde ${souls(this.economy.balance)}`)
       return
     }
 
@@ -402,25 +404,11 @@ export class GameLoop {
   }
 
   private checkStageProgress(grid: any[][]): void {
+    // Le mode infini n'a pas de quota : on y joue pour aller le plus loin possible.
+    if (this.run.isEndless) return
     // Le quota se remplit avec les gains encaissés dans le palier, pas avec le solde :
     // atteindre 5× son solde à RTP < 1 n'était possible qu'en misant tout d'un coup.
     if (this.economy.stageEarned < this.run.currentGoal) return
-
-    if (this.run.isEndless) {
-      this.progression.updateHighscore(this.economy.totalEarned)
-      this.economy.resetStageEarned()
-      this.run.advanceEndless()
-      this.economy.setBetOptions(this.run.betOptions)
-      this.applyStageVitality()
-      this.rescalePrices()
-      this.grantQuotaSlots()
-      this.refreshBetChips()
-      this.shop.refresh(this.economy.getShopLevel(this.run.stage))
-      this.shop.addLog(`Quota infini ${this.run.endlessLevel} atteint — objectif ⛧${this.run.currentGoal}.`)
-      this.uiContext.updateHUD()
-      this.save(grid)
-      return
-    }
 
     if (this.run.isFinalStage) {
       this.progression.updateHighscore(this.economy.totalEarned)
@@ -446,11 +434,11 @@ export class GameLoop {
    * Vitalité du palier : seul le plafond monte, au-dessus duquel les gains débordent en
    * crédit boutique. Le solde courant est conservé tel quel — franchir un palier ne
    * ramène pas le joueur à un montant imposé. À appeler après `advanceStage()` /
-   * `advanceEndless()`.
+   * `enterEndless()`.
    */
   private applyStageVitality(): void {
     this.economy.setBalanceCap(this.run.hpCap)
-    this.shop.addLog(`Vitalité maximale portée à ⛧${this.run.hpCap}.`, true)
+    this.shop.addLog(`Vitalité maximale portée à ${souls(this.run.hpCap)}.`, true)
   }
 
   /** Réindexe boutique et reroll sur la nouvelle mise minimale. */
@@ -467,19 +455,20 @@ export class GameLoop {
   }
 
   /**
-   * Poursuite après la victoire : le run continue, quota ×5 à chaque palier.
+   * Poursuite après la victoire : plus de quota, on joue pour le score. Mises et
+   * vitalité prennent un cran, une seule fois.
    */
   private continueEndless(): void {
     this.runEnded = false
     this.isSpinning = false
-    this.run.advanceEndless()
+    this.run.enterEndless()
     this.economy.setBetOptions(this.run.betOptions)
     this.applyStageVitality()
     this.rescalePrices()
     this.grantQuotaSlots()
     this.refreshBetChips()
     this.shop.refresh(this.economy.getShopLevel(this.run.stage))
-    this.shop.addLog(`Mode infini — quota suivant : ⛧${this.run.currentGoal}.`)
+    this.shop.addLog('Mode infini — plus de quota : accumulez le plus de gains possible.')
     this.hud.setSpinEnabled(true)
     this.hud.setSpinLabel('SPIN')
     this.refreshAction()
@@ -555,7 +544,7 @@ export class GameLoop {
       return
     }
     if (!this.godMode && this.economy.isGameOver()) {
-      this.gameOver(`Palier ${this.run.stage} · objectif ${this.run.currentGoal}⛧ · solde ${this.economy.balance.toFixed(2)}⛧`)
+      this.gameOver(`Palier ${this.run.stage} · objectif ${souls(this.run.currentGoal)} · solde ${souls(this.economy.balance)}`)
       return
     }
 
@@ -692,7 +681,7 @@ export class GameLoop {
   private buildWinLog(result: SpinResult): string {
     if (!result.winLines.length) return 'Aucune combinaison.'
     const best = result.winLines.reduce((a, b) => b.count > a.count ? b : a)
-    return `${best.count} × ${best.symbolId} — +${result.totalWin.toFixed(2)}⛧`
+    return `${best.count} × ${best.symbolId} — ${soulsGain(result.totalWin)}`
   }
 
   // ── Personnage de debug ───────────────────────────────
@@ -760,7 +749,7 @@ export class GameLoop {
       forceWin: (mult) => {
         const win = self.economy.currentBet * Math.max(1, mult)
         self.economy.addWin(win)
-        self.shop.addLog(`🛠 Gain forcé +${win.toFixed(2)}⛧`)
+        self.shop.addLog(`🛠 Gain forcé ${soulsGain(win)}`)
       },
       triggerVictory: () => self.victory(),
       triggerGameOver: () => self.gameOver('Défaite forcée (debug).', true),

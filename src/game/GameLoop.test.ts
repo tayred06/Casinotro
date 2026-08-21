@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GameLoop } from './GameLoop.ts'
-import { STAGE_QUOTA_K, ENDLESS_GOAL_FACTOR, STAGE_HP_FLOOR } from './RunState.ts'
+import { STAGE_QUOTA_K, START_BALANCE } from './RunState.ts'
 import { mountIndexHtml, betChipLabels } from '../test/domFixture.ts'
 
 const SAVE_KEY = 'casinotro_v3'
@@ -114,7 +114,7 @@ describe('GameLoop — nouvelle partie', () => {
 
     expect(betChipLabels()).toEqual(['⛧1', '⛧2', '⛧3', '⛧5', '⛧10'])
     expect(document.getElementById('balance-display')!.textContent)
-      .toBe(`⛧${STAGE_HP_FLOOR[0].toFixed(2)}`)
+      .toBe(`⛧${START_BALANCE}`)
   })
 
   /**
@@ -215,7 +215,8 @@ describe('GameLoop — nouvelle partie', () => {
 
     expect(overlayVisible('end-screen-overlay')).toBe(false)
     expect(run.isEndless).toBe(true)
-    expect(run.currentGoal).toBe(Math.round(STAGE_QUOTA_K[2] * run.minBet * ENDLESS_GOAL_FACTOR))
+    // Plus de quota en mode infini : on joue pour le score.
+    expect(run.currentGoal).toBe(Infinity)
     expect((loop as any).runEnded).toBe(false)
     expect((loop as any).bonusSystem.maxSlots).toBe(7)
   })

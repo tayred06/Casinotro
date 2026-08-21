@@ -93,10 +93,37 @@
   margin-top: 2px;
 }
 
+.char-hud-identity { flex: 0 0 auto; }
+
+// L'inventaire occupe la hauteur restante de la colonne ; seule la liste
+// des bonus scrolle, le label et les 5 emplacements restent visibles.
 .char-hud-inventory {
   border: 1px solid var(--line);
   background: var(--panel);
   padding: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  .bonuses-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar { width: 6px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb {
+      background: var(--line);
+      &:hover { background: var(--gold); }
+    }
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+
+    > * { flex-shrink: 0; }
+  }
 }
 
 .char-hud-inv-lbl {

@@ -5,6 +5,12 @@ export const DEFAULT_BET_OPTIONS: readonly Souls[] = Object.freeze([1, 2, 5, 10,
 
 const TARGET_RTP = 0.92
 
+/**
+ * Part du surplus de gain convertie en crédit boutique quand la vitalité est au plafond.
+ * Le reste est perdu : sans ça, un gros gain finançait toute la boutique d'un coup.
+ */
+export const OVERFLOW_CREDIT_RATE = 0.10
+
 /** Source unique du meilleur score. `Progression` l'implémente et le persiste. */
 export interface HighscoreStore {
   readonly highscore: Souls
@@ -108,28 +114,15 @@ export class Economy {
     const room = Math.max(0, this.#maxBalance - this.#balance)
     const healed = Math.min(amount, room)
     this.#balance += healed
-    this.#shopCredit += amount - healed
+    this.#shopCredit += Math.floor((amount - healed) * OVERFLOW_CREDIT_RATE)
   }
 
-  /**
-   * Bornes de vitalité du palier : plancher garanti à l'entrée, plafond pour la suite.
-   * Remplace la prime de quota — le plancher est lisible, la prime ne l'était pas.
-   */
   /**
    * Nouveau plafond de vitalité sans toucher au solde courant : monter de palier
    * agrandit la barre de vie, il ne remet jamais le joueur à un montant imposé.
    */
   setBalanceCap(cap: Souls): void {
     this.#maxBalance = cap
-    if (this.#balance > cap) {
-      this.#shopCredit += this.#balance - cap
-      this.#balance = cap
-    }
-  }
-
-  applyStageBounds(floor: Souls, cap: Souls): void {
-    this.#maxBalance = cap
-    if (this.#balance < floor) this.#balance = floor
     if (this.#balance > cap) {
       this.#shopCredit += this.#balance - cap
       this.#balance = cap

@@ -46,6 +46,6 @@ describe('HUD — chips de mise', () => {
     progression.updateHighscore(4321)
     const h = new HUD(new Economy(100, progression), () => {}, () => {})
     h.update({ level: 1, goal: 500 } as any)
-    expect(document.getElementById('highscore-display')!.textContent).toBe('⛧4321.00')
+    expect(document.getElementById('highscore-display')!.textContent).toBe('⛧4\u202f321')
   })
 })

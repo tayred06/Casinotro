@@ -1,6 +1,7 @@
 import type { Modifiers, ItemInstance } from '../types/index.ts'
 import type { Economy } from '../game/Economy.ts'
 import type { BonusSystem } from '../game/BonusSystem.ts'
+import { souls } from '../utils/format.ts'
 
 interface Character {
   id: string
@@ -43,11 +44,11 @@ export class ProfileModal {
     document.getElementById('pm-desc')!.textContent  = character.description
 
     document.getElementById('pm-level')!.textContent   = String(runState.level)
-    document.getElementById('pm-goal')!.textContent    = `⛧${runState.goal.toLocaleString('fr-FR')}`
+    document.getElementById('pm-goal')!.textContent    = souls(runState.goal)
     document.getElementById('pm-progress')!.textContent = `${pct}%`
-    document.getElementById('pm-balance')!.textContent = `⛧${economy.balance.toFixed(2)}`
-    document.getElementById('pm-best')!.textContent    = `⛧${economy.highscore.toFixed(2)}`
-    document.getElementById('pm-bet')!.textContent     = `⛧${economy.currentBet}`
+    document.getElementById('pm-balance')!.textContent = souls(economy.balance)
+    document.getElementById('pm-best')!.textContent    = souls(economy.highscore)
+    document.getElementById('pm-bet')!.textContent     = souls(economy.currentBet)
     const stat = (v: number) => (v > 0 ? `+${v}` : String(v))
     document.getElementById('pm-rarity')!.textContent   = stat(modifiers.rarity)
     document.getElementById('pm-cohesion')!.textContent = stat(modifiers.cohesion)
@@ -146,7 +147,7 @@ export class ProfileModal {
       upkeepRampEvery:            null,
       upkeepLabel:                null,
       betEscalationPercent:       ['Escalade de mise', v => `+${(v * 100).toFixed(0)}% / spin`],
-      betEscalationFloor:         ['Mise plancher', v => `⛧${v}`],
+      betEscalationFloor:         ['Mise plancher', v => souls(v)],
       playerControlsBet:          null,
       devourResetsEscalation:     null,
       devourRefundPercent:        null,

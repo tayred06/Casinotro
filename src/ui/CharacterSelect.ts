@@ -1,5 +1,7 @@
 import type { Character } from '../game/Characters.ts'
 import { isCharacterPlayable, isInDemoRoster, DEBUG_CHARACTER_ID, isDebugEnvironment } from '../game/Characters.ts'
+import { START_BALANCE, STAGE_QUOTA_K, STAGE_MIN_BETS } from '../game/RunState.ts'
+import { souls } from '../utils/format.ts'
 
 export class CharacterSelect {
   #onSelect: (char: Character) => void
@@ -143,8 +145,10 @@ export class CharacterSelect {
     // Update bottom bar
     this.#barName.textContent  = char.name
     this.#barSin.textContent   = char.sin
-    this.#barStart.textContent = '1 000 ⛧'
-    this.#barQuota.textContent = '3 000 ⛧'
+    // Valeurs réelles du palier 1 : la barre affichait encore les chiffres d'avant
+    // la refonte du quota (1 000 / 3 000).
+    this.#barStart.textContent = souls(char.startBalance ?? START_BALANCE)
+    this.#barQuota.textContent = souls(Math.round(STAGE_QUOTA_K[0] * STAGE_MIN_BETS[0]))
     this.#confirmBtn.disabled  = false
   }
 

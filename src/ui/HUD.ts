@@ -1,4 +1,5 @@
 import type { Economy } from '../game/Economy.ts'
+import { souls } from '../utils/format.ts'
 
 const GAME_NAMES = ['Trèfle', 'Carreau', 'Cœur', 'Pique', 'Joker']
 
@@ -7,8 +8,10 @@ interface RunState {
   goal: number
   /** Gains encaissés dans le palier — la jauge de quota, distincte du solde. */
   progress?: number
-  /** Vitalité de départ du palier, repérée sur la barre de vie. */
-  hpFloor?: number
+  /** Mode infini : plus de quota, la carte affiche les gains cumulés. */
+  endless?: boolean
+  /** Gains cumulés du run — score affiché en mode infini. */
+  totalEarned?: number
 }
 
 /** Les deux axes de chance affichés dans le HUD. */
@@ -23,7 +26,7 @@ export class HUD {
   #onBetChange: (amount: number) => void
 
   #gameName: HTMLElement
-  #levelDisplay: HTMLElement
+  #quotaLabel: HTMLElement | null
   #goalDisplay: HTMLElement
   #luckDisplay: HTMLElement
   #cohesionDisplay: HTMLElement
@@ -32,7 +35,6 @@ export class HUD {
   #balanceDisplay: HTMLElement
   #hpFill: HTMLElement | null = null
   #hpBar: HTMLElement | null = null
-  #hpStart: HTMLElement | null = null
   #hpMax: HTMLElement | null = null
   #creditDisplay: HTMLElement | null = null
   #lastCredit = 0
@@ -46,7 +48,7 @@ export class HUD {
     this.#onBetChange = onBetChange
 
     this.#gameName       = document.getElementById('game-name')!
-    this.#levelDisplay   = document.getElementById('level-display')!
+    this.#quotaLabel     = document.getElementById('quota-label')
     this.#goalDisplay    = document.getElementById('goal-display')!
     this.#luckDisplay    = document.getElementById('luck-display')!
     this.#cohesionDisplay = document.getElementById('cohesion-display')!
@@ -55,7 +57,6 @@ export class HUD {
     this.#balanceDisplay = document.getElementById('balance-display')!
     this.#hpFill         = document.getElementById('hp-fill')
     this.#hpBar          = this.#hpFill?.parentElement ?? null
-    this.#hpStart        = document.getElementById('hp-start')
     this.#hpMax          = document.getElementById('hp-max')
     this.#creditDisplay  = document.getElementById('credit-display')
     this.#highscoreDisplay = document.getElementById('highscore-display')!
@@ -77,7 +78,7 @@ export class HUD {
     this.#economy.betOptions.forEach(amount => {
       const btn = document.createElement('button')
       btn.className = 'chip'
-      btn.textContent = `⛧${amount}`
+      btn.textContent = souls(amount)
       btn.addEventListener('click', () => {
         this.#onBetChange(amount)
         this.#updateChipState()
@@ -101,10 +102,10 @@ export class HUD {
   }
 
   /**
-   * Le solde est une barre de vie : remplissage sur le plafond du palier, repère au
-   * point de départ, couleur qui vire à l'orange puis au rouge quand ça descend.
+   * Le solde est une barre de vie : remplissage sur le plafond du palier, couleur qui
+   * vire à l'orange puis au rouge quand ça descend.
    */
-  #renderVitality(hpFloor: number | undefined) {
+  #renderVitality() {
     const cap = this.#economy.maxBalance
     if (!this.#hpFill || !isFinite(cap) || cap <= 0) return
 
@@ -113,16 +114,11 @@ export class HUD {
     this.#hpBar?.classList.toggle('low', ratio <= 0.5 && ratio > 0.2)
     this.#hpBar?.classList.toggle('crit', ratio <= 0.2)
 
-    if (this.#hpMax) this.#hpMax.textContent = `/ ⛧${cap}`
-    if (this.#hpStart && hpFloor !== undefined) {
-      this.#hpStart.style.left = Math.min(100, (hpFloor / cap) * 100).toFixed(1) + '%'
-      this.#hpStart.title = `Vitalité de départ du palier : ⛧${hpFloor}`
-    }
-
+    if (this.#hpMax) this.#hpMax.textContent = `/ ${souls(cap)}`
     const credit = this.#economy.shopCredit
     if (this.#creditDisplay) {
       this.#creditDisplay.classList.toggle('hidden', credit <= 0)
-      this.#creditDisplay.textContent = `+⛧${credit.toFixed(0)} crédit`
+      this.#creditDisplay.textContent = `+${souls(credit)} crédit`
       if (credit > this.#lastCredit) {
         this.#creditDisplay.classList.remove('bump')
         void this.#creditDisplay.offsetWidth
@@ -133,18 +129,30 @@ export class HUD {
   }
 
   update(runState: RunState | null = null, luck: LuckDisplay = { rarity: 0, cohesion: 0 }) {
-    this.#balanceDisplay.textContent  = `⛧${this.#economy.balance.toFixed(2)}`
-    this.#renderVitality(runState?.hpFloor)
-    this.#highscoreDisplay.textContent = `⛧${this.#economy.highscore.toFixed(2)}`
+    this.#balanceDisplay.textContent  = souls(this.#economy.balance)
+    this.#renderVitality()
+    this.#highscoreDisplay.textContent = souls(this.#economy.highscore)
     this.#setStat(this.#luckDisplay, '★', luck.rarity)
     this.#setStat(this.#cohesionDisplay, '≡', luck.cohesion)
     this.#updateChipState()
 
     if (runState) {
-      const { level, goal, progress } = runState
-      this.#gameName.textContent     = GAME_NAMES[(level - 1) % GAME_NAMES.length]
-      this.#levelDisplay.textContent = String(level)
-      this.#goalDisplay.textContent  = `⛧${goal}`
+      const { level, goal, progress, endless, totalEarned } = runState
+      this.#gameName.textContent = GAME_NAMES[(level - 1) % GAME_NAMES.length]
+
+      // Mode infini : aucun quota à remplir, la carte devient un compteur de gains.
+      if (endless) {
+        if (this.#quotaLabel) this.#quotaLabel.textContent = 'Mode infini — gains cumulés'
+        this.#goalDisplay.textContent  = souls(totalEarned ?? 0)
+        this.#progressPct.textContent  = ''
+        this.#progressFill.style.width = '100%'
+        return
+      }
+
+      if (this.#quotaLabel) {
+        this.#quotaLabel.innerHTML = `Manche <span id="level-display">${level}</span> — quota`
+      }
+      this.#goalDisplay.textContent = souls(goal)
 
       const earned = progress ?? 0
       const pct    = Math.min(100, Math.round((earned / goal) * 100))
@@ -165,7 +173,7 @@ export class HUD {
     const container = document.getElementById('bet-chips')!
     container.textContent = ''
 
-    const fmt = (n: number) => `⛧${n % 1 === 0 ? n : n.toFixed(2)}`
+    const fmt = (n: number) => souls(n)
 
     const display = document.createElement('span')
     display.id = 'gula-bet-display'

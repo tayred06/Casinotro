@@ -1,5 +1,6 @@
 import type { WinLine, Modifiers, GameSymbol } from '../types/index.ts'
 import { WinFX } from './WinFX.ts'
+import { soulsGain } from '../utils/format.ts'
 
 // Maps existing symbol IDs → V2 card-suit visuals
 const VISUAL: Record<string, { text: string; cls: string }> = {
@@ -305,7 +306,7 @@ export class ReelRenderer {
 
   showWin(amount: number, winLines: WinLine[] | null, label: string | null = null) {
     this.#winLabel.textContent  = label ?? (winLines?.some(l => l.count >= 5) ? 'GROS GAIN' : 'GAIN')
-    this.#winAmount.textContent = `+⛧${amount.toFixed(2)}`
+    this.#winAmount.textContent = soulsGain(amount)
 
     this.#winDetail.textContent = this.#winDetailText(winLines)
     this.#winFX.stop()

@@ -1,6 +1,7 @@
 import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemDef } from '../../types/index.ts'
 import type { Economy } from '../Economy.ts'
 import { STAGE_QUOTA_K, STAGE_MIN_BETS } from '../RunState.ts'
+import { soulsGain } from '../../utils/format.ts'
 
 /** Gains cumulés nécessaires pour avoir franchi les `stages` premiers paliers. */
 function cumulativeQuota(stages: number): number {
@@ -55,7 +56,7 @@ export function createAvaritiaPlugin(): CharacterPlugin {
 
       for (const line of weak) {
         ctx.economy.spend(line.win)
-        ctx.addLog(`Combinaison médiocre — -${line.win.toFixed(2)}⛧`, true)
+        ctx.addLog(`Combinaison médiocre — ${soulsGain(-line.win)}`, true)
       }
 
       const strongTotal = strong.reduce((s, l) => s + l.win, 0)
