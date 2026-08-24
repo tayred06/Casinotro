@@ -1,4 +1,5 @@
 import type { Souls } from '../types/index.ts'
+import { DEFAULT_MACHINE_ID, isPlayable } from './machines/index.ts'
 
 /** Solde de départ d'un run. */
 export const START_BALANCE: Souls = 100
@@ -80,7 +81,7 @@ export class RunState {
    */
   maxStage: number = DEFAULT_MAX_STAGE
   betOptions: Souls[] = [...INITIAL_BET_OPTIONS]
-  machineId = 'megaways'
+  machineId = DEFAULT_MACHINE_ID
   characterId = 'luxuria'
   spinCount = 0
   dialoguePlayed = false
@@ -192,7 +193,7 @@ export class RunState {
     // Les paliers de mise se déduisent entièrement du palier et du niveau infini :
     // les recalculer évite de traîner les échelles des sauvegardes précédentes.
     this.#rebuildBetOptions()
-    this.machineId = data.machineId ?? 'megaways'
+    this.machineId = isPlayable(data.machineId ?? '') ? data.machineId : DEFAULT_MACHINE_ID
     this.characterId = data.characterId ?? 'luxuria'
     this.spinCount = data.spinCount ?? 0
     this.dialoguePlayed = data.dialoguePlayed ?? false

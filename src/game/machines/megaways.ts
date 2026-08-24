@@ -46,4 +46,7 @@ export const megaways: MachineConfig = {
   minMatch: 3,
   scatterMin: 3,
   rtpTarget: 0.92,
+  // Megaways est mis de côté : toutes les machines jouables tournent sur l'évaluateur
+  // `lines`. La config reste validée par machines.test.ts pour ne pas pourrir en silence.
+  playable: false,
 }

@@ -159,6 +159,12 @@
     }
   }
 
+  // Cible refusée pendant une sélection : visible mais morte, raison en infobulle.
+  &.unselectable {
+    cursor: not-allowed;
+    opacity: .35;
+  }
+
   &.selected .cell {
     border-color: var(--gold);
     box-shadow: inset 0 0 14px rgba(182,243,106,.2), 0 0 8px rgba(182,243,106,.2);
@@ -198,6 +204,11 @@
       border-color: rgba(182,243,106,.65);
       box-shadow: inset 0 0 10px rgba(182,243,106,.1);
     }
+  }
+
+  &.sym-unselectable {
+    cursor: not-allowed;
+    opacity: .3;
   }
 }
 

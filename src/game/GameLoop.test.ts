@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { requireItem } from './items/index.ts'
 import { GameLoop } from './GameLoop.ts'
 import { STAGE_QUOTA_K, START_BALANCE } from './RunState.ts'
 import { mountIndexHtml, betChipLabels } from '../test/domFixture.ts'
 
-const SAVE_KEY = 'casinotro_v3'
+const SAVE_KEY = 'casinotro_v4'
 
 const overlayVisible = (id: string) =>
   !document.getElementById(id)!.classList.contains('hidden')
@@ -165,7 +166,7 @@ describe('GameLoop — nouvelle partie', () => {
     const shop = (loop as any).shop
 
     economy.forceSetBet(12)
-    bonusSystem.addBonus({ id: 'x', name: 'Test', price: 20, effect: 'chain', description: '' } as any)
+    bonusSystem.addBonus(requireItem('chain'), 'lemon')
     ;(shop as any).updateDisplay()
 
     const balanceBefore = economy.balance
@@ -181,24 +182,24 @@ describe('GameLoop — nouvelle partie', () => {
     loop.startRun('gula')
 
     const active = (loop as any).bonusSystem.activeBonus
-    expect(active.map((b: any) => b.id)).toContain('luck_boost')
+    expect(active.map((b: any) => b.defId)).toContain('luck_boost')
 
     loop.startRun('luxuria')
     expect((loop as any).bonusSystem.activeBonus).toHaveLength(0)
   })
 
-  it('ajoute 2 emplacements de bonus à chaque quota franchi', () => {
+  it('les emplacements de bonus suivent le palier (3 / 4 / 5, 6 en infini)', () => {
     const loop = new GameLoop()
     loop.startRun('luxuria')
 
     const bonusSystem = (loop as any).bonusSystem
-    expect(bonusSystem.maxSlots).toBe(5)
+    expect(bonusSystem.maxSlots).toBe(3)
 
     ;(loop as any).economy.addWin((loop as any).run.currentGoal)
     ;(loop as any).checkStageProgress([])
 
     expect((loop as any).run.stage).toBe(2)
-    expect(bonusSystem.maxSlots).toBe(7)
+    expect(bonusSystem.maxSlots).toBe(4)
   })
 
   it('poursuit la partie en mode infini depuis l\'écran de victoire', () => {
@@ -218,7 +219,7 @@ describe('GameLoop — nouvelle partie', () => {
     // Plus de quota en mode infini : on joue pour le score.
     expect(run.currentGoal).toBe(Infinity)
     expect((loop as any).runEnded).toBe(false)
-    expect((loop as any).bonusSystem.maxSlots).toBe(7)
+    expect((loop as any).bonusSystem.maxSlots).toBe(6)
   })
 
   it('franchit le quota sur les gains cumulés, même avec un solde ras', () => {

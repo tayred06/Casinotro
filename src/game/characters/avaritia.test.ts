@@ -3,7 +3,7 @@ import { CHARACTERS } from '../Characters.ts'
 import { RunState, STAGE_QUOTA_K, STAGE_MIN_BETS } from '../RunState.ts'
 import { createAvaritiaPlugin, AVARITIA_PARAMS } from './avaritia.ts'
 import { Economy } from '../Economy.ts'
-import type { GameContext, ItemDef, SpinResult, WinLine } from '../../types/index.ts'
+import type { GameContext, ShopOffer, SpinResult, WinLine } from '../../types/index.ts'
 
 function makeCtx(economy: Economy): GameContext {
   return {
@@ -24,8 +24,15 @@ const result = (lines: WinLine[]): SpinResult => ({
   dropBonus: false,
 })
 
-const offer = (level: 1 | 2 | 3, price: number): ItemDef =>
-  ({ id: 'x', name: 'X', description: '', level, price, kind: 'bonus', effect: 'none' })
+/** Un item réel par niveau — offerModifier lit le niveau depuis la définition. */
+const ITEM_BY_LEVEL: Record<1 | 2 | 3, string> = {
+  1: 'golden_column',
+  2: 'wild_column',
+  3: 'jackpot_boost',
+}
+
+const offer = (level: 1 | 2 | 3, price: number): ShopOffer =>
+  ({ defId: ITEM_BY_LEVEL[level], rarity: 'commun', price })
 
 describe('Avaritia — gains', () => {
   it('double les gains des lignes fortes sans créditer elle-même', () => {
@@ -94,7 +101,7 @@ describe('Avaritia — 4e palier', () => {
     expect(avaritia.stages).toBe(4)
 
     const run = new RunState()
-    run.reset('avaritia', 'megaways', avaritia.stages)
+    run.reset('avaritia', 'rigide', avaritia.stages)
     expect(run.maxStage).toBe(4)
     for (let i = 0; i < 3; i++) run.advanceStage()
     expect(run.stage).toBe(4)

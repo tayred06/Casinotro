@@ -7,7 +7,14 @@ export const MACHINES: Record<string, MachineConfig> = {
   rigide,
 }
 
-export const DEFAULT_MACHINE_ID = 'megaways'
+export const DEFAULT_MACHINE_ID = 'rigide'
+
+/** Machines réellement jouables — `playable: false` sort du pool sans supprimer la config. */
+export function playableMachines(): MachineConfig[] {
+  return Object.values(MACHINES).filter(m => m.playable !== false)
+}
+
+export const isPlayable = (id: string): boolean => MACHINES[id]?.playable !== false
 
 export function getMachine(id: string): MachineConfig {
   const m = MACHINES[id]

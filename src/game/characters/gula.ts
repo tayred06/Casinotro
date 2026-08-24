@@ -1,5 +1,6 @@
 import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemInstance } from '../../types/index.ts'
 import { souls } from '../../utils/format.ts'
+import { requireItem } from '../items/index.ts'
 
 /** Source unique des réglages de Gula — référencée par CHARACTERS. */
 export const GULA_PARAMS = {
@@ -41,7 +42,7 @@ export function createGulaPlugin(): CharacterPlugin {
     onShopSell(ctx: GameContext, item: ItemInstance): void {
       gulaBet = GULA_PARAMS.betEscalationFloor
       ctx.economy.forceSetBet(gulaBet)
-      ctx.addLog(`Dévoré : ${item.name} — mise remise à ${souls(gulaBet)}`, true)
+      ctx.addLog(`Dévoré : ${requireItem(item.defId).name} — mise remise à ${souls(gulaBet)}`, true)
     },
 
     onLossCheck(ctx: GameContext): boolean {

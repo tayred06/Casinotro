@@ -1,3 +1,4 @@
+import { requireItem, tierOf, paramOf, RARITY_LABEL } from '../game/items/index.ts'
 import type { Modifiers, ItemInstance } from '../types/index.ts'
 import type { Economy } from '../game/Economy.ts'
 import type { BonusSystem } from '../game/BonusSystem.ts'
@@ -76,6 +77,8 @@ export class ProfileModal {
     }
 
     for (const bonus of activeBonuses) {
+      const def = requireItem(bonus.defId)
+      const tier = tierOf(def, bonus.rarity)
       const b = bonus as any
       const row = document.createElement('div')
       row.className = 'pm-bonus-row'
@@ -85,18 +88,18 @@ export class ProfileModal {
 
       const name = document.createElement('span')
       name.className = 'pm-bonus-name'
-      name.textContent = b.name
+      name.textContent = `${def.name} · ${RARITY_LABEL[bonus.rarity]}`
 
       const desc = document.createElement('span')
       desc.className = 'pm-bonus-desc'
-      desc.textContent = this.#bonusDetail(b, modifiers)
+      desc.textContent = this.#bonusDetail(bonus, tier.description, modifiers)
 
       left.appendChild(name)
       left.appendChild(desc)
 
       row.appendChild(left)
 
-      if (b.remainingCharges !== null) {
+      if (b.remainingCharges != null) {
         const uses = document.createElement('span')
         uses.className = 'pm-bonus-uses'
         uses.textContent = `${b.remainingCharges} spin${b.remainingCharges > 1 ? 's' : ''}`
@@ -107,23 +110,28 @@ export class ProfileModal {
     }
   }
 
-  #bonusDetail(bonus: any, modifiers: Modifiers): string {
-    const target = bonus.target
-    switch (bonus.effect) {
-      case 'column_multiplier': return target !== null ? `Colonne ${target + 1} → ×2` : bonus.description
-      case 'wild_column':       return target !== null ? `Colonne ${target + 1} Wild` : bonus.description
+  #bonusDetail(bonus: ItemInstance, description: string, modifiers: Modifiers): string {
+    const def = requireItem(bonus.defId)
+    const target = bonus.target as any
+    const p = (key: string, fallback = 0) => paramOf(def, bonus.rarity, key, fallback)
+    const left = bonus.remainingCharges ?? 0
+    const spins = `${left} spin${left > 1 ? 's' : ''} restant${left > 1 ? 's' : ''}`
+
+    switch (def.effect) {
+      case 'column_multiplier': return target != null ? `Colonne ${target + 1} → ×${p('mult', 2)}` : description
+      case 'wild_column':       return target != null ? `Colonne ${target + 1} Wild` : description
       case 'symbol_multiplier': {
-        const mult = modifiers.symbolMultipliers[target] ?? 2
-        return target ? `${target} → ×${mult}` : bonus.description
+        const mult = modifiers.symbolMultipliers[target] ?? p('mult', 2)
+        return target ? `${target} → ×${mult}` : description
       }
-      case 'global_multiplier': return `×3 sur tous les gains — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
-      case 'lucky_streak':      return `+30 convoitise — ${bonus.remainingCharges} spin${bonus.remainingCharges > 1 ? 's' : ''} restant${bonus.remainingCharges > 1 ? 's' : ''}`
+      case 'global_multiplier': return `×${p('mult', 3)} sur tous les gains — ${spins}`
+      case 'lucky_streak':      return `+${p('rarity', 30)} convoitise — ${spins}`
       case 'chain': {
         const syms = modifiers.symbolMultipliers
         const bonusMult = target ? (syms[target] ?? 1) : 1
-        return target ? `${target} — chaîne active (×${bonusMult.toFixed(2)})` : bonus.description
+        return target ? `${target} — chaîne active (×${bonusMult.toFixed(2)}, plafond ×${p('cap', 3)})` : description
       }
-      default: return bonus.description
+      default: return description
     }
   }
 

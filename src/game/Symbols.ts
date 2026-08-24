@@ -91,6 +91,10 @@ const RARITY_BIAS: Record<string, number> = {
 export interface LuckProfile {
   rarity: number
   cohesion: number
+  /** Ancre imposée par un item (Symbole Béni / Métronome épiques). */
+  forcedAnchor?: string | null
+  /** Surpoids du scatter (Œil du Cupide épique). */
+  scatterBoost?: number
   /** Correction RTP invisible (`Economy.rtpNudge`), non amplifiée. */
   nudge?: number
 }
@@ -107,6 +111,8 @@ export function toLuckProfile(luck: number | LuckProfile = 0): LuckProfile {
     rarity:   Math.max(0, Math.min(MAX_RARITY, p.rarity)),
     cohesion: Math.max(0, Math.min(MAX_COHESION, p.cohesion)),
     nudge:    p.nudge ?? 0,
+    forcedAnchor: typeof luck === 'number' ? null : (luck.forcedAnchor ?? null),
+    scatterBoost: typeof luck === 'number' ? 0 : Math.max(0, luck.scatterBoost ?? 0),
   }
 }
 
@@ -126,8 +132,12 @@ const COHESION_GAIN = 3
  * souvent, ce qui garde la régularité "bon marché" en RTP. Wild et scatter sont exclus —
  * les surpondérer ferait exploser les gains au lieu d'augmenter leur fréquence.
  */
-export function pickAnchor(poolIds: string[], cohesion: number): GameSymbol | null {
+export function pickAnchor(poolIds: string[], cohesion: number, forced: string | null = null): GameSymbol | null {
   if (cohesion <= 0) return null
+  if (forced) {
+    const pinned = resolvePool(poolIds).find(s => s.id === forced && s.id !== WILD_ID && s.id !== SCATTER_ID)
+    if (pinned) return pinned as GameSymbol
+  }
   const candidates = resolvePool(poolIds)
     .filter(s => s.id !== WILD_ID && s.id !== SCATTER_ID)
     .map(s => ({ value: s as GameSymbol, weight: s.weight }))
@@ -147,7 +157,7 @@ export function generateReelColumn(
   rareMultiplier = 1,
   anchor: GameSymbol | null = null
 ): GameSymbol[] {
-  const { rarity, cohesion, nudge } = toLuckProfile(luck)
+  const { rarity, cohesion, nudge, scatterBoost } = toLuckProfile(luck)
   const pool = resolvePool(poolIds).map(s => ({
     value:  s as GameSymbol,
     weight: Math.max(0.5,
@@ -155,6 +165,7 @@ export function generateReelColumn(
       * rarityFactor(s.id, rarity, nudge ?? 0)
       * (s.rare ? rareMultiplier : 1)
       * (anchor && s.id === anchor.id ? 1 + cohesion * COHESION_GAIN : 1)
+      * (s.id === SCATTER_ID ? 1 + (scatterBoost ?? 0) : 1)
     ),
   }))
   return Array.from({ length: rowCount }, () => weightedRandom(pool))

@@ -4,12 +4,12 @@ import { ShopUI } from './ShopUI.ts'
 import { BonusSystem } from '../game/BonusSystem.ts'
 import { Economy } from '../game/Economy.ts'
 import { createAvaritiaPlugin } from '../game/characters/avaritia.ts'
-import type { GameContext, ItemDef } from '../types/index.ts'
+import type { GameContext, ItemRarity, ShopOffer } from '../types/index.ts'
+import { requireItem } from '../game/items/index.ts'
 import { mountIndexHtml, bonusTagLabels, shopItemLabels } from '../test/domFixture.ts'
 
-const item = (over: Partial<ItemDef> = {}): ItemDef => ({
-  id: 'safety_net', name: 'Filet', description: 'test',
-  level: 1, price: 15, kind: 'bonus', effect: 'safety_net', ...over,
+const offerOf = (defId: string, rarity: ItemRarity = 'commun', price?: number): ShopOffer => ({
+  defId, rarity, price: price ?? requireItem(defId).tiers[rarity].price,
 })
 
 function makeShop(economy = new Economy(1000), bonusSystem = new BonusSystem()) {
@@ -27,16 +27,16 @@ describe('ShopUI — bonus actifs', () => {
    */
   it('un bonus permanent n\'affiche aucun compteur de charges', () => {
     const { shop, bonusSystem } = makeShop()
-    bonusSystem.addBonus(item(), null)
+    bonusSystem.addBonus(requireItem('safety_net'), null)
     shop.updateDisplay()
 
-    expect(bonusTagLabels()).toEqual(['Filet'])
+    expect(bonusTagLabels()).toEqual(['Filet de Sécurité'])
     expect(bonusTagLabels().join()).not.toContain('undefined')
   })
 
   it('un consommable affiche ses charges restantes', () => {
     const { shop, bonusSystem } = makeShop()
-    bonusSystem.addBonus(item({ id: 'lucky_streak', name: 'Coup de Chance', charges: 10 }), null)
+    bonusSystem.addBonus(requireItem('lucky_streak'), null)
     shop.updateDisplay()
 
     expect(bonusTagLabels()).toEqual(['Coup de Chance (10)'])
@@ -44,7 +44,7 @@ describe('ShopUI — bonus actifs', () => {
 
   it('affiche la cible quand le bonus en a une, colonne 0 comprise', () => {
     const { shop, bonusSystem } = makeShop()
-    bonusSystem.addBonus(item({ name: 'Colonne Dorée' }), 0)
+    bonusSystem.addBonus(requireItem('golden_column'), 0)
     shop.updateDisplay()
 
     expect(bonusTagLabels()).toEqual(['Colonne Dorée [0]'])
@@ -101,7 +101,7 @@ describe('ShopUI — filtrage par le personnage', () => {
     plugin.onSetup!(avaritiaCtx(economy))
 
     shop.setOfferModifier(offer => plugin.offerModifier!(offer))
-    shop.setOffers([item({ price: 20 })], 1)
+    shop.setOffers([offerOf('golden_column')], 1)
 
     const labels = shopItemLabels().join()
     expect(labels).not.toContain('Boutique verrouillée')
@@ -114,15 +114,15 @@ describe('ShopUI — vente d\'un bonus', () => {
 
   it('notifie onBonusSold avec le remboursement', () => {
     const { shop, bonusSystem } = makeShop()
-    bonusSystem.addBonus(item({ price: 30 }), null)
+    bonusSystem.addBonus(requireItem('luck_boost'), null)
     shop.updateDisplay()
 
     const sold: Array<{ name: string; refund: number }> = []
-    shop.setOnBonusSold((bonus, refund) => sold.push({ name: bonus.name, refund }))
+    shop.setOnBonusSold((bonus, refund) => sold.push({ name: requireItem(bonus.defId).name, refund }))
 
     document.querySelector<HTMLElement>('#bonuses-list .sell-btn')!.click()
 
-    expect(sold).toEqual([{ name: 'Filet', refund: 15 }])
+    expect(sold).toEqual([{ name: 'Porte-Bonheur', refund: 15 }])
     expect(bonusSystem.activeBonus).toHaveLength(0)
   })
 })

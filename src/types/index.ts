@@ -22,6 +22,10 @@ export interface SpinResult {
   winLines: WinLine[]
   scatterTriggered: boolean
   dropBonus: boolean
+  /** Au moins une combinaison a été plafonnée par MULT_CAP. */
+  capped?: boolean
+  /** Free spins offerts par un item (Jackpot Amplifié épique). */
+  bonusFreeSpins?: number
 }
 
 export interface WinLine {
@@ -39,6 +43,8 @@ export interface WinLine {
   cells: Array<[number, number]>
   /** Première case gagnante par rouleau. Conservé pour compatibilité. */
   reelRows: number[]
+  /** Vrai si le cumul des multiplicateurs a tapé MULT_CAP. */
+  capped?: boolean
 }
 
 // ─── Modificateurs ───────────────────────────────────────
@@ -57,27 +63,63 @@ export interface Modifiers {
   rarity: number
   /** Régularité : biais de répétition d'un symbole (gains plus fréquents, même taille). */
   cohesion: number
+  /** Taux de remboursement du Filet de Sécurité (0 = pas de filet). */
+  safetyNetRate: number
+  /** Un spin mort ne remet pas le compteur de chaîne à zéro (Filet épique). */
+  chainKeepOnLoss: boolean
+  /** Chaque reroll garantit au moins une offre rare (Reroll épique). */
+  rerollGuaranteesRare: boolean
+  /** Symbole imposé comme ancre de cohésion, s'il y en a un. */
+  forcedAnchor: string | null
+  /** Surpoids du scatter (Œil du Cupide épique). */
+  scatterBoost: number
+  /** Free spins offerts par une combinaison pleine (Jackpot épique). */
+  jackpotFreeSpins: number
 }
 
 // ─── Items (bonus + consommables) ────────────────────────
 export type ItemKind = 'bonus' | 'consumable'
 
+/** Trois paliers : puissance ×1,4 par palier, coût ×2,2 puis ×4,5. */
+export type ItemRarity = 'commun' | 'rare' | 'epique'
+
+export interface ItemTier {
+  price: Souls
+  description: string
+  /** Valeurs numériques de l'effet à ce palier. Lues par getModifiers(). */
+  params: Record<string, number>
+  charges?: number
+}
+
 export interface ItemDef {
   id: string
   name: string
-  description: string
   level: 1 | 2 | 3
-  price: Souls
   kind: ItemKind
   effect: string
-  charges?: number
   needsTarget?: 'column' | 'symbol' | null
+  /** Cap par famille, ex. wild_column: 1. Absent = pas de cap. */
+  maxOwned?: number
+  tiers: Record<ItemRarity, ItemTier>
 }
 
-export interface ItemInstance extends ItemDef {
+/**
+ * Une instance ne dérive plus de sa définition : elle la référence. Tout ce qui a
+ * besoin du prix ou de la description passe par `getItem(defId).tiers[rarity]`.
+ */
+export interface ItemInstance {
   instanceId: string
+  defId: string
+  rarity: ItemRarity
   target?: number | string | null
   remainingCharges?: number
+}
+
+/** Une entrée de boutique : une définition, tirée à une rareté, à un prix. */
+export interface ShopOffer {
+  defId: string
+  rarity: ItemRarity
+  price: Souls
 }
 
 // ─── Machine ─────────────────────────────────────────────
@@ -115,6 +157,8 @@ export interface MachineConfig {
   scatterMin: number
   rtpTarget: number
   unlockRequirement?: string
+  /** false = machine retirée du pool jouable, mais toujours validée par les tests. */
+  playable?: boolean
 }
 
 // ─── Dialogue ────────────────────────────────────────────
@@ -183,7 +227,7 @@ export interface CharacterPlugin {
   onDialogueTrigger?(ctx: GameContext): DialogueLine[]
   getSpinOptions?(ctx: GameContext): SpinOptions
   getLuckBonus?(ctx: GameContext): number
-  offerModifier?(offer: ItemDef): ItemDef | null
+  offerModifier?(offer: ShopOffer): ShopOffer | null
   transformGrid?(ctx: GameContext, grid: GameSymbol[][]): GameSymbol[][]
   /** Usure par case, de 0 (intacte) à 1 (morte). Indexé [colonne][ligne]. */
   getCellStates?(ctx: GameContext): number[][]

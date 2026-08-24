@@ -57,7 +57,11 @@ single entry point; a character selects its machine via `Character.machineId`.
 
 Two real casino mechanics are implemented, chosen per machine via `evaluator`:
 
-- **`'ways'`** (`megaways`) — a symbol counts anywhere in its column. A win needs the
+Only `lines` machines are playable today: `megaways` carries `playable: false`, which pulls
+it out of the playable pool and out of `Progression` while `machines.test.ts` keeps validating
+its config. `SlotMachine.rtp.test.ts` measures playable machines only.
+
+- **`'ways'`** (`megaways`, mis de côté) — a symbol counts anywhere in its column. A win needs the
   symbol on ≥`minMatch` consecutive reels starting at reel 1; the payout is multiplied
   by the number of distinct combinations (product of occurrences per reel). Columns are
   2–7 rows, drawn per spin.
@@ -84,7 +88,7 @@ any sequence deterministic.
 
 ### Run progression
 
-`RunState` tracks `stage` (1→2→3), `stageGoals` (500⛧ / 2000⛧ / 10000⛧), and `betOptions`. Advancing a stage scales bet options by the last bet in the current set.
+`RunState` tracks `stage` (1→2→3), `stageGoals` (500⛧ / 2000⛧ / 10000⛧), and `betOptions`. Advancing a stage scales bet options by the last bet in the current set, and sets the item slots for that stage.
 
 `Economy.rtpNudge` nudges symbol weights toward 92% RTP once ≥50⛧ wagered — invisible to
 players. It rides the `nudge` field of `LuckProfile`, deliberately **not** amplified by the
@@ -113,7 +117,7 @@ the tiers change.
 
 ### Persistence
 
-- **In-run:** `localStorage` key `casinotro_v3` — serializes `RunState`, `Economy`, `BonusSystem`, current grid, and shop offers. Restored on `boot()`.
+- **In-run:** `localStorage` key `casinotro_v4` — serializes `RunState`, `Economy`, `BonusSystem`, current grid, and shop offers. Restored on `boot()`.
 - **Meta:** `localStorage` key `casinotro_meta_v2` — highscore and unlocked machines via `Progression`.
 
 `Progression` is the only owner of the highscore. `Economy` reads and writes it through
@@ -121,7 +125,41 @@ the injected `HighscoreStore` — it has no storage of its own.
 
 ### Items (bonuses + consumables)
 
-`BonusSystem` manages up to 5 active `ItemInstance`s. `BONUS_POOL` in `BonusSystem.ts` defines all available items. Items with `needsTarget: 'column'` or `'symbol'` require a target set at purchase time. `getModifiers()` aggregates all active instances into a single `Modifiers` object consumed by `calculateWins`.
+`ITEM_POOL` (`src/game/items/index.ts`) holds one `ItemDef` per item; each carries three
+`tiers` (`commun` / `rare` / `epique`) with their own price, description and numeric
+`params`. **`ItemInstance` does not extend `ItemDef`** — it references it by `defId` plus a
+`rarity`; anything needing a price or a description goes through `requireItem(defId)` and
+`tierOf(def, rarity)`. Never hard-code effect numbers in `getModifiers()`: read them from
+`tier.params` via `paramOf`.
+
+`BonusSystem` manages the active instances, capped by the stage's slots (3 / 4 / 5, 6 in
+endless — `slotsForStage`). `getModifiers()` aggregates everything into a single `Modifiers`
+object consumed by `calculateWins`.
+
+**Fusion** is automatic at purchase time, never manual: same `defId` + same `rarity` (+ same
+target when `needsTarget`) → the owned instance moves up one tier. A fusing purchase is legal
+even with a full inventory since it frees a slot. `buyState()` returns the three shop states
+(`ok` / `fusion` / `full` / `max_owned`) the UI renders. Consumables fuse charges only
+(`(remaining + tier.charges) × 1.5`), never their effect.
+
+**Shop draws in two steps**: rarity first (`RARITY_ODDS` per stage / endless), then the item
+among those unlocked — a flattened pool would drift the proportions. One offer in three is
+drawn blind; the others have `ECHO_CHANCE` of being biased toward an item already owned in a
+single copy, so no slot freezes on a non-fusable item.
+
+### Item guardrails (measured, don't loosen without re-measuring)
+
+- **Wild invariant** — `sanitizeWildColumns` keeps consecutive wild columns from reel 1 below
+  `minMatch - 1`, and `naturalCount` requires `minMatch` non-wild-column reels: a wild column
+  *extends* a combination, it never creates the minimum. A permanent full wild column measured
+  RTP 3.5 on `rigide`; the item is intermittent (`rollSpinState`) and `maxOwned: 1`.
+- **Ways clamp** — an item-made wild column counts as 1 occurrence, not its height. Dormant
+  while megaways is off, kept so the trap is defused on its return.
+- **`MULT_CAP` = 12**, applied once on the product of every multiplicative source of a single
+  combination; `SpinResult.capped` surfaces it in the UI.
+- **Chain cap** — the permanent bonus is bounded per tier (`params.cap`).
+- `items.rtp-ceiling.test.ts` is a *safety ceiling*, not a target: measured thresholds, items
+  included. See `docs/plan-items-fusion.md` §10 for the numbers.
 
 ### Currency
 

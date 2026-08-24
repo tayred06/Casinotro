@@ -1,5 +1,5 @@
-import type { DebugState, ItemDef, Souls } from '../types/index.ts'
-import { ITEM_POOL } from '../game/items/index.ts'
+import type { DebugState, ItemDef, ItemRarity, Souls } from '../types/index.ts'
+import { ITEM_POOL, RARITY_ORDER, RARITY_LABEL } from '../game/items/index.ts'
 import { SYMBOLS } from '../game/Symbols.ts'
 
 /** Tout ce que le panneau a le droit de toucher dans le jeu. */
@@ -12,7 +12,7 @@ export interface DebugApi {
   liftBalanceCap(): void
   getBet(): Souls
   setBet(v: Souls): void
-  addItem(def: ItemDef, target: number | string | null): void
+  addItem(def: ItemDef, target: number | string | null, rarity: ItemRarity): void
   addEveryItem(): void
   clearItems(): void
   grantSlots(n: number): void
@@ -64,6 +64,7 @@ export class DebugPanel {
   #godBtn!: HTMLButtonElement
   #capBtn!: HTMLButtonElement
   #itemSelect!: HTMLSelectElement
+  #raritySelect!: HTMLSelectElement
   #targetWrap!: HTMLElement
   #balanceInput!: HTMLInputElement
   #betInput!: HTMLInputElement
@@ -197,7 +198,17 @@ export class DebugPanel {
       this.#itemSelect.appendChild(group)
     }
     this.#itemSelect.addEventListener('change', () => this.#renderTarget())
+
+    this.#raritySelect = document.createElement('select')
+    this.#raritySelect.id = 'dbg-rarity'
+    for (const r of RARITY_ORDER) {
+      const opt = document.createElement('option')
+      opt.value = r
+      opt.textContent = RARITY_LABEL[r]
+      this.#raritySelect.appendChild(opt)
+    }
     row1.appendChild(this.#itemSelect)
+    row1.appendChild(this.#raritySelect)
     fs.appendChild(row1)
 
     this.#targetWrap = this.#el('div', 'dbg-row')
@@ -206,12 +217,12 @@ export class DebugPanel {
     const row2 = this.#el('div', 'dbg-row')
     row2.appendChild(this.#btn('Ajouter', () => {
       const def = ITEM_POOL.find(i => i.id === this.#itemSelect.value)
-      if (def) this.#api.addItem(def, this.#currentTarget())
+      if (def) this.#api.addItem(def, this.#currentTarget(), this.#currentRarity())
       this.#after()
     }))
     row2.appendChild(this.#btn('×5', () => {
       const def = ITEM_POOL.find(i => i.id === this.#itemSelect.value)
-      if (def) for (let i = 0; i < 5; i++) this.#api.addItem(def, this.#currentTarget())
+      if (def) for (let i = 0; i < 5; i++) this.#api.addItem(def, this.#currentTarget(), this.#currentRarity())
       this.#after()
     }))
     row2.appendChild(this.#btn('Tout ajouter', () => { this.#api.addEveryItem(); this.#after() }))
@@ -254,6 +265,10 @@ export class DebugPanel {
       }
     }
     this.#targetWrap.appendChild(select)
+  }
+
+  #currentRarity(): ItemRarity {
+    return (this.#raritySelect.value as ItemRarity) || 'commun'
   }
 
   #currentTarget(): number | string | null {
