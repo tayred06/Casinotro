@@ -2,7 +2,7 @@ import type {
   ItemDef, ItemInstance, ItemRarity, Modifiers, ShopOffer, SpinResult, GameSymbol, Souls,
 } from '../types/index.ts'
 import { random, weightedRandom, shuffleArray } from '../utils/Random.ts'
-import { getItemsByLevel, requireItem, nextRarity, paramOf, tierOf } from './items/index.ts'
+import { getItemsByLevel, requireItem, nextRarity, paramOf, tierOf, RARITY_ORDER } from './items/index.ts'
 
 /** Probabilité qu'une case gagnante reste figée au spin suivant (palier commun). */
 export const STICKY_CHANCE = 0.35
@@ -169,6 +169,20 @@ export class BonusSystem {
     return this.#endless ? RARITY_ODDS.endless : RARITY_ODDS[String(level)]
   }
 
+  /**
+   * Aucune offre ne sort de la table du palier : la manche 1 ne vend que du commun, quelle
+   * que soit la porte d'entrée (écho, reroll garanti). Une rareté interdite retombe sur la
+   * plus haute autorisée.
+   */
+  #clampRarity(level: 1 | 2 | 3, rarity: ItemRarity): ItemRarity {
+    const table = this.#rarityTable(level)
+    if ((table[rarity] ?? 0) > 0) return rarity
+    for (let i = RARITY_ORDER.indexOf(rarity) - 1; i >= 0; i--) {
+      if ((table[RARITY_ORDER[i]] ?? 0) > 0) return RARITY_ORDER[i]
+    }
+    return 'commun'
+  }
+
   #rollRarity(level: 1 | 2 | 3): ItemRarity {
     const table = this.#rarityTable(level)
     const entries = Object.entries(table)
@@ -208,7 +222,7 @@ export class BonusSystem {
     for (let i = 0; i < 3; i++) {
       const echo = i >= PURE_OFFERS && random() < ECHO_CHANCE ? this.#echoCandidate(pool) : null
       const def = echo?.def ?? shuffled[i % shuffled.length]
-      const rarity = echo?.rarity ?? this.#rollRarity(level)
+      const rarity = echo ? this.#clampRarity(level, echo.rarity) : this.#rollRarity(level)
       offers.push({
         defId: def.id,
         rarity,
@@ -217,7 +231,9 @@ export class BonusSystem {
     }
 
     // Reroll épique : au moins une offre rare garantie.
-    if (opts.guaranteeRare && !offers.some(o => o.rarity !== 'commun')) {
+    // Rien à garantir tant que la manche ne vend pas de rare.
+    if (opts.guaranteeRare && this.#clampRarity(level, 'rare') === 'rare'
+        && !offers.some(o => o.rarity !== 'commun')) {
       const idx = Math.floor(random() * offers.length)
       const def = requireItem(offers[idx].defId)
       offers[idx] = { defId: def.id, rarity: 'rare', price: Math.round(tierOf(def, 'rare').price * priceScale) }

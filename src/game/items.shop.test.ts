@@ -49,6 +49,40 @@ describe('Boutique — tirage de rareté en deux temps', () => {
   })
 })
 
+describe('Boutique — la manche borne la rareté', () => {
+  beforeEach(() => seedRng(9))
+
+  it('un item rare possédé ne revient jamais en écho au palier 1', () => {
+    const bs = new BonusSystem()
+    bs.grantSlots(5)
+    bs.acquire('greed_eye', 'commun')
+    bs.acquire('greed_eye', 'commun')            // fusion → rare dès la manche 1
+    expect(bs.activeBonus[0].rarity).toBe('rare')
+
+    for (let i = 0; i < 500; i++) {
+      for (const offer of bs.getShopOffers(1)) expect(offer.rarity).toBe('commun')
+    }
+  })
+
+  it('le reroll épique ne garantit un rare que si la manche en vend', () => {
+    const bs = new BonusSystem()
+    for (let i = 0; i < 200; i++) {
+      for (const offer of bs.getShopOffers(1, 1, { guaranteeRare: true })) {
+        expect(offer.rarity).toBe('commun')
+      }
+    }
+    const atStage2 = Array.from({ length: 50 }, () => bs.getShopOffers(2, 1, { guaranteeRare: true }))
+    expect(atStage2.every(offers => offers.some(o => o.rarity !== 'commun'))).toBe(true)
+  })
+
+  it('le palier 2 ne vend jamais d\'épique', () => {
+    const bs = new BonusSystem()
+    for (let i = 0; i < 500; i++) {
+      for (const offer of bs.getShopOffers(2)) expect(offer.rarity).not.toBe('epique')
+    }
+  })
+})
+
 describe('Boutique — prix par palier', () => {
   it('rare ≥ 2,2× commun et épique ≥ 4,5× commun', () => {
     // En dessous, acheter le palier supérieur bat la fusion et la fusion meurt.
