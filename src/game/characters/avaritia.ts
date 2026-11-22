@@ -1,4 +1,5 @@
-import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ItemDef } from '../../types/index.ts'
+import type { CharacterPlugin, GameContext, SpinResult, DialogueLine, ShopOffer } from '../../types/index.ts'
+import { requireItem } from '../items/index.ts'
 import type { Economy } from '../Economy.ts'
 import { STAGE_QUOTA_K, STAGE_MIN_BETS } from '../RunState.ts'
 import { soulsGain } from '../../utils/format.ts'
@@ -70,10 +71,10 @@ export function createAvaritiaPlugin(): CharacterPlugin {
       }
     },
 
-    offerModifier(offer: ItemDef): ItemDef | null {
+    offerModifier(offer: ShopOffer): ShopOffer | null {
       const gate = currentGate()
       if (gate.maxTier === 0) return null
-      if (offer.level > gate.maxTier) return null
+      if (requireItem(offer.defId).level > gate.maxTier) return null
       if (gate.priceMultiplier && gate.priceMultiplier > 1) {
         return { ...offer, price: Math.round(offer.price * gate.priceMultiplier) }
       }

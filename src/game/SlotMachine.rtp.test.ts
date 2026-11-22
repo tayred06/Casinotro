@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { spin, calculateWins } from './SlotMachine.ts'
-import { MACHINES } from './machines/index.ts'
+import { playableMachines } from './machines/index.ts'
 import { seedRng, setRng } from '../utils/Random.ts'
 import type { MachineConfig } from '../types/index.ts'
 
@@ -37,8 +37,11 @@ function measureRTP(machine: MachineConfig, seed: number): number {
 
 afterEach(() => setRng(null))
 
+// Seules les machines jouables sont mesurées : megaways est mis de côté (`playable:
+// false`) et sa mesure doublait le temps de la suite. Sa config reste validée par
+// machines.test.ts.
 describe('RTP', () => {
-  for (const machine of Object.values(MACHINES)) {
+  for (const machine of playableMachines()) {
     // Une seule graine ne suffit pas : les gros symboles sont assez rares pour
     // déplacer le résultat de plusieurs points. On moyenne, et on vérifie en plus
     // qu'aucune graine ne part complètement ailleurs.

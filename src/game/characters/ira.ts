@@ -128,7 +128,7 @@ export function createIraPlugin(): CharacterPlugin {
     },
 
     onShopSell(ctx: GameContext, item): void {
-      if (item.id === P.repairBonusId) {
+      if (item.defId === P.repairBonusId) {
         let best: [number, number] | null = null
         for (let c = 0; c < REEL_COUNT; c++)
           for (let r = 0; r < SLOTS_PER_COL; r++)
@@ -138,7 +138,7 @@ export function createIraPlugin(): CharacterPlugin {
           ctx.addLog(`🔧 Slot R${best[0] + 1}·L${best[1] + 1} réparé.`)
         }
       }
-      if (item.id === P.calmBonusId) {
+      if (item.defId === P.calmBonusId) {
         calmStacks++
         ctx.addLog(`🌬️ Tu respires — risque de casse ${Math.round(shatterChance() * 100)}%.`)
       }

@@ -145,10 +145,34 @@
   padding: 2px 5px;
 }
 
-.rarity-commun { color: var(--ink-dim); border: 1px solid var(--line); }
-.rarity-rare   { color: #8fa8b7;        border: 1px solid #2a3339; }
-.rarity-épique { color: #b09ac8;        border: 1px solid #342a3d; }
+// Thème démoniaque, pas MMO : progression pierre → sang → or, jamais bleu/violet.
+.rarity-commun { color: #9a9aa4;        border: 1px solid #55555e; }
+.rarity-rare   { color: #d9707c;        border: 1px solid #a3202c; }
+.rarity-epique { color: #e6c157;        border: 1px solid #d4a017; }
 .rarity-maudit { color: var(--hot);     border: 1px solid #4a1e1e; }
+
+// Fonds de carte et plaques d'icône, par palier.
+.shop-item, .inv-item {
+  &.rarity-commun { background: #2a2a2f; }
+  &.rarity-rare   { background: #3a1418; }
+  &.rarity-epique { background: #3a2c0a; }
+}
+
+.item-icon {
+  &.rarity-commun { border-color: #55555e; color: #9a9aa4; }
+  &.rarity-rare   { border-color: #a3202c; color: #d9707c; }
+  // L'épique est le seul palier animé : un halo qui respire, rien de plus.
+  &.rarity-epique {
+    border-color: #d4a017;
+    color: #e6c157;
+    animation: epiqueHalo 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes epiqueHalo {
+  0%, 100% { box-shadow: 0 0 0 rgba(212,160,23,0); }
+  50%      { box-shadow: 0 0 12px rgba(212,160,23,.45); }
+}
 
 .item-desc {
   font-family: var(--fui);
@@ -180,6 +204,9 @@
   transition: background .15s, border-color .15s, color .15s;
 
   &:hover:not(.cant-buy) { background: var(--velvet); border-color: var(--gold); color: var(--ink); }
+
+  // Achat qui fusionne : légal même à inventaire plein, il libère un emplacement.
+  &.fusion { border-color: #d4a017; color: #e6c157; }
   &.cant-buy { color: var(--ink-dim); border-color: var(--line); opacity: .5; cursor: not-allowed; }
 }
 

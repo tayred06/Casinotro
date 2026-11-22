@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { MACHINES, getMachine, DEFAULT_MACHINE_ID } from './index.ts'
+import { MACHINES, getMachine, DEFAULT_MACHINE_ID, playableMachines, isPlayable } from './index.ts'
 import { resolvePool, winSymbolsOf } from '../Symbols.ts'
 import { CHARACTERS } from '../Characters.ts'
 
@@ -96,5 +96,20 @@ describe('registre', () => {
     const machine = getMachine(ira.machineId!)
     expect(machine.evaluator).toBe('lines')
     expect(machine.rows).toEqual({ kind: 'fixed', count: 5 })
+  })
+})
+
+describe('pool jouable', () => {
+  it('megaways reste validée mais sort du pool jouable', () => {
+    // `playable: false` la retire du jeu sans supprimer la config : sans ça, elle
+    // pourrirait en silence jusqu'à son retour.
+    expect(getMachine('megaways').playable).toBe(false)
+    expect(playableMachines().map(m => m.id)).not.toContain('megaways')
+    expect(isPlayable('megaways')).toBe(false)
+  })
+
+  it('toutes les machines jouables tournent sur l\'évaluateur à lignes', () => {
+    for (const m of playableMachines()) expect(m.evaluator).toBe('lines')
+    expect(isPlayable(DEFAULT_MACHINE_ID)).toBe(true)
   })
 })

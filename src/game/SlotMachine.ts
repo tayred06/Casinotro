@@ -25,14 +25,14 @@ export function spin(
   stickyPositions: Record<string, GameSymbol> = {},
   luck: number | LuckProfile = 0,
   opts: SpinOptions = {}
-): { grid: GameSymbol[][], rowCounts: number[] } {
+): { grid: GameSymbol[][], rowCounts: number[], anchor: string | null } {
   const { rareMultiplier = 1, fixedRows } = opts
   const profile = toLuckProfile(luck)
   const rowCounts = resolveRowCounts(machine, fixedRows)
   // Une seule ancre pour tout le spin : c'est ce qui aligne les symboles entre rouleaux.
   // Limitée aux `minMatch` premiers rouleaux — au-delà, elle ne créerait plus des gains
   // plus fréquents mais des gains pleins, et le RTP part en vrille (mesuré ×2 à ×7).
-  const anchor = pickAnchor(machine.symbolPool, profile.cohesion)
+  const anchor = pickAnchor(machine.symbolPool, profile.cohesion, profile.forcedAnchor ?? null)
   const anchorReels = machine.minMatch
   const grid = rowCounts.map((rowCount, reel) => {
     const col = generateReelColumn(machine.symbolPool, rowCount, profile, rareMultiplier,
@@ -43,7 +43,7 @@ export function spin(
     }
     return col
   })
-  return { grid, rowCounts }
+  return { grid, rowCounts, anchor: anchor?.id ?? null }
 }
 
 // ─── Évaluation ───────────────────────────────────────────
@@ -53,6 +53,8 @@ interface EvalContext {
   grid: GameSymbol[][]
   bet: Souls
   columnMultipliers: number[]
+  /** Rouleaux transformés en wild par un item — comptés pour 1 occurrence. */
+  wildColumns: boolean[]
   symbolMultipliers: Record<string, number>
   globalMultiplier: number
   jackpotMultiplier: number
@@ -67,16 +69,51 @@ function bestColumnMultiplier(mults: number[], count: number): number {
   return best
 }
 
-/** Plafond du cumul des multiplicateurs d'items. */
-export const MULT_CAP = 6
+/**
+ * Plafond du cumul des multiplicateurs d'items, appliqué en un seul endroit : le produit
+ * de toutes les sources multiplicatives d'une même combinaison (colonnes dorées, symbole
+ * béni, jackpot, ligne magique, chaînes). Un plafond silencieux passe pour un bug, celui-ci
+ * est affiché.
+ */
+export const MULT_CAP = 12
+
+export function combineMultipliers(mults: number[]): number {
+  const total = mults.reduce((acc, m) => acc * m, 1)
+  return Math.min(MULT_CAP, total)
+}
 
 /**
- * Les multiplicateurs d'items s'additionnent au lieu de se multiplier, et le total est
- * plafonné : en multiplicatif, quatre items donnaient ×30 sur une seule combinaison.
+ * Rouleaux « vrais » d'une combinaison : ceux qui ne doivent pas leur participation à une
+ * colonne rendue wild par un item. Mesuré : sur `rigide`, une seule colonne wild suffisait
+ * à faire passer le RTP de 0,92 à 7,0 — chaque ligne n'avait plus besoin que de deux
+ * symboles au lieu de trois, sur vingt lignes. Une colonne wild ALLONGE donc les
+ * combinaisons, elle n'en crée jamais le minimum.
  */
-export function combineMultipliers(mults: number[]): number {
-  const total = mults.reduce((acc, m) => acc + (m - 1), 1)
-  return Math.min(MULT_CAP, total)
+function naturalCount(wildColumns: boolean[], count: number): number {
+  let natural = 0
+  for (let reel = 0; reel < count; reel++) if (!wildColumns[reel]) natural++
+  return natural
+}
+
+/** Colonnes wild consécutives tolérées depuis le rouleau 1. */
+export const maxWildRun = (machine: MachineConfig): number => Math.max(1, machine.minMatch - 2)
+
+/**
+ * Invariant wild. Avec `minMatch` 3, deux colonnes wild sur les rouleaux 1-2 font gagner
+ * les 20 lignes à CHAQUE spin : le rouleau 3 suffit à compléter, quel que soit son symbole.
+ * La limite tenable est donc `minMatch - 2`, soit une seule colonne wild tant que
+ * `minMatch` vaut 3 — d'où le `maxOwned: 1` de l'item côté boutique.
+ */
+export function sanitizeWildColumns(machine: MachineConfig, wildColumns: boolean[]): boolean[] {
+  const out = [...wildColumns]
+  const limit = maxWildRun(machine)
+  let run = 0
+  for (let reel = 0; reel < out.length; reel++) {
+    if (!out[reel]) break
+    run++
+    if (run > limit) out[reel] = false
+  }
+  return out
 }
 
 function payout(
@@ -84,7 +121,7 @@ function payout(
   symbolId: string,
   count: number,
   ways: number
-): { multiplier: number; win: Souls } | null {
+): { multiplier: number; win: Souls; capped: boolean } | null {
   const base = ctx.machine.paytable[symbolId]?.[count]
   if (!base) return null
 
@@ -92,8 +129,11 @@ function payout(
   const symMult = ctx.symbolMultipliers[symbolId] ?? 1
   const jackpot = count >= ctx.machine.reelCount ? ctx.jackpotMultiplier : 1
 
-  const multiplier = base * ways * combineMultipliers([colMult, symMult, ctx.globalMultiplier, jackpot])
-  return { multiplier, win: ctx.bet * multiplier }
+  const sources = [colMult, symMult, ctx.globalMultiplier, jackpot]
+  const raw = sources.reduce((acc, m) => acc * m, 1)
+  const combined = combineMultipliers(sources)
+  const multiplier = base * ways * combined
+  return { multiplier, win: ctx.bet * multiplier, capped: raw > combined + 1e-9 }
 }
 
 /**
@@ -115,11 +155,14 @@ function evaluateWays(ctx: EvalContext): WinLine[] {
         if (col[row].id === symbol.id || col[row].id === WILD_ID) rows.push(row)
       }
       if (rows.length === 0) break
-      perReel.push(rows)
+      // Une colonne rendue wild par un item ne compte que pour 1 occurrence : sinon
+      // elle multiplie les ways par sa hauteur (2 à 7) sur TOUS les symboles.
+      perReel.push(ctx.wildColumns[reel] ? [rows[0]] : rows)
     }
 
     const count = perReel.length
     if (count < ctx.machine.minMatch) continue
+    if (naturalCount(ctx.wildColumns, count) < ctx.machine.minMatch) continue
 
     const ways = perReel.reduce((product, rows) => product * rows.length, 1)
     const pay = payout(ctx, symbol.id, count, ways)
@@ -134,6 +177,7 @@ function evaluateWays(ctx: EvalContext): WinLine[] {
       ways,
       multiplier: pay.multiplier,
       win: pay.win,
+      capped: pay.capped,
       cells,
       reelRows: perReel.map(rows => rows[0]),
     })
@@ -171,6 +215,7 @@ function evaluateLines(ctx: EvalContext): WinLine[] {
       count++
     }
     if (count < ctx.machine.minMatch) return
+    if (naturalCount(ctx.wildColumns, count) < ctx.machine.minMatch) return
 
     const pay = payout(ctx, symbolId, count, 1)
     if (!pay) return
@@ -185,6 +230,7 @@ function evaluateLines(ctx: EvalContext): WinLine[] {
       paylineIndex,
       multiplier: pay.multiplier,
       win: pay.win,
+      capped: pay.capped,
       cells,
       reelRows: cells.map(([, row]) => row),
     })
@@ -211,13 +257,16 @@ export function calculateWins(
     symbolMultipliers = {},
     jackpotMultiplier = 1,
     safetyNet = false,
+    safetyNetRate = SAFETY_NET_REFUND,
     globalMultiplier = 1,
+    jackpotFreeSpins = 0,
   } = modifiers
 
   // Colonnes wild : la colonne entière substitue n'importe quel symbole.
+  const safeWilds = sanitizeWildColumns(machine, wildColumns)
   const wild = { id: WILD_ID, name: 'Wild', emoji: 'W', weight: 0, color: 0xFFFFFF }
   const effectiveGrid = grid.map((col, reel) =>
-    wildColumns[reel] ? col.map(() => wild) : col
+    safeWilds[reel] ? col.map(() => wild) : col
   )
 
   const ctx: EvalContext = {
@@ -225,6 +274,7 @@ export function calculateWins(
     grid: effectiveGrid,
     bet,
     columnMultipliers,
+    wildColumns: safeWilds,
     symbolMultipliers,
     globalMultiplier,
     jackpotMultiplier,
@@ -236,10 +286,18 @@ export function calculateWins(
   const scatterTriggered = scatterCount >= machine.scatterMin
 
   let totalWin = winLines.reduce((sum, l) => sum + l.win, 0)
-  if (totalWin === 0 && safetyNet) totalWin = bet * SAFETY_NET_REFUND
+  if (totalWin === 0 && safetyNet) totalWin = bet * (safetyNetRate || SAFETY_NET_REFUND)
 
   const hasLargeWin = winLines.some(l => l.count >= machine.minMatch + 1)
   const dropBonus = hasLargeWin && random() < 0.15
 
-  return { totalWin, winLines, scatterTriggered, dropBonus }
+  // Jackpot Amplifié épique : une combinaison pleine offre un free spin.
+  const fullCombo = winLines.some(l => l.count >= machine.reelCount)
+  const bonusFreeSpins = fullCombo ? jackpotFreeSpins : 0
+
+  return {
+    totalWin, winLines, scatterTriggered, dropBonus,
+    capped: winLines.some(l => l.capped),
+    bonusFreeSpins,
+  }
 }

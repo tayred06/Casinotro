@@ -1,9 +1,9 @@
 import type { CharacterPlugin, DebugState, GameContext, ItemDef, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
 import { Economy } from './Economy.ts'
-import { BonusSystem, SLOTS_PER_QUOTA } from './BonusSystem.ts'
+import { BonusSystem, slotsForStage } from './BonusSystem.ts'
 import { RunState, START_BALANCE } from './RunState.ts'
 import { Progression } from '../meta/Progression.ts'
-import { spin, calculateWins } from './SlotMachine.ts'
+import { spin, calculateWins, MULT_CAP } from './SlotMachine.ts'
 import { SYMBOLS } from './Symbols.ts'
 import type { LuckProfile } from './Symbols.ts'
 import { getCharacterPlugin } from './characters/index.ts'
@@ -17,13 +17,13 @@ import { PaytableModal } from '../ui/PaytableModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
 import { EndScreen } from '../ui/EndScreen.ts'
 import type { DebugApi, DebugPanel } from '../ui/DebugPanel.ts'
-import { ITEM_POOL } from './items/index.ts'
+import { ITEM_POOL, requireItem, tierOf } from './items/index.ts'
 import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId, isDebugEnvironment } from './Characters.ts'
 import type { Character } from './Characters.ts'
 import { getItem } from './items/index.ts'
 import { souls, soulsGain } from '../utils/format.ts'
 
-const SAVE_KEY = 'casinotro_v3'
+const SAVE_KEY = 'casinotro_v4'
 /** Coût du premier renouvellement de boutique, remis à zéro à chaque partie. */
 const INITIAL_REROLL_COST = 5
 
@@ -115,8 +115,17 @@ export class GameLoop {
       this.economy,
       () => { this.uiContext.updateHUD(); this.renderer.showModifiers(this.bonusSystem.getModifiers()); this.save() },
       async (offer) => {
-        if (offer.needsTarget === 'column') return this.renderer.selectColumn()
-        if (offer.needsTarget === 'symbol') return this.renderer.selectSymbol()
+        const def = requireItem(offer.defId)
+        // Cible grisée = achat impossible avec cette cible-là. La raison est affichée :
+        // « pas assez d'âmes » et « inventaire plein » ne se confondent pas.
+        const blocked = (target: number | string) => {
+          const state = this.bonusSystem.buyState(offer.defId, offer.rarity, target)
+          if (state === 'full') return 'Inventaire plein — seule une fusion est possible.'
+          if (state === 'max_owned') return `Limité à ${def.maxOwned ?? 1} exemplaire par run.`
+          return null
+        }
+        if (def.needsTarget === 'column') return this.renderer.selectColumn(blocked)
+        if (def.needsTarget === 'symbol') return this.renderer.selectSymbol(blocked)
         return null
       }
     )
@@ -134,7 +143,7 @@ export class GameLoop {
       const payout = Math.floor(refund * rate)
       if (payout > 0) {
         this.economy.addMoney(payout)
-        this.shop.addLog(`Vendu : ${bonus.name} ${soulsGain(payout)}`, true)
+        this.shop.addLog(`Vendu : ${requireItem(bonus.defId).name} ${soulsGain(payout)}`, true)
       }
       this.plugin.onShopSell?.(this.ctx, bonus)
       this.uiContext.updateHUD()
@@ -197,6 +206,8 @@ export class GameLoop {
       const forced = this.plugin.getForcedBet?.(this.ctx)
       if (forced) this.economy.forceSetBet(forced.amount)
       this.bonusSystem.setReelCount(this.machine.reelCount)
+      this.bonusSystem.setEndless(this.run.isEndless)
+      this.bonusSystem.setMaxSlots(slotsForStage(this.run.stage, this.run.isEndless))
       this.applyMachineMeta()
 
       const rawGrid = save.grid
@@ -232,6 +243,7 @@ export class GameLoop {
     this.bonusSystem.setPriceScale(this.run.minBet)
     this.refreshBetChips()
     this.bonusSystem.reset()
+    this.bonusSystem.setMaxSlots(slotsForStage(this.run.stage))
     this.renderer.hideGameOver()
     this.endScreen.hide()
     this.runEnded = false
@@ -294,16 +306,19 @@ export class GameLoop {
 
     await this.plugin.onBeforeSpin?.(this.ctx)
 
+    // Les colonnes wild sont tirées une fois pour tout le spin : affichage et évaluation
+    // doivent voir le même état.
+    this.bonusSystem.rollSpinState()
     const mods = this.bonusSystem.getModifiers()
     const stickyPositions = mods.stickyPositions ?? {}
     const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-    const { grid: rawGrid } = spin(this.machine, stickyPositions, this.getLuckProfile(), opts)
+    const { grid: rawGrid, anchor } = spin(this.machine, stickyPositions, this.getLuckProfile(), opts)
     const grid = this.applyGridTransform(rawGrid)
 
     await this.renderer.animateSpin(grid)
 
     const result: SpinResult = calculateWins(this.machine, grid, this.economy.currentBet, mods)
-    this.bonusSystem.processPostSpin(result, grid)
+    this.bonusSystem.processPostSpin(result, grid, { anchorId: anchor })
 
     await this.plugin.onAfterSpin?.(this.ctx, result)
 
@@ -324,14 +339,19 @@ export class GameLoop {
       this.shop.addLog('Aucune combinaison.', true)
     }
 
+    if (result.capped) this.shop.addLog(`Gain plafonné à ×${MULT_CAP}.`, true)
+
     if (result.scatterTriggered) await this.handleFreeSpins(8)
+    // Jackpot Amplifié épique : une combinaison pleine offre son propre free spin.
+    if (result.bonusFreeSpins) await this.handleFreeSpins(result.bonusFreeSpins)
 
     if (result.dropBonus && !this.bonusSystem.isFull) {
       const level = this.economy.getShopLevel(this.run.stage)
       const offers = this.bonusSystem.getShopOffers(level)
-      if (offers[0]) {
-        this.bonusSystem.addBonus(offers[0], null)
-        this.renderer.showWin(0, null, `🎁 ${offers[0].name}`)
+      const drop = offers.find(o => !requireItem(o.defId).needsTarget) ?? offers[0]
+      if (drop && this.bonusSystem.buyState(drop.defId, drop.rarity, null) !== 'max_owned') {
+        this.bonusSystem.acquire(drop.defId, drop.rarity, null)
+        this.renderer.showWin(0, null, `🎁 ${requireItem(drop.defId).name}`)
         await delay(1600)
         this.renderer.hideWin()
       }
@@ -362,14 +382,15 @@ export class GameLoop {
   private async handleFreeSpins(count: number, winMultiplier = 1): Promise<void> {
     for (let i = 0; i < count; i++) {
       await delay(380)
+      this.bonusSystem.rollSpinState()
       const mods = this.bonusSystem.getModifiers()
       const opts = this.plugin.getSpinOptions?.(this.ctx) ?? {}
-      const { grid: rawGrid } = spin(this.machine, mods.stickyPositions ?? {}, this.getLuckProfile(), opts)
+      const { grid: rawGrid, anchor } = spin(this.machine, mods.stickyPositions ?? {}, this.getLuckProfile(), opts)
       const grid = this.applyGridTransform(rawGrid)
       await this.renderer.animateSpin(grid)
       const result = calculateWins(this.machine, grid, this.economy.currentBet, mods)
       result.totalWin *= winMultiplier
-      this.bonusSystem.processPostSpin(result, grid)
+      this.bonusSystem.processPostSpin(result, grid, { anchorId: anchor, freeSpin: true })
       this.renderer.displayGrid(grid, this.bonusSystem.getModifiers())
       if (result.totalWin > 0) {
         this.economy.addWin(result.totalWin)
@@ -392,7 +413,7 @@ export class GameLoop {
     if (typeof id !== 'string') return
     const item = getItem(id)
     if (!item) return
-    this.bonusSystem.addBonus(item)
+    this.bonusSystem.acquire(item.id, 'commun', null)
     this.shop.addLog(`Entrée offerte : ${item.name}`, true)
   }
 
@@ -422,7 +443,7 @@ export class GameLoop {
     this.economy.setBetOptions(this.run.betOptions)
     this.applyStageVitality()
     this.rescalePrices()
-    this.grantQuotaSlots()
+    this.applyStageSlots()
     this.refreshBetChips()
     this.shop.refresh(this.economy.getShopLevel(this.run.stage))
     this.shop.addLog(`Palier ${this.run.stage} atteint — boutique renouvelée !`)
@@ -448,10 +469,17 @@ export class GameLoop {
     if (factor > 1) this.shop.setRerollCost(Math.round(this.shop.getRerollCost() * factor))
   }
 
-  /** Chaque quota franchi élargit l'inventaire de bonus. */
-  private grantQuotaSlots(): void {
-    this.bonusSystem.grantSlots(SLOTS_PER_QUOTA)
-    this.shop.addLog(`+${SLOTS_PER_QUOTA} emplacements de bonus (${this.bonusSystem.maxSlots} au total).`, true)
+  /**
+   * Les emplacements sont attachés au palier (3 / 4 / 5, 6 en infini), pas cumulés au fil
+   * des quotas : toute la courbe d'items suppose que les slots bloquent avant les âmes.
+   */
+  private applyStageSlots(): void {
+    const before = this.bonusSystem.maxSlots
+    this.bonusSystem.setMaxSlots(slotsForStage(this.run.stage, this.run.isEndless))
+    const gained = this.bonusSystem.maxSlots - before
+    if (gained > 0) {
+      this.shop.addLog(`+${gained} emplacement${gained > 1 ? 's' : ''} de bonus (${this.bonusSystem.maxSlots} au total).`, true)
+    }
   }
 
   /**
@@ -462,10 +490,11 @@ export class GameLoop {
     this.runEnded = false
     this.isSpinning = false
     this.run.enterEndless()
+    this.bonusSystem.setEndless(true)
     this.economy.setBetOptions(this.run.betOptions)
     this.applyStageVitality()
     this.rescalePrices()
-    this.grantQuotaSlots()
+    this.applyStageSlots()
     this.refreshBetChips()
     this.shop.refresh(this.economy.getShopLevel(this.run.stage))
     this.shop.addLog('Mode infini — plus de quota : accumulez le plus de gains possible.')
@@ -647,6 +676,8 @@ export class GameLoop {
       rarity:   (dbg?.rarityOverride ?? (mods.rarity + rarityBonus)) / 100,
       cohesion: (dbg?.cohesionOverride ?? mods.cohesion) / 100,
       nudge:    this.economy.rtpNudge,
+      forcedAnchor: mods.forcedAnchor,
+      scatterBoost: mods.scatterBoost,
     }
   }
 
@@ -711,9 +742,9 @@ export class GameLoop {
       liftBalanceCap: () => self.economy.setBalanceCap(Number.MAX_SAFE_INTEGER),
       getBet: () => self.economy.currentBet,
       setBet: (v) => { self.economy.forceSetBet(Math.max(0, v)) },
-      addItem: (def: ItemDef, target) => {
+      addItem: (def: ItemDef, target, rarity) => {
         if (self.bonusSystem.isFull) self.bonusSystem.grantSlots(1)
-        self.bonusSystem.addBonus(def, target)
+        self.bonusSystem.addBonus(def, target, rarity)
       },
       addEveryItem: () => {
         self.bonusSystem.grantSlots(ITEM_POOL.length)

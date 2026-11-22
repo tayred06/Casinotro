@@ -10,10 +10,10 @@ describe('Progression', () => {
     localStorage.clear()
   })
 
-  it('démarre à 0 avec megaways débloquée', () => {
+  it('démarre à 0 avec rigide débloquée', () => {
     const p = new Progression()
     expect(p.highscore).toBe(0)
-    expect(p.unlockedMachines.has('megaways')).toBe(true)
+    expect(p.unlockedMachines.has('rigide')).toBe(true)
   })
 
   it('updateHighscore ne retient que les valeurs supérieures', () => {
@@ -47,7 +47,7 @@ describe('Progression', () => {
     })
 
     it('ne régresse pas si le méta est déjà meilleur', () => {
-      localStorage.setItem(KEY, JSON.stringify({ highscore: 9000, unlockedMachines: ['megaways'] }))
+      localStorage.setItem(KEY, JSON.stringify({ highscore: 9000, unlockedMachines: ['rigide'] }))
       localStorage.setItem(LEGACY_KEY, '100')
       expect(new Progression().highscore).toBe(9000)
     })

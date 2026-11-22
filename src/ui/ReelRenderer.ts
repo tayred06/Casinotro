@@ -375,7 +375,12 @@ export class ReelRenderer {
   }
 
   // Interactive column selection — returns Promise<number> (0-indexed column)
-  selectColumn(): Promise<number> {
+  /**
+   * `blocked` renvoie la raison pour laquelle une cible est refusée, ou null si elle
+   * est valide. Une cible refusée reste visible mais grisée, avec sa raison en infobulle :
+   * l'inventaire plein ne se distingue pas du manque d'âmes autrement.
+   */
+  selectColumn(blocked: (reel: number) => string | null = () => null): Promise<number> {
     return new Promise((resolve, reject) => {
       const reelEls = Array.from(this.#container.querySelectorAll('.reel'))
       const spinBtn = document.getElementById('spin-btn') as HTMLButtonElement | null
@@ -389,8 +394,9 @@ export class ReelRenderer {
         this.#selectionHint.classList.add('hidden')
         this.#selectionCancel.classList.add('hidden')
         reelEls.forEach((reel, i) => {
-          reel.classList.remove('selectable', 'selected')
-          reel.removeEventListener('click', handlers[i])
+          reel.classList.remove('selectable', 'selected', 'unselectable')
+          ;(reel as HTMLElement).title = ''
+          if (handlers[i]) reel.removeEventListener('click', handlers[i])
         })
         document.removeEventListener('keydown', onEsc)
         this.#selectionCancel.removeEventListener('click', onCancel)
@@ -401,6 +407,13 @@ export class ReelRenderer {
       const handlers: Array<() => void> = []
 
       reelEls.forEach((reel, i) => {
+        const reason = blocked(i)
+        if (reason) {
+          reel.classList.add('unselectable')
+          ;(reel as HTMLElement).title = reason
+          handlers.push(() => {})
+          return
+        }
         reel.classList.add('selectable')
         const handler = () => {
           reel.classList.add('selected')
@@ -422,7 +435,7 @@ export class ReelRenderer {
   }
 
   // Interactive symbol selection — returns Promise<string> (symbol id)
-  selectSymbol(): Promise<string> {
+  selectSymbol(blocked: (symbolId: string) => string | null = () => null): Promise<string> {
     return new Promise((resolve, reject) => {
       const cells = Array.from(this.#container.querySelectorAll('.cell'))
       const spinBtn = document.getElementById('spin-btn') as HTMLButtonElement | null
@@ -444,7 +457,8 @@ export class ReelRenderer {
         this.#selectionHint.classList.add('hidden')
         this.#selectionCancel.classList.add('hidden')
         cells.forEach((cell, i) => {
-          cell.classList.remove('sym-selectable')
+          cell.classList.remove('sym-selectable', 'sym-unselectable')
+          ;(cell as HTMLElement).title = ''
           const h = handlers[i]
           if (h) cell.removeEventListener('click', h)
         })
@@ -458,6 +472,14 @@ export class ReelRenderer {
         const symId = flatSymbols[i]
         // Skip special symbols — can't be selected as targets
         if (!symId || symId === 'wild' || symId === 'scatter') {
+          handlers.push(null)
+          return
+        }
+
+        const reason = blocked(symId)
+        if (reason) {
+          cell.classList.add('sym-unselectable')
+          ;(cell as HTMLElement).title = reason
           handlers.push(null)
           return
         }

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import type { GameSymbol } from '../types/index.ts'
-import { spin, calculateWins, combineMultipliers, MULT_CAP, SAFETY_NET_REFUND } from './SlotMachine.ts'
+import { spin, calculateWins, combineMultipliers, sanitizeWildColumns, MULT_CAP, SAFETY_NET_REFUND } from './SlotMachine.ts'
 import { getSymbolById } from './Symbols.ts'
 import { getMachine } from './machines/index.ts'
 import { seedRng, setRng } from '../utils/Random.ts'
@@ -194,10 +194,16 @@ describe('calculateWins — modificateurs', () => {
     expect(withJackpot).toBeCloseTo(calculateWins(megaways, full(), 10).totalWin * 2.5)
   })
 
-  it('wildColumns transforme une colonne entière', () => {
-    const grid = [col(lemon), col(bell), col(lemon), col(ten), col(ten), col(ten)]
-    const r = calculateWins(megaways, grid, 10, { wildColumns: [false, true, false, false, false, false] })
-    expect(r.winLines.find(l => l.symbolId === 'lemon')!.count).toBe(3)
+  it('wildColumns transforme une colonne entière, sans créer le minimum', () => {
+    // Le rouleau wild allonge une combinaison, il ne la fonde pas : il faut toujours
+    // `minMatch` rouleaux naturels (cf. invariant wild).
+    const short = [col(lemon), col(bell), col(lemon), col(ten), col(ten), col(ten)]
+    expect(calculateWins(megaways, short, 10, { wildColumns: [false, true, false, false, false, false] })
+      .winLines.find(l => l.symbolId === 'lemon')).toBeUndefined()
+
+    const long = [col(lemon), col(bell), col(lemon), col(lemon), col(ten), col(ten)]
+    expect(calculateWins(megaways, long, 10, { wildColumns: [false, true, false, false, false, false] })
+      .winLines.find(l => l.symbolId === 'lemon')!.count).toBe(4)
   })
 
   it('safetyNet rembourse une fraction de la mise quand rien ne tombe', () => {
@@ -213,14 +219,24 @@ describe('calculateWins — modificateurs', () => {
       globalMultiplier: 3,
       symbolMultipliers: { lemon: 2 },
     }).winLines.find(l => l.symbolId === 'lemon')!.win
-    // Additif et non multiplicatif : (3-1) + (2-1) + 1 = 4, pas 6.
-    expect(boosted).toBeCloseTo(base * 4)
+    // Multiplicatif, sous le plafond : 3 × 2 = 6.
+    expect(boosted).toBeCloseTo(base * 6)
   })
 
-  it('plafonne le cumul des multiplicateurs d\'items', () => {
+  it('plafonne le produit des multiplicateurs d\'items', () => {
     expect(combineMultipliers([2, 2, 2.5, 3])).toBe(MULT_CAP)
     expect(combineMultipliers([1, 1, 1, 1])).toBe(1)
-    expect(combineMultipliers([2, 3])).toBe(4)
+    expect(combineMultipliers([2, 3])).toBe(6)
+  })
+
+  it('signale la combinaison plafonnée', () => {
+    const grid = [col(lemon), col(lemon), col(lemon), col(ten), col(ten), col(ten)]
+    const capped = calculateWins(megaways, grid, 10, {
+      globalMultiplier: 3, symbolMultipliers: { lemon: 8 },
+    })
+    expect(capped.capped).toBe(true)
+    expect(capped.winLines.find(l => l.symbolId === 'lemon')!.capped).toBe(true)
+    expect(calculateWins(megaways, grid, 10).capped).toBe(false)
   })
 })
 
@@ -235,5 +251,38 @@ describe('calculateWins — scatter', () => {
   it('le scatter ne forme jamais de combinaison payante', () => {
     const grid = Array.from({ length: 6 }, () => col(scatter))
     expect(calculateWins(megaways, grid, 10).winLines).toHaveLength(0)
+  })
+})
+
+describe('garde-fous items', () => {
+  it('l\'invariant wild coupe les colonnes wild consécutives de trop', () => {
+    // minMatch 3 → une seule colonne wild tolérée depuis le rouleau 1.
+    expect(sanitizeWildColumns(rigide, [true, true, true, false, false, false]))
+      .toEqual([true, false, false, false, false, false])
+    // Une colonne wild isolée plus loin ne pose pas de problème.
+    expect(sanitizeWildColumns(rigide, [false, true, true, false, false, false]))
+      .toEqual([false, true, true, false, false, false])
+  })
+
+  it('deux colonnes wild d\'affilée ne font pas gagner toutes les lignes', () => {
+    // Grille pleine 6×5 sans alignement naturel : seules les colonnes wild pourraient
+    // faire gagner, et l'invariant en désactive une.
+    const grid = [col(lemon, 5), col(bell, 5), col(ten, 5), col(lemon, 5), col(bell, 5), col(ten, 5)]
+    const guarded = calculateWins(rigide, grid, 10, { wildColumns: [true, true, false, false, false, false] })
+    expect(guarded.winLines.length).toBeLessThan(rigide.paylines!.length)
+    // Preuve du danger : deux colonnes réellement wild dans la grille, et les 20
+    // lignes gagnent — c'est exactement l'état que l'invariant empêche d'acheter.
+    const unguarded = calculateWins(
+      rigide, [col(wild, 5), col(wild, 5), ...grid.slice(2)], 10)
+    expect(unguarded.winLines.length).toBe(rigide.paylines!.length)
+  })
+
+  it('une colonne wild d\'item ne compte que pour une occurrence en ways', () => {
+    // Sans clamp, la colonne wild multiplierait les ways par sa hauteur.
+    const grid = [col(lemon, 4), col(lemon, 4), col(lemon, 4), col(lemon, 4), col(ten), col(ten)]
+    const clamped = calculateWins(megaways, grid, 10, { wildColumns: [false, false, false, true, false, false] })
+      .winLines.find(l => l.symbolId === 'lemon')!
+    const plain = calculateWins(megaways, grid, 10).winLines.find(l => l.symbolId === 'lemon')!
+    expect(clamped.ways).toBe(plain.ways / 4)
   })
 })
