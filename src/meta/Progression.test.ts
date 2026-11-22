@@ -52,4 +52,35 @@ describe('Progression', () => {
       expect(new Progression().highscore).toBe(9000)
     })
   })
+
+  describe('tutoriel', () => {
+    it('démarre non fait, sans étape vue', () => {
+      const p = new Progression()
+      expect(p.tutorialDone).toBe(false)
+      expect(p.tutorialSeen.size).toBe(0)
+    })
+
+    it('persiste fin et étapes vues dans casinotro_meta_v2', () => {
+      new Progression().saveTutorial(true, ['mise', 'quota'])
+      const raw = JSON.parse(localStorage.getItem(KEY)!)
+      expect(raw.tutorialDone).toBe(true)
+      expect(raw.tutorialSeen).toEqual(['mise', 'quota'])
+      const p = new Progression()
+      expect(p.tutorialDone).toBe(true)
+      expect([...p.tutorialSeen]).toEqual(['mise', 'quota'])
+    })
+
+    it('un profil sans champ tuto le voit', () => {
+      localStorage.setItem(KEY, JSON.stringify({ highscore: 9000, unlockedMachines: ['rigide'] }))
+      const p = new Progression()
+      expect(p.tutorialDone).toBe(false)
+      expect(p.highscore).toBe(9000)
+    })
+
+    it('ne perd pas le tuto quand un autre champ est sauvegardé', () => {
+      new Progression().saveTutorial(true, [])
+      new Progression().updateHighscore(10)
+      expect(new Progression().tutorialDone).toBe(true)
+    })
+  })
 })
