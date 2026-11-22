@@ -1,4 +1,4 @@
-import type { CharacterPlugin, DebugState, GameContext, ItemDef, MachineConfig, SpinResult, UIContext, Souls } from '../types/index.ts'
+import type { CharacterPlugin, DebugState, GameContext, ItemDef, MachineConfig, ShopOffer, SpinResult, UIContext, Souls } from '../types/index.ts'
 import { Economy } from './Economy.ts'
 import { BonusSystem, slotsForStage } from './BonusSystem.ts'
 import { RunState, START_BALANCE } from './RunState.ts'
@@ -16,6 +16,9 @@ import { ProfileModal } from '../ui/ProfileModal.ts'
 import { PaytableModal } from '../ui/PaytableModal.ts'
 import { DialogueUI } from '../ui/DialogueUI.ts'
 import { EndScreen } from '../ui/EndScreen.ts'
+import { TutorialUI } from '../ui/TutorialUI.ts'
+import { Tutorial } from './Tutorial.ts'
+import type { TutorialEvent } from './Tutorial.ts'
 import type { DebugApi, DebugPanel } from '../ui/DebugPanel.ts'
 import { ITEM_POOL, requireItem, tierOf } from './items/index.ts'
 import { CHARACTERS, getCharacter, isCharacterPlayable, getNextCharacterId, isDebugEnvironment } from './Characters.ts'
@@ -50,6 +53,8 @@ export class GameLoop {
   private paytableModal: PaytableModal
   private dialogueUI: DialogueUI
   private endScreen: EndScreen
+  private tutorial = new Tutorial(this.progression)
+  private tutorialUI: TutorialUI
   /** Run terminée (victoire ou défaite) : plus aucune action de jeu n'est acceptée. */
   private runEnded = false
   /** Panneau de debug — instancié à la première run du personnage de test. */
@@ -110,10 +115,19 @@ export class GameLoop {
       }
     )
     this.dialogueUI = new DialogueUI()
+    this.tutorialUI = new TutorialUI(
+      (id) => this.tutorial.markSeen(id),
+      () => this.tutorial.skip(),
+    )
     this.shop = new ShopUI(
       this.bonusSystem,
       this.economy,
-      () => { this.uiContext.updateHUD(); this.renderer.showModifiers(this.bonusSystem.getModifiers()); this.save() },
+      () => {
+        this.uiContext.updateHUD()
+        this.renderer.showModifiers(this.bonusSystem.getModifiers())
+        this.save()
+        this.notifyTutorial({ type: 'shop_changed', ...this.tutorialShopState() })
+      },
       async (offer) => {
         const def = requireItem(offer.defId)
         // Cible grisée = achat impossible avec cette cible-là. La raison est affichée :
@@ -166,6 +180,11 @@ export class GameLoop {
     })
     document.getElementById('machine-help-btn')?.addEventListener('click', () => this.paytableModal.open(this.machine))
     document.getElementById('new-game-btn')?.addEventListener('click', () => this.restartRun())
+    document.getElementById('tutorial-btn')?.addEventListener('click', () => {
+      this.tutorial.reset()
+      this.tutorialUI.clear()
+      this.notifyTutorial({ type: 'run_start' })
+    })
 
     this.actionBtn = document.getElementById('char-action-btn') as HTMLButtonElement | null
     this.actionBtn?.addEventListener('click', () => this.handleCharacterAction())
@@ -225,6 +244,7 @@ export class GameLoop {
       this.refreshAction()
       this.characterSelect.hide()
       void this.syncDebugPanel()
+      this.notifyTutorial({ type: 'run_start' })
     }
   }
 
@@ -270,6 +290,7 @@ export class GameLoop {
     this.shop.addLog(`${character?.emoji ?? ''} ${character?.name ?? characterId} — bonne chance.`, true)
     void this.syncDebugPanel()
     this.save(grid)
+    this.notifyTutorial({ type: 'run_start' })
   }
 
   async handleSpin(): Promise<void> {
@@ -301,7 +322,11 @@ export class GameLoop {
     if (!this.run.dialoguePlayed) {
       this.run.dialoguePlayed = true
       const lines = this.plugin.onDialogueTrigger?.(this.ctx)
-      if (lines?.length) await this.dialogueUI.show(lines)
+      if (lines?.length) {
+        this.tutorialUI.setSuspended(true)
+        await this.dialogueUI.show(lines)
+        this.tutorialUI.setSuspended(false)
+      }
     }
 
     await this.plugin.onBeforeSpin?.(this.ctx)
@@ -371,6 +396,7 @@ export class GameLoop {
       return
     }
 
+    this.notifyTutorial({ type: 'spin_resolved', won: result.totalWin > 0, ...this.tutorialShopState() })
     this.save(grid)
     this.isSpinning = false
     await delay(150)
@@ -424,6 +450,30 @@ export class GameLoop {
     else this.hud.restoreBetChips()
   }
 
+  /** Pousse les étapes dues vers la bulle. */
+  private notifyTutorial(event: TutorialEvent): void {
+    const steps = this.tutorial.notify(event)
+    if (!steps.length) return
+    this.tutorialUI.enqueue(steps, { forcedBet: !!this.plugin.getForcedBet?.(this.ctx) })
+  }
+
+  /**
+   * État de la boutique vu par le tuto. Une fusion n'est « possible » que si l'offre
+   * est abordable. Pour un item ciblé, la fusion se teste contre la cible du jumeau possédé.
+   */
+  private tutorialShopState(): { canAffordOffer: boolean; fusionAvailable: boolean } {
+    const offers = this.shop.getOffers()
+    const owned = this.bonusSystem.activeBonus
+    const isFusion = (o: ShopOffer) => owned
+      .filter(b => b.defId === o.defId && b.rarity === o.rarity)
+      .some(b => this.bonusSystem.buyState(o.defId, o.rarity, b.target ?? null) === 'fusion')
+    const affordable = offers.filter(o => this.economy.canAfford(o.price))
+    return {
+      canAffordOffer: affordable.length > 0,
+      fusionAvailable: affordable.some(isFusion),
+    }
+  }
+
   private checkStageProgress(grid: any[][]): void {
     // Le mode infini n'a pas de quota : on y joue pour aller le plus loin possible.
     if (this.run.isEndless) return
@@ -447,6 +497,7 @@ export class GameLoop {
     this.refreshBetChips()
     this.shop.refresh(this.economy.getShopLevel(this.run.stage))
     this.shop.addLog(`Palier ${this.run.stage} atteint — boutique renouvelée !`)
+    this.notifyTutorial({ type: 'stage_reached', stage: this.run.stage })
     this.uiContext.updateHUD()
     this.save(grid)
   }
@@ -592,6 +643,7 @@ export class GameLoop {
       this.refreshAction()
       return
     }
+    this.tutorialUI.clear()
     this.clearSave()
     this.runEnded = true
     this.isSpinning = false
@@ -609,6 +661,7 @@ export class GameLoop {
 
   /** Objectif du dernier palier atteint : la run est gagnée. */
   private victory(): void {
+    this.tutorialUI.clear()
     this.clearSave()
     this.runEnded = true
     this.isSpinning = false
@@ -653,6 +706,7 @@ export class GameLoop {
   }
 
   private restartRun(): void {
+    this.tutorialUI.clear()
     this.debugPanel?.hide()
     this.clearSave()
     this.runEnded = false
