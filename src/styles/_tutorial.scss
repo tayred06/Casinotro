@@ -1,0 +1,60 @@
+.tutorial-bubble {
+  position: fixed;
+  z-index: 900;
+  width: 280px;
+  padding: 12px 14px;
+  border: 1px solid var(--neon);
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--bg), 0 6px 24px rgba(0, 0, 0, .6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: tut-in .18s ease-out;
+
+  &.hidden { display: none; }
+}
+
+.tut-title {
+  font-family: var(--fdisp);
+  font-size: 12px;
+  letter-spacing: var(--disp-tracking);
+  text-transform: var(--disp-transform);
+  color: var(--neon);
+}
+
+.tut-text {
+  margin: 0;
+  font-family: var(--fui);
+  font-size: 18px;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.tut-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tut-ok,
+.tut-skip {
+  padding: 4px 10px;
+  font-family: var(--fmono);
+  font-size: 10px;
+  letter-spacing: .8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tut-ok   { border: 1px solid var(--neon); color: var(--neon); }
+.tut-skip { border: 1px solid var(--line); color: var(--ink-dim); }
+
+.tut-anchor {
+  outline: 2px solid var(--neon);
+  outline-offset: 3px;
+}
+
+@keyframes tut-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}

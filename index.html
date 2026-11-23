@@ -212,6 +212,7 @@
         <div class="shop-spacer"></div>
         <span class="shop-level-lbl" id="shop-level-lbl">NIVEAU 1</span>
         <button class="new-game-btn" id="new-game-btn">Nouvelle partie</button>
+        <button class="new-game-btn" id="tutorial-btn" title="Rejouer le tutoriel">Tutoriel</button>
       </div>
 
       <div class="shop-scroll">
@@ -231,6 +232,14 @@
   </div>
 
   <!-- Paytable Modal -->
+  <div id="tutorial-bubble" class="tutorial-bubble hidden" role="dialog" aria-live="polite">
+    <span class="tut-title" id="tut-title"></span>
+    <p class="tut-text" id="tut-text"></p>
+    <div class="tut-actions">
+      <button class="tut-skip" id="tut-skip">Passer le tuto</button>
+      <button class="tut-ok" id="tut-ok">Compris</button>
+    </div>
+  </div>
   <div id="paytable-modal-overlay" class="hidden">
     <div class="ptm-panel">
       <div class="ptm-header">

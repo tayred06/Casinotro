@@ -1,18 +1,29 @@
 import type { Souls } from '../types/index.ts'
 import { DEMO_UNLOCKED_IDS } from '../game/Characters.ts'
 import { DEFAULT_MACHINE_ID, isPlayable } from '../game/machines/index.ts'
+import type { TutorialStore } from '../game/Tutorial.ts'
 
 const KEY = 'casinotro_meta_v2'
 /** Ancienne clé, écrite par Economy avant que Progression devienne propriétaire. */
 const LEGACY_HIGHSCORE_KEY = 'casinotro_highscore'
 
-export class Progression {
+export class Progression implements TutorialStore {
   highscore: Souls = 0
   unlockedMachines: Set<string> = new Set([DEFAULT_MACHINE_ID])
   /** Personnages débloqués. Le roster de la démo l'est d'office. */
   unlockedCharacters: Set<string> = new Set(DEMO_UNLOCKED_IDS)
+  /** Tutoriel de première run terminé (vu en entier ou passé). */
+  tutorialDone = false
+  /** Étapes du tuto déjà affichées, pour reprendre après un rechargement. */
+  tutorialSeen: Set<string> = new Set()
 
   constructor() { this.load() }
+
+  saveTutorial(done: boolean, seen: readonly string[]): void {
+    this.tutorialDone = done
+    this.tutorialSeen = new Set(seen)
+    this.save()
+  }
 
   updateHighscore(value: Souls): void {
     if (value > this.highscore) {
@@ -41,6 +52,8 @@ export class Progression {
         highscore: this.highscore,
         unlockedMachines: [...this.unlockedMachines],
         unlockedCharacters: [...this.unlockedCharacters],
+        tutorialDone: this.tutorialDone,
+        tutorialSeen: [...this.tutorialSeen],
       }))
     } catch {}
   }
@@ -58,6 +71,13 @@ export class Progression {
         // Union avec le roster démo : une sauvegarde d'avant l'ouverture ne
         // doit pas re-verrouiller des personnages désormais gratuits.
         this.unlockedCharacters = new Set([...DEMO_UNLOCKED_IDS, ...(data.unlockedCharacters ?? [])])
+        // Absent (profil d'avant le tuto) = pas fait : le joueur peut toujours passer.
+        this.tutorialDone = data.tutorialDone === true
+        this.tutorialSeen = new Set(
+          Array.isArray(data.tutorialSeen)
+            ? data.tutorialSeen.filter((s: unknown): s is string => typeof s === 'string')
+            : []
+        )
       }
       this.#absorbLegacyHighscore()
     } catch {}

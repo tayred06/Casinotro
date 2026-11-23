@@ -258,3 +258,52 @@ describe('GameLoop — nouvelle partie', () => {
     expect(document.getElementById('char-hud-sin')!.textContent).toBe('Gula')
   })
 })
+
+describe('GameLoop — tutoriel', () => {
+  const META_KEY = 'casinotro_meta_v2'
+  const bubbleVisible = () => overlayVisible('tutorial-bubble')
+  const meta = () => JSON.parse(localStorage.getItem(META_KEY) ?? '{}')
+
+  beforeEach(() => {
+    mountIndexHtml()
+    vi.restoreAllMocks()
+  })
+
+  it('nouveau profil : la bulle « mise » s\'affiche au début de la run et compte comme vue', () => {
+    new GameLoop().startRun('luxuria')
+    expect(bubbleVisible()).toBe(true)
+    expect(document.getElementById('tut-title')!.textContent).toBe('La mise')
+    expect(meta().tutorialSeen).toEqual(['mise'])
+  })
+
+  it('« Passer » termine le tuto immédiatement et pour les runs suivantes', () => {
+    const loop = new GameLoop()
+    loop.startRun('luxuria')
+    document.getElementById('tut-skip')!.click()
+    expect(bubbleVisible()).toBe(false)
+    expect(meta().tutorialDone).toBe(true)
+    loop.startRun('luxuria')
+    expect(bubbleVisible()).toBe(false)
+  })
+
+  it('tuto déjà fait : aucune bulle', () => {
+    localStorage.setItem(META_KEY, JSON.stringify({ highscore: 0, unlockedMachines: ['rigide'], tutorialDone: true }))
+    new GameLoop().startRun('luxuria')
+    expect(bubbleVisible()).toBe(false)
+  })
+
+  it('le bouton « Tutoriel » relance le tuto', () => {
+    const loop = new GameLoop()
+    loop.startRun('luxuria')
+    document.getElementById('tut-skip')!.click()
+    document.getElementById('tutorial-btn')!.click()
+    expect(bubbleVisible()).toBe(true)
+    expect(document.getElementById('tut-title')!.textContent).toBe('La mise')
+    expect(meta().tutorialDone).toBe(false)
+  })
+
+  it('Gula : la bulle « mise » parle de mise imposée', () => {
+    new GameLoop().startRun('gula')
+    expect(document.getElementById('tut-text')!.textContent).toContain('imposée')
+  })
+})
